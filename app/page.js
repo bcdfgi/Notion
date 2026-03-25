@@ -1,12 +1,37 @@
-
 'use client';
+
 import React from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
+import { syncUser } from "./actions";
+
 const App = () => {
+
+    const login = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            try {
+
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const googleUser = await res.json();
+
+
+                const result = await syncUser(googleUser);
+
+                if (result.success) {
+                    alert(`Success! ${googleUser.name} is now in your MongoDB cluster.`);
+
+                }
+            } catch (error) {
+                console.error("Login failed:", error);
+            }
+        },
+        onError: () => console.log('Login Failed'),
+    });
+
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#FFFFFF] text-[#37352F]">
-
             <div className="w-full max-w-[400px] p-10">
-
                 <h1 className="text-3xl font-bold text-center mb-2">Log in</h1>
                 <p className="text-center text-gray-500 mb-8 text-sm">
                     Welcome to your workspace.
@@ -27,7 +52,6 @@ const App = () => {
                     </button>
                 </div>
 
-
                 <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                         <span className="w-full border-t border-gray-200"></span>
@@ -37,22 +61,17 @@ const App = () => {
                     </div>
                 </div>
 
-
                 <button
                     className="flex items-center justify-center w-full gap-3 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200 mb-4 font-medium"
-                    onClick={() => console.log("Google Login Clicked")}
+                    onClick={() => login()} // 3. Changed this to trigger the Google popup
                 >
                     <img
                         src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                         alt="Google"
                         className="w-5 h-5"
                     />
-
                     Continue with Google
                 </button>
-
-
-
 
                 <p className="mt-8 text-xs text-gray-400 text-center leading-relaxed">
                     By clicking continue, you agree to our <span className="underline cursor-pointer">Terms of Service</span> and <span className="underline cursor-pointer">Privacy Policy</span>.
