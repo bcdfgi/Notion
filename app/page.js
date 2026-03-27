@@ -1,26 +1,25 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
-import { syncUser } from "./actions";
+import { syncUser, sendMagicLink } from "./actions";
 
 const App = () => {
+    const [email, setEmail] = useState("");
+    const [loading, setLoading] = useState(false);
+
 
     const login = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
             try {
-
                 const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                     headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
                 });
                 const googleUser = await res.json();
-
-
                 const result = await syncUser(googleUser);
 
                 if (result.success) {
-                    alert(`Success! ${googleUser.name} is now in your MongoDB cluster.`);
-
+                    alert(`Success! ${googleUser.name} logged in via Google.`);
                 }
             } catch (error) {
                 console.error("Login failed:", error);
@@ -28,6 +27,21 @@ const App = () => {
         },
         onError: () => console.log('Login Failed'),
     });
+
+
+    const handleEmailLogin = async () => {
+        if (!email) return alert("Please enter your email");
+
+        setLoading(true);
+        const result = await sendMagicLink(email);
+        setLoading(false);
+
+        if (result.success) {
+            alert(`Check your inbox! A magic link has been sent to ${email}`);
+        } else {
+            alert("Something went wrong. Make sure your RESEND_API_KEY is correct.");
+        }
+    };
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#FFFFFF] text-[#37352F]">
@@ -43,12 +57,18 @@ const App = () => {
                         <input
                             type="email"
                             placeholder="Enter your email address..."
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full mt-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
                         />
                     </div>
 
-                    <button className="w-full bg-[#2383E2] hover:bg-[#0070D2] text-white font-medium py-2 rounded-md transition-colors shadow-sm">
-                        Continue with Email
+                    <button
+                        onClick={handleEmailLogin}
+                        disabled={loading}
+                        className="w-full bg-[#2383E2] hover:bg-[#0070D2] text-white font-medium py-2 rounded-md transition-colors shadow-sm disabled:bg-gray-400"
+                    >
+                        {loading ? "Sending..." : "Continue with Email"}
                     </button>
                 </div>
 
@@ -63,7 +83,7 @@ const App = () => {
 
                 <button
                     className="flex items-center justify-center w-full gap-3 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200 mb-4 font-medium"
-                    onClick={() => login()} // 3. Changed this to trigger the Google popup
+                    onClick={() => login()}
                 >
                     <img
                         src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
