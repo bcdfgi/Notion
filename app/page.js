@@ -19,7 +19,7 @@ const App = () => {
                 const result = await syncUser(googleUser);
 
                 if (result.success) {
-                    alert(`Success! ${googleUser.name} logged in via Google.`);
+                    window.location.href='/dashboard';
                 }
             } catch (error) {
                 console.error("Login failed:", error);

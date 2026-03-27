@@ -1,7 +1,7 @@
 'use server';
 import { Resend } from 'resend';
 import clientPromise from "@/lib/mongodb";
-// import {crypto} from "./crypto";
+
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 export async function syncUser(userData) {
@@ -34,7 +34,7 @@ export async function sendMagicLink(email) {
 
 
         const token = Math.random().toString(36).substring(2, 15);
-        const expires = new Date(Date.now() + 3600000); // 1 hour
+        const expires = new Date(Date.now() + 3600000);
 
 
         await db.collection("verificationTokens").updateOne(
