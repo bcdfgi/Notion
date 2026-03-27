@@ -60,14 +60,51 @@ export async function sendMagicLink(email) {
         return { success: false };
     }
 }
-export async function updatePageContent(pageId, content) {
-    const client = await clientPromise;
-    const db = client.db("notion_clone");
 
-    await db.collection("pages").updateOne(
-        { _id: pageId },
-        { $set: { content: content, updatedAt: new Date() } }
-    );
+export async function updatePageContent(userEmail, data) {
+    try {
+        const client = await clientPromise;
+        const db = client.db("notion_clone");
 
-    return { success: true };
+        await db.collection("users").updateOne(
+            { email: userEmail },
+            {
+                $set: {
+
+                    dashboardTitle: data.title,
+                    dashboardContent: data.content,
+                    updatedAt: new Date()
+                }
+            },
+            { upsert: true }
+        );
+
+        return { success: true };
+    } catch (e) {
+        console.error("MongoDB Save Error:", e);
+        return { success: false };
+    }
+}
+
+
+
+export async function getUserData(email) {
+    try {
+        const client = await clientPromise;
+        const db = client.db("notion_clone");
+
+        const user = await db.collection("users").findOne({ email: email });
+
+        return {
+            success: true,
+
+            data: {
+                title: user?.dashboardTitle || "Untitled",
+                content: user?.dashboardContent || ''
+            }
+        };
+    } catch (e) {
+        console.error("MongoDB Fetch Error:", e);
+        return { success: false, data: { title: "Untitled", content: '' } };
+    }
 }
