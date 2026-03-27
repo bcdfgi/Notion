@@ -60,3 +60,14 @@ export async function sendMagicLink(email) {
         return { success: false };
     }
 }
+export async function updatePageContent(pageId, content) {
+    const client = await clientPromise;
+    const db = client.db("notion_clone");
+
+    await db.collection("pages").updateOne(
+        { _id: pageId },
+        { $set: { content: content, updatedAt: new Date() } }
+    );
+
+    return { success: true };
+}

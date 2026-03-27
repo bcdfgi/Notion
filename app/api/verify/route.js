@@ -21,7 +21,7 @@ export async function GET(request) {
         await db.collection("verificationTokens").deleteOne({ _id: verifiedToken._id });
 
 
-        return NextResponse.redirect(new URL('/?login=success', request.url));
+        return NextResponse.redirect(new URL('/dashboard', request.url));
     } else {
         return NextResponse.json({ error: "Invalid or expired link" }, { status: 400 });
     }
