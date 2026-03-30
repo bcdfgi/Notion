@@ -1,3 +1,70 @@
 @import "tailwindcss";
 
 
+
+@layer components {
+
+    .tiptap p.is-editor-empty:first-child::before {
+        @apply text-gray-300 float-left h-0 pointer-events-none;
+        content: attr(data-placeholder);
+    }
+
+
+    .tiptap ul[data-type="taskList"] {
+        @apply list-none p-0 my-4;
+    }
+
+    .tiptap ul[data-type="taskList"] li {
+        @apply flex items-start mb-2;
+    }
+
+    .tiptap ul[data-type="taskList"] li > label {
+        @apply flex-none mr-3 select-none mt-1;
+    }
+
+    .tiptap ul[data-type="taskList"] input[type="checkbox"] {
+        @apply w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer;
+    }
+
+    .tiptap ul[data-type="taskList"] li > div {
+        @apply flex-auto;
+    }
+
+
+    .tiptap h1, .tiptap h2, .tiptap h3 {
+        @apply outline-none;
+    }
+
+
+    .tiptap ::selection {
+        @apply bg-blue-100;
+    }
+}
+
+
+
+
+.notion-block-handle {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    position: absolute;
+
+    left: -45px;
+    transition: opacity 0.2s ease;
+    pointer-events: auto;
+    z-index: 50;
+}
+
+.handle-btn {
+    @apply flex items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+}
+
+
+.tiptap {
+    @apply pl-12;
+    position: relative;
+}

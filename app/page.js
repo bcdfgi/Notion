@@ -37,7 +37,7 @@ const App = () => {
         setLoading(false);
 
         if (result.success) {
-            alert(`Check your inbox! A magic link has been sent to ${email}`);
+            alert(`Check your inbox! A link has been sent to ${email}`);
         } else {
             alert("Something went wrong. Make sure your RESEND_API_KEY is correct.");
         }
