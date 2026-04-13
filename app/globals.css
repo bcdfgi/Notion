@@ -44,27 +44,32 @@
 
 
 
-.notion-block-handle {
+
+
+.notion-handle-container {
+    position: absolute;
+    left: -50px;
     display: flex;
     align-items: center;
     gap: 2px;
-    position: absolute;
-
-    left: -45px;
-    transition: opacity 0.2s ease;
-    pointer-events: auto;
+    height: 24px;
     z-index: 50;
+    transition: top 0.1s ease-out, opacity 0.2s;
+    pointer-events: auto;
+    transform: translateX(-100%);
+    padding-right: 10px;
 }
 
 .handle-btn {
-    @apply flex items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors;
-    width: 24px;
-    height: 24px;
-    cursor: pointer;
+    @apply p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-600 transition-colors;
 }
 
 
-.tiptap {
-    @apply pl-12;
-    position: relative;
+.editor-shell:hover .notion-handle-container {
+    opacity: 1;
+}
+
+.handle-btn:hover {
+    background-color: #f1f5f9;
+    color: #64748b;
 }

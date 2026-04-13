@@ -4,25 +4,29 @@ import React, { useState } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { syncUser, sendMagicLink } from "./actions";
 
+
 const App = () => {
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
 
 
+
     const login = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
+            setLoading(true);
             try {
-                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-                });
-                const googleUser = await res.json();
-                const result = await syncUser(googleUser);
+
+                const result = await syncUser(tokenResponse.access_token);
 
                 if (result.success) {
-                    window.location.href='/dashboard';
+                    window.location.href = '/dashboard';
+                } else {
+                    alert("Login failed during synchronization.");
                 }
             } catch (error) {
                 console.error("Login failed:", error);
+            } finally {
+                setLoading(false);
             }
         },
         onError: () => console.log('Login Failed'),
@@ -45,7 +49,7 @@ const App = () => {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#FFFFFF] text-[#37352F]">
-            <div className="w-full max-w-[400px] p-10">
+            <div className="w-full max-w-[384px] p-10">
                 <h1 className="text-3xl font-bold text-center mb-2">Log in</h1>
                 <p className="text-center text-gray-500 mb-8 text-sm">
                     Welcome to your workspace.
@@ -85,6 +89,7 @@ const App = () => {
                     className="flex items-center justify-center w-full gap-3 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200 mb-4 font-medium"
                     onClick={() => login()}
                 >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                         src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                         alt="Google"
