@@ -8,27 +8,39 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import debounce from 'lodash.debounce';
 import { updatePageContent, getUserData } from '../actions';
+import { Link } from '@tiptap/extension-link';
+import { Color } from '@tiptap/extension-color';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Code } from '@tiptap/extension-code';
+import { Underline } from '@tiptap/extension-underline';
+
+
 
 const useIsMounted = () => {
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setMounted(true);
-    }, []);
+        setMounted(true); }, []);
     return mounted;
 };
 
-const MenuButton = ({ onClick, isActive, children }) => (
+const ToolbarButton = ({ onClick, isActive, children, className = "" }) => (
     <button
         type="button"
         onClick={onClick}
-        className={`px-2 py-1.5 text-sm font-medium rounded hover:bg-gray-100 transition-colors ${
-            isActive ? 'text-blue-600 bg-blue-50' : 'text-gray-600'
-        }`}
+        className={`h-7 min-w-[28px] px-1.5 rounded flex items-center justify-center transition-all duration-200 ease-in-out ${
+            isActive
+                ? 'bg-blue-50 text-blue-600'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+        } ${className}`}
     >
         {children}
     </button>
 );
+
+const VerticalDivider = () => <div className="w-[1px] h-4 bg-gray-200 mx-1.5" />;
+
+
 
 const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const isMounted = useIsMounted();
@@ -42,7 +54,19 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
     const editor = useEditor({
         extensions: [
-            StarterKit,
+            StarterKit.configure({
+                code: false,
+                link: false,
+                underline: false,
+            }),
+            Underline,
+            TextStyle,
+            Color,
+            Code,
+            Link.configure({
+                openOnClick: false,
+                HTMLAttributes: { class: 'text-blue-500 underline cursor-pointer' }
+            }),
             TaskList,
             TaskItem.configure({ nested: true }),
             Placeholder.configure({ placeholder: "Type '/' for commands..." }),
@@ -95,7 +119,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         const containerRect = containerRef.current.getBoundingClientRect();
         const targetRect = targetElement.getBoundingClientRect();
         const offset = isTitle ? 14 : 4;
-
         setHandlePos({ top: targetRect.top - containerRect.top + offset, opacity: 1 });
     }, []);
 
@@ -139,39 +162,38 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     }
 
     return (
-        <div className="flex h-screen bg-white overflow-hidden">
+        <div className="flex h-screen bg-white overflow-hidden font-sans text-slate-900">
 
             <aside
-                className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 ease-in-out bg-[#FBFBFA] border-r border-gray-200 flex flex-col z-20`}
+                className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 ease-in-out bg-[#FBFBFA] border-r border-gray-200 flex flex-col z-20 overflow-hidden`}
             >
                 <div className="p-4 flex flex-col h-full min-w-[256px]">
-
-                    <div className="flex items-center gap-2 px-2 py-1 mb-6 hover:bg-gray-200/50 rounded cursor-pointer transition-colors">
-                        <div className="w-6 h-6 bg-orange-500 rounded text-white flex items-center justify-center text-[10px] font-bold">
+                    <div className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 rounded-lg cursor-pointer transition-colors">
+                        <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
                             {userEmail[0].toUpperCase()}
                         </div>
-                        <span className="font-medium text-sm text-slate-700 truncate">
+                        <span className="font-semibold text-sm text-slate-700 truncate">
                             {`${userEmail.split('@')[0]}'s Notion`}
                         </span>
                     </div>
 
-
-                    <nav className="flex-1 space-y-0.5">
-                        <button className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-slate-600 hover:bg-gray-200/50 rounded transition-colors group">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+                    <nav className="flex-1 space-y-1">
+                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
                             Home
                         </button>
-                        <button
-                            onClick={() => alert("Settings logic here")}
-                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-slate-600 hover:bg-gray-200/50 rounded transition-colors"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+                            Library
+                        </button>
+                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                             Settings
                         </button>
                     </nav>
 
                     <div className="mt-auto pt-4 border-t border-gray-200">
-                        <button className="w-full text-left px-2 py-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors">
+                        <button className="w-full text-left px-2 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 transition-colors">
                             Log out
                         </button>
                     </div>
@@ -180,72 +202,114 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
             <div className="flex-1 flex flex-col min-w-0 bg-white relative">
-
-
-                <header className="h-12 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md z-10">
+                <header className="h-11 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md z-10">
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="p-1.5 hover:bg-gray-100 rounded text-gray-500 transition-colors"
-                        title="Toggle Sidebar"
+                        className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
-                    <div className="flex items-center gap-4">
-                        <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${savingStatus === "Saving..." ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                             {savingStatus}
                         </span>
                     </div>
                 </header>
 
-
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-y-auto">
                     <main
                         ref={containerRef}
                         onMouseMove={handleMouseMove}
-                        className="max-w-3xl mx-auto mt-20 px-16 relative group pb-40"
+                        className="max-w-3xl mx-auto mt-16 px-16 relative group pb-40"
                     >
 
                         <div
-                            className="absolute flex items-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            className="absolute flex items-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100"
                             style={{
                                 transform: `translate3d(-100%, ${handlePos.top}px, 0)`,
-                                transition: 'transform 120ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms ease-in-out',
-
+                                transition: 'transform 100ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms',
                             }}
                         >
                             <button
-                                type="button"
                                 className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 transition-colors"
                                 onClick={() => editor?.chain().focus().insertContent('<p></p>').run()}
                             >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                             </button>
-                            <div className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 cursor-grab active:cursor-grabbing transition-colors">
+                            <div className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 cursor-grab active:cursor-grabbing">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" /><circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" /></svg>
                             </div>
                         </div>
 
-
                         <h1
                             ref={titleRef}
-                            className="text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight"
+                            className="text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300"
                             contentEditable
                             suppressContentEditableWarning={true}
+                            data-placeholder="Untitled"
                             onInput={(e) => saveContent(editor?.getJSON(), e.currentTarget.innerText)}
                         >
                             Untitled
                         </h1>
 
-
                         {editor && (
                             <>
-                                <BubbleMenu editor={editor} pluginKey="bubbleMenu" className="flex bg-white border border-gray-200 shadow-xl rounded-lg p-1">
-                                    <MenuButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')}>B</MenuButton>
+                                <BubbleMenu
+                                    editor={editor}
+                                    tippyOptions={{ duration: 150 }}
+                                    className="flex items-center gap-0.5 bg-white border border-gray-200 shadow-xl rounded-lg p-1.5"
+                                >
+                                    <button className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded text-xs font-semibold text-gray-700 transition-colors">
+                                        T
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6"/></svg>
+                                    </button>
+
+                                    <VerticalDivider />
+
+                                    <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')}>
+                                        <span className="font-bold text-[13px]">B</span>
+                                    </ToolbarButton>
+
+                                    <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')}>
+                                        <span className="italic serif text-[14px]">I</span>
+                                    </ToolbarButton>
+
+                                    <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')}>
+                                        <span className="underline text-[13px] underline-offset-2">U</span>
+                                    </ToolbarButton>
+
+                                    <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} isActive={editor.isActive('code')}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                                    </ToolbarButton>
+
+                                    <VerticalDivider />
+
+                                    <ToolbarButton onClick={() => {
+                                        const url = window.prompt('Enter URL');
+                                        if (url) editor.chain().focus().setLink({ href: url }).run();
+                                    }} isActive={editor.isActive('link')}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                                    </ToolbarButton>
+
+                                    <ToolbarButton>
+                                        <div className="flex flex-col items-center leading-none">
+                                            <span className="text-[13px] font-semibold text-gray-700">A</span>
+                                            <div className="w-3 h-[2px] bg-red-500 rounded-full mt-0.5" />
+                                        </div>
+                                    </ToolbarButton>
+
+                                    <VerticalDivider />
+
+                                    <ToolbarButton>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+                                    </ToolbarButton>
                                 </BubbleMenu>
 
-                                <FloatingMenu editor={editor} pluginKey="floatingMenu" className="flex gap-1 bg-white border border-gray-200 shadow-lg rounded-lg p-1.5">
-                                    <MenuButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</MenuButton>
-                                    <MenuButton onClick={() => editor.chain().focus().toggleTaskList().run()}>Task</MenuButton>
+                                <FloatingMenu editor={editor} className="flex gap-1 bg-white border border-gray-200 shadow-lg rounded-lg p-1.5 animate-in fade-in slide-in-from-bottom-2">
+                                    <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
+                                    <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleTaskList().run()}>Task List</button>
+                                    <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleBulletList().run()}>Bullet List</button>
                                 </FloatingMenu>
                             </>
                         )}
