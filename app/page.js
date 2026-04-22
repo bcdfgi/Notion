@@ -3,11 +3,13 @@
 import React, { useState } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { syncUser, sendMagicLink } from "./actions";
+import { useRouter } from 'next/navigation';
 
 
 const App = () => {
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
 
 
 
@@ -19,7 +21,7 @@ const App = () => {
                 const result = await syncUser(tokenResponse.access_token);
 
                 if (result.success) {
-                    window.location.href = '/dashboard';
+                    router.push( '/dashboard');
                 } else {
                     alert("Login failed during synchronization.");
                 }

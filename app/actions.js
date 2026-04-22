@@ -3,6 +3,7 @@
 import { Resend } from 'resend';
 import clientPromise from "@/lib/mongodb";
 import { cookies } from "next/headers";
+import {redirect} from "next/navigation";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -130,4 +131,10 @@ export async function getUserData(email) {
         console.error("MongoDB Fetch Error:", e);
         return { success: false, data: { title: "Untitled", content: '' } };
     }
+}
+
+export async function logout(){
+    const cookieStore = await cookies();
+    cookieStore.delete("user_email");
+    redirect("/");
 }

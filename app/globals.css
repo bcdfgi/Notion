@@ -94,3 +94,33 @@
 .tiptap ul[data-type="taskList"] li > div {
     flex: 1 1 auto;
 }
+
+@layer components {
+
+    .dark .tiptap p.is-editor-empty:first-child::before {
+        @apply text-[#474747];
+    }
+
+    .dark .tiptap {
+        @apply text-[#EBEBEB];
+    }
+
+
+    .dark .tiptap ::selection {
+        background: #233D5E;
+    }
+
+    .dark .tiptap ul[data-type="taskList"] input[type="checkbox"] {
+        @apply border-[#3F3F3F] bg-[#252525];
+    }
+}
+
+
+.dark .handle-btn {
+    color: #474747;
+}
+
+.dark .handle-btn:hover {
+    background-color: #2C2C2C;
+    color: #EBEBEB;
+}

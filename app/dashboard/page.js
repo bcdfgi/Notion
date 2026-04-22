@@ -7,7 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import debounce from 'lodash.debounce';
-import { updatePageContent, getUserData } from '../actions';
+import { updatePageContent, getUserData, logout } from '../actions';
 import { Link } from '@tiptap/extension-link';
 import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -193,7 +193,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     </nav>
 
                     <div className="mt-auto pt-4 border-t border-gray-200">
-                        <button className="w-full text-left px-2 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 transition-colors">
+                        <button  onClick={()=> logout()}  className="w-full text-left px-2 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 transition-colors">
                             Log out
                         </button>
                     </div>
