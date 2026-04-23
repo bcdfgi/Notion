@@ -4,6 +4,7 @@ import { Resend } from 'resend';
 import clientPromise from "@/lib/mongodb";
 import { cookies } from "next/headers";
 import {redirect} from "next/navigation";
+import { ObjectId } from "mongodb";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -85,30 +86,7 @@ export async function sendMagicLink(email) {
     }
 }
 
-export async function updatePageContent(userEmail, data) {
-    try {
-        const client = await clientPromise;
-        const db = client.db("notion_clone");
 
-        await db.collection("users").updateOne(
-            { email: userEmail },
-            {
-                $set: {
-
-                    dashboardTitle: data.title,
-                    dashboardContent: data.content,
-                    updatedAt: new Date()
-                }
-            },
-            { upsert: true }
-        );
-
-        return { success: true };
-    } catch (e) {
-        console.error("MongoDB Save Error:", e);
-        return { success: false };
-    }
-}
 
 
 
@@ -137,4 +115,85 @@ export async function logout(){
     const cookieStore = await cookies();
     cookieStore.delete("user_email");
     redirect("/");
+}
+
+
+
+export async function createPage(userEmail) {
+    try {
+        const client = await clientPromise;
+        const db = client.db("notion_clone");
+
+        const newPage = {
+            userEmail,
+            title: "Untitled",
+            content: { type: 'doc', content: [] },
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
+
+        const result = await db.collection("pages").insertOne(newPage);
+        return { success: true, pageId: result.insertedId.toString() };
+    } catch (e) {
+        return { success: false };
+    }
+}
+
+export async function getPages(userEmail) {
+    try {
+        const client = await clientPromise;
+        const db = client.db("notion_clone");
+        const pages = await db.collection("pages")
+            .find({ userEmail })
+            .sort({ updatedAt: -1 })
+            .toArray();
+
+        return {
+            success: true,
+            pages: pages.map(p => ({ ...p, _id: p._id.toString() }))
+        };
+    } catch (e) {
+        return { success: false, pages: [] };
+    }
+}
+
+
+export async function updatePageContent(pageId, data) {
+    try {
+
+        if (!pageId || !ObjectId.isValid(pageId)) {
+            console.error("Invalid Page ID provided");
+            return { success: false, error: "Invalid ID" };
+        }
+
+        const client = await clientPromise;
+        const db = client.db("notion_clone");
+
+
+        const cookieStore = await cookies();
+        const userEmail = cookieStore.get("user_email")?.value;
+
+        const updateResult = await db.collection("pages").updateOne(
+            {
+                _id: new ObjectId(pageId),
+                userEmail: userEmail
+            },
+            {
+                $set: {
+                    title: data.title || "Untitled",
+                    content: data.content,
+                    updatedAt: new Date()
+                }
+            }
+        );
+
+        if (updateResult.matchedCount === 0) {
+            return { success: false, error: "Page not found or unauthorized" };
+        }
+
+        return { success: true };
+    } catch (e) {
+        console.error("Save Error:", e);
+        return { success: false };
+    }
 }

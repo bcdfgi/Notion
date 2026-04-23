@@ -7,7 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import debounce from 'lodash.debounce';
-import { updatePageContent, getUserData, logout } from '../actions';
+import { updatePageContent, logout, createPage, getPages } from '../actions';
 import { Link } from '@tiptap/extension-link';
 import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -28,7 +28,7 @@ const ToolbarButton = ({ onClick, isActive, children, className = "" }) => (
     <button
         type="button"
         onClick={onClick}
-        className={`h-7 min-w-[28px] px-1.5 rounded flex items-center justify-center transition-all duration-200 ease-in-out ${
+        className={`h-7 min-w-7 px-1.5 rounded flex items-center justify-center transition-all duration-200 ease-in-out ${
             isActive
                 ? 'bg-blue-50 text-blue-600'
                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
@@ -50,6 +50,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [handlePos, setHandlePos] = useState({ top: -100, opacity: 0 });
 
     const containerRef = useRef(null);
+    const [pages, setPages] = useState([]);
+    const [currentPageId, setCurrentPageId] = useState(null);
     const titleRef = useRef(null);
 
     const editor = useEditor({
@@ -95,24 +97,79 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
         },
     });
+    const fetchSidebar = useCallback(async () => {
+        const result = await getPages(userEmail);
+        if (result.success) {
+            setPages(result.pages);
+        }
+    }, [userEmail]);
+
+    const loadPage = useCallback(async (pageId, forceData = null) => {
+        if (!pageId || (pageId === currentPageId && !forceData)) return;
+
+        setCurrentPageId(pageId);
+        setIsLoading(true);
+
+        const selectedPage = forceData || pages.find(p => p._id === pageId);
+
+        if (selectedPage) {
+
+            editor?.commands.clearContent();
+
+            if (titleRef.current) {
+                titleRef.current.innerText = selectedPage.title || "";
+            } setTimeout(() => {
+                editor?.commands.setContent(selectedPage.content);
+                editor?.commands.focus('start');
+                setIsLoading(false);
+            }, 10);
+        } else {
+
+            const result = await getPages(userEmail);
+            const freshPage = result.pages.find(p => p._id === pageId);
+            if (freshPage) {
+                setPages(result.pages);
+                if (titleRef.current) titleRef.current.innerText = freshPage.title || "";
+                editor?.commands.setContent(freshPage.content);
+            }
+            setIsLoading(false);
+        }
+    }, [currentPageId, editor, pages, userEmail]);
+    const handleCreatePage = async () => {
+        const result = await createPage(userEmail);
+        if (result.success) {
+
+            const sidebarResult = await getPages(userEmail);
+            setPages(sidebarResult.pages);
+
+
+            const newPage = sidebarResult.pages.find(p => p._id === result.pageId);
+            loadPage(result.pageId, newPage);
+        }
+    };
 
     useEffect(() => {
-        const loadInitialData = async () => {
-            if (!editor || !isMounted) return;
-            try {
-                const result = await getUserData(userEmail);
-                if (result.success && result.data) {
-                    if (titleRef.current) titleRef.current.innerText = result.data.title;
-                    editor.commands.setContent(result.data.content);
+        const initialize = async () => {
+
+            if (isMounted && editor && !currentPageId) {
+                const result = await getPages(userEmail);
+                if (result.success && result.pages.length > 0) {
+                    setPages(result.pages);
+                    const firstPage = result.pages[0];
+
+                    setCurrentPageId(firstPage._id);
+                    requestAnimationFrame(() => {
+                        if (titleRef.current) titleRef.current.innerText = firstPage.title || "";
+                    });
+                    editor.commands.setContent(firstPage.content);
+                    setIsLoading(false);
+                } else if (result.success && result.pages.length === 0) {
+                    handleCreatePage();
                 }
-            } catch (error) {
-                console.error("Failed to load data", error);
-            } finally {
-                setIsLoading(false);
             }
         };
-        loadInitialData();
-    }, [editor, isMounted, userEmail]);
+        initialize();
+    }, [isMounted, editor, userEmail]);
 
     const updateHandlePosition = useCallback((targetElement, isTitle = false) => {
         if (!containerRef.current || !targetElement) return;
@@ -135,11 +192,23 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     };
 
     const debouncedSave = useMemo(
-        () => debounce(async (json, currentTitle, email) => {
+        () => debounce(async (json, currentTitle, pageId) => {
+            if (!pageId) return;
             setSavingStatus("Saving...");
             try {
-                const result = await updatePageContent(email, { title: currentTitle, content: json });
-                setSavingStatus(result.success ? "Saved" : "Error");
+                const result = await updatePageContent(pageId, { title: currentTitle, content: json });
+
+                if (result.success) {
+                    setSavingStatus("Saved");
+
+                    setPages(prevPages =>
+                        prevPages.map(p =>
+                            p._id === pageId ? { ...p, title: currentTitle } : p
+                        )
+                    );
+                } else {
+                    setSavingStatus("Error");
+                }
             } catch (error) {
                 setSavingStatus("Error");
             }
@@ -147,9 +216,17 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         []
     );
 
+
+
+
+
+
     const saveContent = useCallback((json, title) => {
-        if (!isLoading) debouncedSave(json, title, userEmail);
-    }, [userEmail, debouncedSave, isLoading]);
+
+        if (!isLoading && currentPageId && title.trim() !== "") {
+            debouncedSave(json, title, currentPageId);
+        }
+    }, [currentPageId, debouncedSave, isLoading]);
 
     if (!isMounted) return null;
 
@@ -186,6 +263,34 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
                             Library
                         </button>
+                        <div className="mt-8">
+                            <div className="flex items-center justify-between px-3 mb-2 group">
+                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Private</span>
+                                <button
+                                    onClick={handleCreatePage}
+                                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded transition-all"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                </button>
+                            </div>
+
+                            <div className="space-y-0.5">
+                                {pages.map((page) => (
+                                    <button
+                                        key={page._id}
+                                        onClick={() => loadPage(page._id)}
+                                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                                            currentPageId === page._id
+                                                ? 'bg-gray-200 text-slate-900 font-medium'
+                                                : 'text-slate-600 hover:bg-gray-200/50'
+                                        }`}
+                                    >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                        <span className="truncate">{page.title || "Untitled"}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                         <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                             Settings
@@ -244,13 +349,19 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                         <h1
                             ref={titleRef}
-                            className="text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300"
+                            className="text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-black-300"
                             contentEditable
                             suppressContentEditableWarning={true}
                             data-placeholder="Untitled"
-                            onInput={(e) => saveContent(editor?.getJSON(), e.currentTarget.innerText)}
+                            onInput={(e) => {
+                                const text = e.currentTarget.innerText;
+
+                                if (text.trim().length > 0) {
+                                    saveContent(editor?.getJSON(), text);
+                                }
+                            }}
                         >
-                            Untitled
+
                         </h1>
 
                         {editor && (
