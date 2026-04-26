@@ -90,26 +90,26 @@ export async function sendMagicLink(email) {
 
 
 
-export async function getUserData(email) {
-    try {
-        const client = await clientPromise;
-        const db = client.db("notion_clone");
-
-        const user = await db.collection("users").findOne({ email: email });
-
-        return {
-            success: true,
-
-            data: {
-                title: user?.dashboardTitle || "Untitled",
-                content: user?.dashboardContent || ''
-            }
-        };
-    } catch (e) {
-        console.error("MongoDB Fetch Error:", e);
-        return { success: false, data: { title: "Untitled", content: '' } };
-    }
-}
+// export async function getUserData(email) {
+//     try {
+//         const client = await clientPromise;
+//         const db = client.db("notion_clone");
+//
+//         const user = await db.collection("users").findOne({ email: email });
+//
+//         return {
+//             success: true,
+//
+//             data: {
+//                 title: user?.dashboardTitle || "Untitled",
+//                 content: user?.dashboardContent || ''
+//             }
+//         };
+//     } catch (e) {
+//         console.error("MongoDB Fetch Error:", e);
+//         return { success: false, data: { title: "Untitled", content: '' } };
+//     }
+// }
 
 export async function logout(){
     const cookieStore = await cookies();
@@ -127,7 +127,7 @@ export async function createPage(userEmail) {
         const newPage = {
             userEmail,
             title: "Untitled",
-            content: { type: 'doc', content: [] },
+            content: { type: 'doc', content: [{type: 'paragraph'}] },
             createdAt: new Date(),
             updatedAt: new Date()
         };
@@ -194,6 +194,28 @@ export async function updatePageContent(pageId, data) {
         return { success: true };
     } catch (e) {
         console.error("Save Error:", e);
+        return { success: false };
+    }
+}
+
+export async function deletePage(pageId) {
+    try {
+        if (!pageId || !ObjectId.isValid(pageId)) return { success: false };
+
+        const client = await clientPromise;
+        const db = client.db("notion_clone");
+
+        const cookieStore = await cookies();
+        const userEmail = cookieStore.get("user_email")?.value;
+
+        const result = await db.collection("pages").deleteOne({
+            _id: new ObjectId(pageId),
+            userEmail: userEmail
+        });
+
+        return { success: result.deletedCount > 0 };
+    } catch (e) {
+        console.error("Delete Error:", e);
         return { success: false };
     }
 }

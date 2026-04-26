@@ -7,7 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import debounce from 'lodash.debounce';
-import { updatePageContent, logout, createPage, getPages } from '../actions';
+import { updatePageContent, logout, createPage, getPages,deletePage } from '../actions';
 import { Link } from '@tiptap/extension-link';
 import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -97,6 +97,28 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
         },
     });
+
+    const debouncedSave = useMemo(
+        () => debounce(async (json, currentTitle, pageId) => {
+            if (!pageId) return;
+            setSavingStatus("Saving...");
+            try {
+                const result = await updatePageContent(pageId, { title: currentTitle, content: json });
+                if (result.success) {
+                    setSavingStatus("Saved");
+
+                    setPages(prevPages => {
+                        return prevPages.map(p =>
+                            p._id === pageId ? { ...p, title: currentTitle, content: json } : p
+                        );
+                    });
+                }
+            } catch (error) {
+                setSavingStatus("Error");
+            }
+        }, 1000),
+        []
+    );
     const fetchSidebar = useCallback(async () => {
         const result = await getPages(userEmail);
         if (result.success) {
@@ -104,37 +126,48 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
     }, [userEmail]);
 
+
     const loadPage = useCallback(async (pageId, forceData = null) => {
         if (!pageId || (pageId === currentPageId && !forceData)) return;
 
-        setCurrentPageId(pageId);
+
+        debouncedSave.cancel();
+
+
         setIsLoading(true);
+        setCurrentPageId(pageId);
 
         const selectedPage = forceData || pages.find(p => p._id === pageId);
 
-        if (selectedPage) {
 
-            editor?.commands.clearContent();
+        if (selectedPage) {
+            const displayTitle = selectedPage.title || "Untitled";
 
             if (titleRef.current) {
-                titleRef.current.innerText = selectedPage.title || "";
-            } setTimeout(() => {
-                editor?.commands.setContent(selectedPage.content);
-                editor?.commands.focus('start');
+                titleRef.current.innerText = displayTitle;
+                titleRef.current._lastValue = displayTitle; // LOCK IT IN
+            }
+
+            requestAnimationFrame(() => {
+                editor?.commands.setContent(selectedPage.content, false);
                 setIsLoading(false);
-            }, 10);
+            });
         } else {
 
             const result = await getPages(userEmail);
             const freshPage = result.pages.find(p => p._id === pageId);
+
             if (freshPage) {
                 setPages(result.pages);
-                if (titleRef.current) titleRef.current.innerText = freshPage.title || "";
-                editor?.commands.setContent(freshPage.content);
+                if (titleRef.current) {
+                    titleRef.current.innerText = freshPage.title || "Untitled";
+                }
+                editor?.commands.setContent(freshPage.content, false);
             }
             setIsLoading(false);
         }
-    }, [currentPageId, editor, pages, userEmail]);
+    }, [currentPageId, editor, pages, userEmail, debouncedSave]);
+
     const handleCreatePage = async () => {
         const result = await createPage(userEmail);
         if (result.success) {
@@ -147,6 +180,28 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             loadPage(result.pageId, newPage);
         }
     };
+    const handleDeletePage = async (e, pageId) => {
+        e.stopPropagation();
+
+        if (confirm("Are you sure you want to delete this page?")) {
+            const result = await deletePage(pageId);
+            if (result.success) {
+
+                setPages(prev => prev.filter(p => p._id !== pageId));
+
+                // If we deleted the current page, move to the first available page
+                if (currentPageId === pageId) {
+                    const remainingPages = pages.filter(p => p._id !== pageId);
+                    if (remainingPages.length > 0) {
+                        loadPage(remainingPages[0]._id);
+                    } else {
+                        handleCreatePage();
+                    }
+                }
+            }
+        }
+    };
+
 
     useEffect(() => {
         const initialize = async () => {
@@ -158,8 +213,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     const firstPage = result.pages[0];
 
                     setCurrentPageId(firstPage._id);
+
                     requestAnimationFrame(() => {
-                        if (titleRef.current) titleRef.current.innerText = firstPage.title || "";
+                        if (titleRef.current) {
+                            const initialTitle = firstPage.title || "Untitled";
+                            titleRef.current.innerText = initialTitle;
+                            titleRef.current._lastValue = initialTitle;
+                        }
                     });
                     editor.commands.setContent(firstPage.content);
                     setIsLoading(false);
@@ -191,30 +251,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         if (block) updateHandlePosition(block);
     };
 
-    const debouncedSave = useMemo(
-        () => debounce(async (json, currentTitle, pageId) => {
-            if (!pageId) return;
-            setSavingStatus("Saving...");
-            try {
-                const result = await updatePageContent(pageId, { title: currentTitle, content: json });
-
-                if (result.success) {
-                    setSavingStatus("Saved");
-
-                    setPages(prevPages =>
-                        prevPages.map(p =>
-                            p._id === pageId ? { ...p, title: currentTitle } : p
-                        )
-                    );
-                } else {
-                    setSavingStatus("Error");
-                }
-            } catch (error) {
-                setSavingStatus("Error");
-            }
-        }, 1000),
-        []
-    );
 
 
 
@@ -223,10 +259,38 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
     const saveContent = useCallback((json, title) => {
 
-        if (!isLoading && currentPageId && title.trim() !== "") {
-            debouncedSave(json, title, currentPageId);
+        const cleanTitle = title.replace(/\n/g, '').trim();
+
+
+        if (!isLoading && currentPageId && cleanTitle.length > 0) {
+            debouncedSave(json, cleanTitle, currentPageId);
         }
     }, [currentPageId, debouncedSave, isLoading]);
+
+
+
+    useEffect(() => {
+        if (!editor || !currentPageId) return;
+
+        editor.setOptions({
+            onUpdate: ({ editor }) => {
+                const currentTitle = titleRef.current?.innerText || "Untitled";
+                saveContent(editor.getJSON(), currentTitle);
+            },
+        });
+    }, [editor, currentPageId, saveContent]);
+    useEffect(() => {
+        const currentPage = pages.find(p => p._id === currentPageId);
+
+        if (currentPage && titleRef.current && document.activeElement !== titleRef.current) {
+            const syncTitle = currentPage.title || "Untitled";
+            if (titleRef.current.innerText !== syncTitle) {
+                titleRef.current.innerText = syncTitle;
+                titleRef.current._lastValue = syncTitle;
+            }
+        }
+    }, [pages, currentPageId]);
+
 
     if (!isMounted) return null;
 
@@ -276,18 +340,28 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                             <div className="space-y-0.5">
                                 {pages.map((page) => (
-                                    <button
-                                        key={page._id}
-                                        onClick={() => loadPage(page._id)}
-                                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                                            currentPageId === page._id
-                                                ? 'bg-gray-200 text-slate-900 font-medium'
-                                                : 'text-slate-600 hover:bg-gray-200/50'
-                                        }`}
-                                    >
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                                        <span className="truncate">{page.title || "Untitled"}</span>
-                                    </button>
+                                    <div key={page._id} className="group relative">
+                                        <button
+                                            onClick={() => loadPage(page._id)}
+                                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                                                currentPageId === page._id
+                                                    ? 'bg-gray-200 text-slate-900 font-medium'
+                                                    : 'text-slate-600 hover:bg-gray-200/50'
+                                            }`}
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                            <span className="truncate pr-6">{page.title || "Untitled"}</span>
+                                        </button>
+
+
+                                        <button
+                                            onClick={(e) => handleDeletePage(e, page._id)}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-300 rounded text-gray-400 hover:text-red-500 transition-all"
+                                            title="Delete page"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        </button>
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -349,17 +423,37 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                         <h1
                             ref={titleRef}
-                            className="text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-black-300"
                             contentEditable
                             suppressContentEditableWarning={true}
                             data-placeholder="Untitled"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    editor?.chain().focus().run();
+                                }
+                            }}
                             onInput={(e) => {
                                 const text = e.currentTarget.innerText;
 
-                                if (text.trim().length > 0) {
+
+                                if (text.trim() === "") return;
+
+
+                                if (text !== titleRef.current._lastValue) {
+                                    titleRef.current._lastValue = text;
                                     saveContent(editor?.getJSON(), text);
                                 }
                             }}
+                            onBlur={(e) => {
+                                const text = e.currentTarget.innerText.trim();
+                                if (text === "") {
+                                    const fallback = "Untitled";
+                                    e.currentTarget.innerText = fallback;
+                                    titleRef.current._lastValue = fallback;
+                                    saveContent(editor?.getJSON(), fallback);
+                                }
+                            }}
+                            className="text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300"
                         >
 
                         </h1>

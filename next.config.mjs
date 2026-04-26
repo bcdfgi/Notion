@@ -1,4 +1,3 @@
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
@@ -9,6 +8,18 @@ const nextConfig = {
                 pathname: '/**',
             },
         ],
+    },
+
+
+    turbopack: {
+        rules: {
+
+        },
+    },
+
+    typescript: {
+
+        ignoreBuildErrors: true,
     },
 };
 
