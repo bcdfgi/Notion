@@ -90,26 +90,26 @@ export async function sendMagicLink(email) {
 
 
 
-// export async function getUserData(email) {
-//     try {
-//         const client = await clientPromise;
-//         const db = client.db("notion_clone");
-//
-//         const user = await db.collection("users").findOne({ email: email });
-//
-//         return {
-//             success: true,
-//
-//             data: {
-//                 title: user?.dashboardTitle || "Untitled",
-//                 content: user?.dashboardContent || ''
-//             }
-//         };
-//     } catch (e) {
-//         console.error("MongoDB Fetch Error:", e);
-//         return { success: false, data: { title: "Untitled", content: '' } };
-//     }
-// }
+export async function getUserData(email) {
+    try {
+        const client = await clientPromise;
+        const db = client.db("notion_clone");
+
+        const user = await db.collection("users").findOne({ email: email });
+
+        return {
+            success: true,
+
+            data: {
+                title: user?.dashboardTitle || "Untitled",
+                content: user?.dashboardContent || ''
+            }
+        };
+    } catch (e) {
+        console.error("MongoDB Fetch Error:", e);
+        return { success: false, data: { title: "Untitled", content: '' } };
+    }
+}
 
 export async function logout(){
     const cookieStore = await cookies();

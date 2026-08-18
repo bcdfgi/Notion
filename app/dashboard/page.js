@@ -131,10 +131,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         if (!pageId || (pageId === currentPageId && !forceData)) return;
 
 
-        debouncedSave.cancel();
+        debouncedSave.flush();
 
 
-        setIsLoading(true);
+
         setCurrentPageId(pageId);
 
         const selectedPage = forceData || pages.find(p => p._id === pageId);
@@ -145,7 +145,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
             if (titleRef.current) {
                 titleRef.current.innerText = displayTitle;
-                titleRef.current._lastValue = displayTitle; // LOCK IT IN
+                titleRef.current._lastValue = displayTitle;
             }
 
             requestAnimationFrame(() => {
@@ -161,6 +161,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 setPages(result.pages);
                 if (titleRef.current) {
                     titleRef.current.innerText = freshPage.title || "Untitled";
+                    titleRef.current._lastValue = freshPage.title || "Untitled";
                 }
                 editor?.commands.setContent(freshPage.content, false);
             }
@@ -189,7 +190,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                 setPages(prev => prev.filter(p => p._id !== pageId));
 
-                // If we deleted the current page, move to the first available page
+
                 if (currentPageId === pageId) {
                     const remainingPages = pages.filter(p => p._id !== pageId);
                     if (remainingPages.length > 0) {
@@ -282,14 +283,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     useEffect(() => {
         const currentPage = pages.find(p => p._id === currentPageId);
 
-        if (currentPage && titleRef.current && document.activeElement !== titleRef.current) {
+        if (currentPage && titleRef.current) {
             const syncTitle = currentPage.title || "Untitled";
-            if (titleRef.current.innerText !== syncTitle) {
+            if (document.activeElement !== titleRef.current && titleRef.current.innerText !== syncTitle) {
                 titleRef.current.innerText = syncTitle;
                 titleRef.current._lastValue = syncTitle;
             }
         }
-    }, [pages, currentPageId]);
+    }, [currentPageId]);
 
 
     if (!isMounted) return null;
@@ -434,27 +435,20 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             }}
                             onInput={(e) => {
                                 const text = e.currentTarget.innerText;
+                                saveContent(editor?.getJSON(), text);
 
-
-                                if (text.trim() === "") return;
-
-
-                                if (text !== titleRef.current._lastValue) {
-                                    titleRef.current._lastValue = text;
-                                    saveContent(editor?.getJSON(), text);
-                                }
                             }}
                             onBlur={(e) => {
                                 const text = e.currentTarget.innerText.trim();
                                 if (text === "") {
                                     const fallback = "Untitled";
                                     e.currentTarget.innerText = fallback;
-                                    titleRef.current._lastValue = fallback;
                                     saveContent(editor?.getJSON(), fallback);
                                 }
                             }}
-                            className="text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300"
-                        >
+                            className="text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300">
+
+
 
                         </h1>
 
