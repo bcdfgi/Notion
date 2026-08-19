@@ -46,6 +46,7 @@ const NOTION_COVERS = [
     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop"
 ]
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const isMounted = useIsMounted();
@@ -60,6 +61,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const titleRef = useRef(null);
     const [coverImage,setCoverImage] = useState(null);
     const [showCoverPicker, setShowCoverPicker] = useState(false);
+    const fileInputRef = useRef(null);
+    const [uploadError, setUploadError] = useState("");
+    const [isRepositioning, setIsRepositioning] = useState(false);
+    const [coverPosition, setCoverPosition] = useState(50);
+    const [isDraggingCover, setIsDraggingCover] = useState(false);
+    const dragRef = useRef({ startY: 0, startPos: 50 });
 
 
     const editor = useEditor({
@@ -207,6 +214,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
         }
     };
+
     const handleUpdateCover = async (newCoverUrl) => {
         setCoverImage(newCoverUrl);
         setShowCoverPicker(false);
@@ -233,6 +241,88 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
     const handleRemoveCover = () => {
         handleUpdateCover(null);
+    };
+    const handleFileUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+
+        e.target.value = '';
+
+        if (!file.type.startsWith('image/')) {
+            setUploadError('Please select a valid image file.');
+            return;
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+            setUploadError('Image size exceeds 5MB limit.');
+            return;
+        }
+
+        setUploadError('');
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                handleUpdateCover(reader.result);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+    const handleMouseDownCover = (e) => {
+        if (!isRepositioning) return;
+        setIsDraggingCover(true);
+        dragRef.current = { startY: e.clientY, startPos: coverPosition };
+    };
+
+    const handleMouseMoveCover = useCallback((e) => {
+        if (!isDraggingCover) return;
+        const deltaY = e.clientY - dragRef.current.startY;
+
+
+        const newPos = Math.max(0, Math.min(100, dragRef.current.startPos - (deltaY * 0.3)));
+        setCoverPosition(newPos);
+    }, [isDraggingCover]);
+
+    const handleMouseUpCover = useCallback(() => {
+        setIsDraggingCover(false);
+    }, []);
+
+
+    useEffect(() => {
+        if (isDraggingCover) {
+            window.addEventListener('mousemove', handleMouseMoveCover);
+            window.addEventListener('mouseup', handleMouseUpCover);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMoveCover);
+            window.removeEventListener('mouseup', handleMouseUpCover);
+        };
+    }, [isDraggingCover, handleMouseMoveCover, handleMouseUpCover]);
+    const handleSavePosition = async () => {
+        setIsRepositioning(false);
+        if (currentPageId) {
+            setSavingStatus("Saving...");
+
+            setPages(prev => prev.map(p =>
+                p._id === currentPageId ? { ...p, coverPosition } : p
+            ));
+
+
+            const currentTitle = titleRef.current?.innerText || "Untitled";
+            const res = await updatePageContent(currentPageId, {
+                title: currentTitle,
+                content: editor?.getJSON(),
+                coverPosition: coverPosition
+            });
+            setSavingStatus(res.success ? "Saved" : "Error");
+        }
+    };
+
+    const handleCancelReposition = () => {
+        setIsRepositioning(false);
+
+        const currentPage = pages.find(p => p._id === currentPageId);
+        setCoverPosition(currentPage?.coverPosition ?? 50);
     };
 
 
@@ -428,26 +518,63 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                 <div className="flex-1 overflow-y-auto">
                     {coverImage && (
-                        <div className="relative group/cover w-full h-52 sm:h-64 overflow-hidden bg-gray-100">
+                        <div
+                            className={`relative w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
+                                isRepositioning
+                                    ? (isDraggingCover ? 'cursor-grabbing' : 'cursor-grab')
+                                    : 'group/cover'
+                            }`}
+                            onMouseDown={handleMouseDownCover}
+                        >
                             <img
                                 src={coverImage}
                                 alt="Cover"
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover pointer-events-none select-none"
+                                style={{ objectPosition: `center ${coverPosition}%` }}
                             />
-                            <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={() => setShowCoverPicker(prev => !prev)}
-                                    className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
-                                >
-                                    Change cover
-                                </button>
-                                <button
-                                    onClick={handleRemoveCover}
-                                    className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm backdrop-blur-sm transition-all"
-                                >
-                                    Remove
-                                </button>
-                            </div>
+
+                            {isRepositioning ? (
+                                <div className="absolute top-4 w-full flex justify-between px-8 items-center z-10 pointer-events-none">
+                                    <div className="px-3 py-1.5 bg-black/60 text-white text-xs rounded shadow-sm">
+                                        Drag image to reposition
+                                    </div>
+                                    <div className="flex items-center gap-2 pointer-events-auto">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleCancelReposition(); }}
+                                            className="px-3 py-1.5 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleSavePosition(); }}
+                                            className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded transition-all"
+                                        >
+                                            Save position
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={() => setShowCoverPicker(prev => !prev)}
+                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
+                                    >
+                                        Change cover
+                                    </button>
+                                    <button
+                                        onClick={() => setIsRepositioning(true)}
+                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
+                                    >
+                                        Reposition
+                                    </button>
+                                    <button
+                                        onClick={handleRemoveCover}
+                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm backdrop-blur-sm transition-all"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                     <main
@@ -479,7 +606,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 <div className="flex items-center justify-between mb-3">
                                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
                                     <button
-                                        onClick={() => setShowCoverPicker(false)}
+                                        onClick={() => setShowCoverPicker(false) }
                                         className="text-gray-400 hover:text-gray-600 text-xs"
                                     >
                                         ✕
@@ -497,16 +624,48 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     ))}
                                 </div>
                                 <div>
-                                    <input
-                                        type="text"
-                                        placeholder="Paste image link & press Enter..."
-                                        className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && e.currentTarget.value) {
-                                                handleUpdateCover(e.currentTarget.value);
-                                            }
-                                        }}
-                                    />
+                                    <div className="space-y-2 pt-2 border-t border-gray-100">
+
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={handleFileUpload}
+                                            accept="image/png, image/jpeg, image/webp, image/gif"
+                                            className="hidden"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-medium rounded border border-gray-200 transition-colors"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                <polyline points="17 8 12 3 7 8" />
+                                                <line x1="12" y1="3" x2="12" y2="15" />
+                                            </svg>
+                                            Upload custom image
+                                        </button>
+                                        <div className="text-[10px] text-gray-400 text-center">Max file size: 5MB</div>
+
+
+                                        {uploadError && (
+                                            <p className="text-[11px] text-red-500 font-medium text-center">{uploadError}</p>
+                                        )}
+
+
+                                        <input
+                                            type="text"
+                                            placeholder="Or paste image link & press Enter..."
+                                            className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && e.currentTarget.value) {
+                                                    handleUpdateCover(e.currentTarget.value);
+                                                }
+                                            }}
+                                        />
+                                    </div>
+
                                 </div>
                             </div>
                         )}
