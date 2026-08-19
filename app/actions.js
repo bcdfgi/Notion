@@ -127,6 +127,7 @@ export async function createPage(userEmail) {
         const newPage = {
             userEmail,
             title: "Untitled",
+            coverImage: null,
             content: { type: 'doc', content: [{type: 'paragraph'}] },
             createdAt: new Date(),
             updatedAt: new Date()
@@ -157,10 +158,8 @@ export async function getPages(userEmail) {
     }
 }
 
-
 export async function updatePageContent(pageId, data) {
     try {
-
         if (!pageId || !ObjectId.isValid(pageId)) {
             console.error("Invalid Page ID provided");
             return { success: false, error: "Invalid ID" };
@@ -169,9 +168,21 @@ export async function updatePageContent(pageId, data) {
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
-
         const cookieStore = await cookies();
         const userEmail = cookieStore.get("user_email")?.value;
+
+
+        const updateData = {
+            title: data.title || "Untitled",
+            content: data.content,
+            updatedAt: new Date()
+        };
+
+
+        if (data.coverImage !== undefined) {
+            updateData.coverImage = data.coverImage;
+        }
+
 
         const updateResult = await db.collection("pages").updateOne(
             {
@@ -179,11 +190,7 @@ export async function updatePageContent(pageId, data) {
                 userEmail: userEmail
             },
             {
-                $set: {
-                    title: data.title || "Untitled",
-                    content: data.content,
-                    updatedAt: new Date()
-                }
+                $set: updateData
             }
         );
 

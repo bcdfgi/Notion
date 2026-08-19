@@ -38,9 +38,14 @@ const ToolbarButton = ({ onClick, isActive, children, className = "" }) => (
     </button>
 );
 
-const VerticalDivider = () => <div className="w-[1px] h-4 bg-gray-200 mx-1.5" />;
+const VerticalDivider = () => <div className="w-px h-4 bg-gray-200 mx-1.5" />;
 
-
+const NOTION_COVERS = [
+    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop"
+]
 
 const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const isMounted = useIsMounted();
@@ -53,6 +58,9 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [pages, setPages] = useState([]);
     const [currentPageId, setCurrentPageId] = useState(null);
     const titleRef = useRef(null);
+    const [coverImage,setCoverImage] = useState(null);
+    const [showCoverPicker, setShowCoverPicker] = useState(false);
+
 
     const editor = useEditor({
         extensions: [
@@ -119,12 +127,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }, 1000),
         []
     );
-    const fetchSidebar = useCallback(async () => {
-        const result = await getPages(userEmail);
-        if (result.success) {
-            setPages(result.pages);
-        }
-    }, [userEmail]);
+
 
 
     const loadPage = useCallback(async (pageId, forceData = null) => {
@@ -142,6 +145,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
         if (selectedPage) {
             const displayTitle = selectedPage.title || "Untitled";
+            setCoverImage(selectedPage.coverImage || null);
 
             if (titleRef.current) {
                 titleRef.current.innerText = displayTitle;
@@ -159,6 +163,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
             if (freshPage) {
                 setPages(result.pages);
+                setCoverImage(freshPage.coverImage || null);
                 if (titleRef.current) {
                     titleRef.current.innerText = freshPage.title || "Untitled";
                     titleRef.current._lastValue = freshPage.title || "Untitled";
@@ -202,6 +207,33 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
         }
     };
+    const handleUpdateCover = async (newCoverUrl) => {
+        setCoverImage(newCoverUrl);
+        setShowCoverPicker(false);
+
+        if (currentPageId) {
+            const currentTitle = titleRef.current?.innerText || "Untitled";
+            const currentContent = editor?.getJSON() || { type: 'doc', content: [{ type: 'paragraph' }] };
+
+
+            setPages(prev =>
+                prev.map(p => (p._id === currentPageId ? { ...p, coverImage: newCoverUrl } : p))
+            );
+
+
+            setSavingStatus("Saving...");
+            const res = await updatePageContent(currentPageId, {
+                title: currentTitle,
+                content: currentContent,
+                coverImage: newCoverUrl
+            });
+            setSavingStatus(res.success ? "Saved" : "Error");
+        }
+    };
+
+    const handleRemoveCover = () => {
+        handleUpdateCover(null);
+    };
 
 
     useEffect(() => {
@@ -214,6 +246,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     const firstPage = result.pages[0];
 
                     setCurrentPageId(firstPage._id);
+                    setCoverImage(firstPage.coverImage || null);
 
                     requestAnimationFrame(() => {
                         if (titleRef.current) {
@@ -251,10 +284,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         const block = element?.closest('.tiptap > *');
         if (block) updateHandlePosition(block);
     };
-
-
-
-
 
 
 
@@ -398,10 +427,33 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 </header>
 
                 <div className="flex-1 overflow-y-auto">
+                    {coverImage && (
+                        <div className="relative group/cover w-full h-52 sm:h-64 overflow-hidden bg-gray-100">
+                            <img
+                                src={coverImage}
+                                alt="Cover"
+                                className="w-full h-full object-cover"
+                            />
+                            <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={() => setShowCoverPicker(prev => !prev)}
+                                    className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
+                                >
+                                    Change cover
+                                </button>
+                                <button
+                                    onClick={handleRemoveCover}
+                                    className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm backdrop-blur-sm transition-all"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     <main
                         ref={containerRef}
                         onMouseMove={handleMouseMove}
-                        className="max-w-3xl mx-auto mt-16 px-16 relative group pb-40"
+                        className={`max-w-3xl mx-auto px-16 relative group pb-40 ${coverImage ? 'mt-8' : 'mt-16'}`}
                     >
 
                         <div
@@ -421,6 +473,57 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" /><circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" /></svg>
                             </div>
                         </div>
+
+                        {showCoverPicker && (
+                            <div className="absolute top-0 right-16 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
+                                    <button
+                                        onClick={() => setShowCoverPicker(false)}
+                                        className="text-gray-400 hover:text-gray-600 text-xs"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                    {NOTION_COVERS.map((url, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => handleUpdateCover(url)}
+                                            className="h-16 rounded overflow-hidden border border-gray-100 hover:scale-[1.02] transition-transform"
+                                        >
+                                            <img src={url} alt="preset" className="w-full h-full object-cover" />
+                                        </button>
+                                    ))}
+                                </div>
+                                <div>
+                                    <input
+                                        type="text"
+                                        placeholder="Paste image link & press Enter..."
+                                        className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && e.currentTarget.value) {
+                                                handleUpdateCover(e.currentTarget.value);
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+
+                        {!coverImage && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity mb-2 flex items-center gap-2">
+                                <button
+                                    onClick={() => setShowCoverPicker(true)}
+                                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                                    Add cover
+                                </button>
+                            </div>
+                        )}
+
 
                         <h1
                             ref={titleRef}
@@ -494,7 +597,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     <ToolbarButton>
                                         <div className="flex flex-col items-center leading-none">
                                             <span className="text-[13px] font-semibold text-gray-700">A</span>
-                                            <div className="w-3 h-[2px] bg-red-500 rounded-full mt-0.5" />
+                                            <div className="w-3 h-0.5 bg-red-500 rounded-full mt-0.5" />
                                         </div>
                                     </ToolbarButton>
 
