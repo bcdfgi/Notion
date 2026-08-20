@@ -13,7 +13,9 @@ import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Code } from '@tiptap/extension-code';
 import { Underline } from '@tiptap/extension-underline';
-
+import PageIcon from './PageIcon';
+import IconPickerModal from './IconPickerModal';
+import { Smile } from 'lucide-react';
 
 
 const useIsMounted = () => {
@@ -67,6 +69,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [coverPosition, setCoverPosition] = useState(50);
     const [isDraggingCover, setIsDraggingCover] = useState(false);
     const dragRef = useRef({ startY: 0, startPos: 50 });
+    const [pageIcon, setPageIcon] = useState(null);
+    const [showIconPicker, setShowIconPicker] = useState(false);
 
 
     const editor = useEditor({
@@ -92,7 +96,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: 'tiptap prose prose-slate max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32',
+                class: 'tiptap prose prose-slate max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 -ml-45 ',
             },
         },
         onUpdate: ({ editor }) => {
@@ -153,6 +157,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         if (selectedPage) {
             const displayTitle = selectedPage.title || "Untitled";
             setCoverImage(selectedPage.coverImage || null);
+            setPageIcon(selectedPage.icon || null);
 
             if (titleRef.current) {
                 titleRef.current.innerText = displayTitle;
@@ -268,6 +273,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         };
         reader.readAsDataURL(file);
     };
+
     const handleMouseDownCover = (e) => {
         if (!isRepositioning) return;
         setIsDraggingCover(true);
@@ -337,6 +343,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                     setCurrentPageId(firstPage._id);
                     setCoverImage(firstPage.coverImage || null);
+                    setPageIcon(firstPage.icon || null);
 
                     requestAnimationFrame(() => {
                         if (titleRef.current) {
@@ -373,6 +380,24 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         const element = document.elementFromPoint(e.clientX, e.clientY);
         const block = element?.closest('.tiptap > *');
         if (block) updateHandlePosition(block);
+    };
+    const handleUpdateIcon = async (selectedIcon) => {
+        setPageIcon(selectedIcon);
+        setShowIconPicker(false);
+
+        if (currentPageId) {
+            setPages(prev =>
+                prev.map(p => (p._id === currentPageId ? { ...p, icon: selectedIcon } : p))
+            );
+
+            setSavingStatus("Saving...");
+            const res = await updatePageContent(currentPageId, {
+                title: titleRef.current?.innerText || "Untitled",
+                content: editor?.getJSON(),
+                icon: selectedIcon,
+            });
+            setSavingStatus(res.success ? "Saved" : "Error");
+        }
     };
 
 
@@ -586,7 +611,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         <div
                             className="absolute flex items-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100"
                             style={{
-                                transform: `translate3d(-100%, ${handlePos.top}px, 0)`,
+                                transform: `translate3d(calc(-100% - 180px), ${handlePos.top}px, 0)`,
                                 transition: 'transform 100ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms',
                             }}
                         >
@@ -682,6 +707,56 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 </button>
                             </div>
                         )}
+                        <div className="flex items-center gap-2 mb-2 -ml-45">
+                            {pageIcon ? (
+                                <div className="relative inline-block">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowIconPicker(prev => !prev)}
+                                        className={`p-1 rounded-lg hover:bg-gray-200/50 transition-colors flex items-center justify-center border-none bg-transparent shadow-none outline-none ${
+                                            coverImage ? '-mt-16' : ''
+                                        }`}
+                                    >
+                                        <PageIcon icon={pageIcon} size={coverImage ? 56 : 44} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowIconPicker(true)}
+                                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                    >
+                                        <Smile size={14} />
+                                        Add icon
+                                    </button>
+                                </div>
+                            )}
+
+                            {!coverImage && (
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={() => setShowCoverPicker(true)}
+                                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                                        Add cover
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+
+                        {showIconPicker && (
+                            <div className="relative z-50">
+                                <div className="absolute top-0 left-0">
+                                    <IconPickerModal
+                                        onSelect={(selected) => handleUpdateIcon(selected)}
+                                        onClose={() => setShowIconPicker(false)}
+                                    />
+                                </div>
+                            </div>
+                        )}
 
 
                         <h1
@@ -708,7 +783,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     saveContent(editor?.getJSON(), fallback);
                                 }
                             }}
-                            className="text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300">
+                            className="-ml-45 text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300">
 
 
 
@@ -718,8 +793,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             <>
                                 <BubbleMenu
                                     editor={editor}
-                                    tippyOptions={{ duration: 150 }}
-                                    className="flex items-center gap-0.5 bg-white border border-gray-200 shadow-xl rounded-lg p-1.5"
+                                    tippyOptions={{ duration: 150}}
+                                    className="flex items-center gap-0.5 bg-white border border-gray-200 shadow-xl rounded-lg p-1.5 "
                                 >
                                     <button className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded text-xs font-semibold text-gray-700 transition-colors">
                                         T
