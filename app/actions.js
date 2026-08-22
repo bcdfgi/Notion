@@ -127,7 +127,9 @@ export async function createPage(userEmail) {
         const newPage = {
             userEmail,
             title: "Untitled",
+            icon: null,
             coverImage: null,
+            coverPosition: 50,
             content: { type: 'doc', content: [{type: 'paragraph'}] },
             createdAt: new Date(),
             updatedAt: new Date()
@@ -171,18 +173,15 @@ export async function updatePageContent(pageId, data) {
         const cookieStore = await cookies();
         const userEmail = cookieStore.get("user_email")?.value;
 
-
         const updateData = {
-            title: data.title || "Untitled",
-            content: data.content,
             updatedAt: new Date()
         };
 
-
-        if (data.coverImage !== undefined) {
-            updateData.coverImage = data.coverImage;
-        }
-
+        if (data.title !== undefined) updateData.title = data.title || "Untitled";
+        if (data.content !== undefined) updateData.content = data.content;
+        if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
+        if (data.coverPosition !== undefined) updateData.coverPosition = data.coverPosition;
+        if (data.icon !== undefined) updateData.icon = data.icon;
 
         const updateResult = await db.collection("pages").updateOne(
             {

@@ -176,6 +176,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             if (freshPage) {
                 setPages(result.pages);
                 setCoverImage(freshPage.coverImage || null);
+                setCoverPosition(freshPage.coverPosition ?? 50);
+                setPageIcon(freshPage.icon || null);
                 if (titleRef.current) {
                     titleRef.current.innerText = freshPage.title || "Untitled";
                     titleRef.current._lastValue = freshPage.title || "Untitled";
@@ -494,7 +496,11 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                     : 'text-slate-600 hover:bg-gray-200/50'
                                             }`}
                                         >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                            {page.icon ? (
+                                                <PageIcon icon={page.icon} size={16} />
+                                            ) : (
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                            )}
                                             <span className="truncate pr-6">{page.title || "Untitled"}</span>
                                         </button>
 
