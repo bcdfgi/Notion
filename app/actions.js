@@ -160,18 +160,21 @@ export async function getPages(userEmail) {
     }
 }
 
-export async function updatePageContent(pageId, data) {
+export async function updatePageContent(pageId, rawData) {
     try {
         if (!pageId || !ObjectId.isValid(pageId)) {
             console.error("Invalid Page ID provided");
             return { success: false, error: "Invalid ID" };
         }
 
+        // 💡 Strip Next.js client proxy wrappers into a clean plain JavaScript object
+        const data = JSON.parse(JSON.stringify(rawData));
+
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
         const cookieStore = await cookies();
-        const userEmail = cookieStore.get("user_email")?.value;
+        const userEmail = cookieStore.get("user_email")?.value || data.userEmail;
 
         const updateData = {
             updatedAt: new Date()
@@ -183,14 +186,14 @@ export async function updatePageContent(pageId, data) {
         if (data.coverPosition !== undefined) updateData.coverPosition = data.coverPosition;
         if (data.icon !== undefined) updateData.icon = data.icon;
 
+        const filter = { _id: new ObjectId(pageId) };
+        if (userEmail) {
+            filter.userEmail = userEmail;
+        }
+
         const updateResult = await db.collection("pages").updateOne(
-            {
-                _id: new ObjectId(pageId),
-                userEmail: userEmail
-            },
-            {
-                $set: updateData
-            }
+            filter,
+            { $set: updateData }
         );
 
         if (updateResult.matchedCount === 0) {
@@ -200,7 +203,7 @@ export async function updatePageContent(pageId, data) {
         return { success: true };
     } catch (e) {
         console.error("Save Error:", e);
-        return { success: false };
+        return { success: false, error: e.message };
     }
 }
 

@@ -15,7 +15,9 @@ import { Code } from '@tiptap/extension-code';
 import { Underline } from '@tiptap/extension-underline';
 import PageIcon from './PageIcon';
 import IconPickerModal from './IconPickerModal';
+import { Image } from '@tiptap/extension-image';
 import { Smile } from 'lucide-react';
+
 
 
 const useIsMounted = () => {
@@ -91,6 +93,33 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             TaskList,
             TaskItem.configure({ nested: true }),
             Placeholder.configure({ placeholder: "Type '/' for commands..." }),
+            Image.extend({
+                // Ensure base64 src isn't stripped during schema parsing
+                addAttributes() {
+                    return {
+                        src: {
+                            default: null,
+                            parseHTML: element => element.getAttribute('src'),
+                            renderHTML: attributes => {
+                                if (!attributes.src) return {};
+                                return { src: attributes.src };
+                            },
+                        },
+                        alt: {
+                            default: null,
+                        },
+                        title: {
+                            default: null,
+                        },
+                    };
+                },
+            }).configure({
+                inline: false,
+                allowBase64: true,
+                HTMLAttributes: {
+                    class: 'rounded-lg max-w-full my-4 shadow-sm',
+                },
+            }),
         ],
         content: '',
         immediatelyRender: false,
@@ -98,7 +127,100 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             attributes: {
                 class: 'tiptap prose prose-slate max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 -ml-45 ',
             },
+            handlePaste: (view, event) => {
+                const items = Array.from(event.clipboardData?.items || []);
+                const imageItem = items.find(item => item.type.startsWith('image/'));
+
+                if (!imageItem) return false;
+
+                const file = imageItem.getAsFile();
+                if (!file) return false;
+
+                if (file.size > MAX_FILE_SIZE) {
+                    alert('Image size exceeds 5MB limit.');
+                    return true;
+                }
+
+                // In handlePaste:
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const src = e.target?.result;
+                    if (typeof src === 'string') {
+                        const imageType = view.state.schema.nodes.image;
+                        if (imageType) {
+                            const node = imageType.create({ src });
+                            const transaction = view.state.tr.replaceSelectionWith(node);
+                            view.dispatch(transaction);
+
+                            if (currentPageId) {
+                                const currentTitle = titleRef.current?.innerText || "Untitled";
+                                const json = view.state.doc.toJSON();
+
+                                // Sync local state immediately
+                                setPages(prev => prev.map(p => p._id === currentPageId ? { ...p, content: json, title: currentTitle } : p));
+
+                                setSavingStatus("Saving...");
+                                const res = await updatePageContent(currentPageId, {
+                                    title: currentTitle,
+                                    content: json,
+                                    userEmail,
+                                });
+                                setSavingStatus(res.success ? "Saved" : "Error");
+                            }
+                        }
+                    }
+                };
+                reader.readAsDataURL(file);
+                return true;
+            },
+            handleDrop: (view, event, slice, moved) => {
+                if (moved || !event.dataTransfer?.files.length) return false;
+
+                const file = event.dataTransfer.files[0];
+                if (!file.type.startsWith('image/')) return false;
+
+                if (file.size > MAX_FILE_SIZE) {
+                    alert('Image size exceeds 5MB limit.');
+                    return true;
+                }
+
+                // In handleDrop:
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const src = e.target?.result;
+                    if (typeof src === 'string') {
+                        const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
+                        const imageType = view.state.schema.nodes.image;
+
+                        if (coordinates && imageType) {
+                            const node = imageType.create({ src });
+                            const transaction = view.state.tr.insert(coordinates.pos, node);
+                            view.dispatch(transaction);
+
+                            if (currentPageId) {
+                                const currentTitle = titleRef.current?.innerText || "Untitled";
+                                const json = view.state.doc.toJSON();
+
+                                // Sync local state immediately
+                                setPages(prev => prev.map(p => p._id === currentPageId ? { ...p, content: json, title: currentTitle } : p));
+
+                                setSavingStatus("Saving...");
+                                const res = await updatePageContent(currentPageId, {
+                                    title: currentTitle,
+                                    content: json,
+                                    userEmail,
+                                });
+                                setSavingStatus(res.success ? "Saved" : "Error");
+                            }
+                        }
+                    }
+                };
+                reader.readAsDataURL(file);
+                return true;
+            },
         },
+
+
         onUpdate: ({ editor }) => {
             const currentTitle = titleRef.current?.innerText || "Untitled";
             saveContent(editor.getJSON(), currentTitle);
@@ -122,7 +244,11 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             if (!pageId) return;
             setSavingStatus("Saving...");
             try {
-                const result = await updatePageContent(pageId, { title: currentTitle, content: json });
+                const result = await updatePageContent(pageId, {
+                    title: currentTitle,
+                    content: json,
+                    userEmail,
+                });
                 if (result.success) {
                     setSavingStatus("Saved");
 
@@ -131,12 +257,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             p._id === pageId ? { ...p, title: currentTitle, content: json } : p
                         );
                     });
+                } else {
+                    setSavingStatus("Error");
                 }
             } catch (error) {
                 setSavingStatus("Error");
             }
         }, 1000),
-        []
+        [userEmail]
     );
 
 
@@ -144,19 +272,23 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const loadPage = useCallback(async (pageId, forceData = null) => {
         if (!pageId || (pageId === currentPageId && !forceData)) return;
 
-
         debouncedSave.flush();
-
-
-
         setCurrentPageId(pageId);
 
-        const selectedPage = forceData || pages.find(p => p._id === pageId);
+        let selectedPage = forceData || pages.find(p => p._id === pageId);
 
+        if (!selectedPage) {
+            const result = await getPages(userEmail);
+            if (result.success && result.pages) {
+                setPages(result.pages);
+                selectedPage = result.pages.find(p => p._id === pageId);
+            }
+        }
 
         if (selectedPage) {
             const displayTitle = selectedPage.title || "Untitled";
             setCoverImage(selectedPage.coverImage || null);
+            setCoverPosition(selectedPage.coverPosition ?? 50);
             setPageIcon(selectedPage.icon || null);
 
             if (titleRef.current) {
@@ -164,29 +296,49 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 titleRef.current._lastValue = displayTitle;
             }
 
-            requestAnimationFrame(() => {
-                editor?.commands.setContent(selectedPage.content, false);
-                setIsLoading(false);
-            });
-        } else {
-
-            const result = await getPages(userEmail);
-            const freshPage = result.pages.find(p => p._id === pageId);
-
-            if (freshPage) {
-                setPages(result.pages);
-                setCoverImage(freshPage.coverImage || null);
-                setCoverPosition(freshPage.coverPosition ?? 50);
-                setPageIcon(freshPage.icon || null);
-                if (titleRef.current) {
-                    titleRef.current.innerText = freshPage.title || "Untitled";
-                    titleRef.current._lastValue = freshPage.title || "Untitled";
-                }
-                editor?.commands.setContent(freshPage.content, false);
+            // Set content with emitUpdate: false so we don't trigger a save loop
+            if (editor && !editor.isDestroyed) {
+                editor.commands.setContent(selectedPage.content || { type: 'doc', content: [{ type: 'paragraph' }] }, false);
             }
-            setIsLoading(false);
         }
+        setIsLoading(false);
     }, [currentPageId, editor, pages, userEmail, debouncedSave]);
+
+    useEffect(() => {
+        const initialize = async () => {
+            if (isMounted && editor && !currentPageId) {
+                const result = await getPages(userEmail);
+                if (result.success && result.pages.length > 0) {
+                    setPages(result.pages);
+                    const firstPage = result.pages[0];
+
+                    setCurrentPageId(firstPage._id);
+                    setCoverImage(firstPage.coverImage || null);
+                    setCoverPosition(firstPage.coverPosition ?? 50);
+                    setPageIcon(firstPage.icon || null);
+
+                    if (titleRef.current) {
+                        const initialTitle = firstPage.title || "Untitled";
+                        titleRef.current.innerText = initialTitle;
+                        titleRef.current._lastValue = initialTitle;
+                    }
+
+                    // Format document content safely
+                    const rawContent = firstPage.content;
+                    const parsedContent = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
+
+                    editor.commands.setContent(
+                        parsedContent && parsedContent.type ? parsedContent : { type: 'doc', content: [{ type: 'paragraph' }] },
+                        false
+                    );
+                    setIsLoading(false);
+                } else if (result.success && result.pages.length === 0) {
+                    handleCreatePage();
+                }
+            }
+        };
+        initialize();
+    }, [isMounted, editor, userEmail]);
 
     const handleCreatePage = async () => {
         const result = await createPage(userEmail);
@@ -333,36 +485,19 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         setCoverPosition(currentPage?.coverPosition ?? 50);
     };
 
-
     useEffect(() => {
-        const initialize = async () => {
-
-            if (isMounted && editor && !currentPageId) {
-                const result = await getPages(userEmail);
-                if (result.success && result.pages.length > 0) {
-                    setPages(result.pages);
-                    const firstPage = result.pages[0];
-
-                    setCurrentPageId(firstPage._id);
-                    setCoverImage(firstPage.coverImage || null);
-                    setPageIcon(firstPage.icon || null);
-
-                    requestAnimationFrame(() => {
-                        if (titleRef.current) {
-                            const initialTitle = firstPage.title || "Untitled";
-                            titleRef.current.innerText = initialTitle;
-                            titleRef.current._lastValue = initialTitle;
-                        }
-                    });
-                    editor.commands.setContent(firstPage.content);
-                    setIsLoading(false);
-                } else if (result.success && result.pages.length === 0) {
-                    handleCreatePage();
-                }
-            }
+        const handleBeforeUnload = () => {
+            debouncedSave.flush();
         };
-        initialize();
-    }, [isMounted, editor, userEmail]);
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [debouncedSave]);
+
+
+
 
     const updateHandlePosition = useCallback((targetElement, isTitle = false) => {
         if (!containerRef.current || !targetElement) return;
