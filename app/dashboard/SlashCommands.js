@@ -99,7 +99,46 @@ export const slashItems = [
 
     // --- Media ---
     {
-        title: 'Web Bookmark / Embed',
+        title:'Image',
+        description:'Inserts an image',
+        icon:'🖼️',
+        group: 'Media',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setEmbed({src:null,embedType:'default'}).run();
+
+        },
+    },
+    {
+        title:'Video',
+        description:'Inserts an video',
+        icon:'🎥',
+        group: 'Media',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setEmbed({src:null,embedType:'default'}).run();
+        },
+    },
+    {
+        title:'Code',
+        description:'Inserts an code',
+        icon:'</>',
+        group: 'Media',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).toggleCode().run();
+
+        },
+
+    },
+    {
+        title:'File',
+        description:'Inserts an file',
+        icon:'🗋',
+        group: 'Media',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).toggleCode().run();
+        },
+    },
+    {
+        title: 'Web Bookmark',
         description: 'Embed any link or web card',
         icon: '🔗',
         group: 'Media',
@@ -107,6 +146,7 @@ export const slashItems = [
             editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'default' }).run();
         },
     },
+
 
     // --- Embeds ---
     {
