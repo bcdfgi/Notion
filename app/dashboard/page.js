@@ -17,6 +17,9 @@ import PageIcon from './PageIcon';
 import IconPickerModal from './IconPickerModal';
 import { Image } from '@tiptap/extension-image';
 import { Smile } from 'lucide-react';
+import{ SlashCommands } from './SlashCommands'
+import {EmbedExtension} from './EmbedExtension';
+
 
 
 
@@ -93,8 +96,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             TaskList,
             TaskItem.configure({ nested: true }),
             Placeholder.configure({ placeholder: "Type '/' for commands..." }),
+            EmbedExtension,
+            SlashCommands,
             Image.extend({
-                // Ensure base64 src isn't stripped during schema parsing
+
                 addAttributes() {
                     return {
                         src: {
@@ -141,7 +146,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     return true;
                 }
 
-                // In handlePaste:
+
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     const src = e.target?.result;
@@ -156,7 +161,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 const currentTitle = titleRef.current?.innerText || "Untitled";
                                 const json = view.state.doc.toJSON();
 
-                                // Sync local state immediately
+
                                 setPages(prev => prev.map(p => p._id === currentPageId ? { ...p, content: json, title: currentTitle } : p));
 
                                 setSavingStatus("Saving...");
@@ -184,7 +189,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     return true;
                 }
 
-                // In handleDrop:
+
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     const src = e.target?.result;
@@ -201,7 +206,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 const currentTitle = titleRef.current?.innerText || "Untitled";
                                 const json = view.state.doc.toJSON();
 
-                                // Sync local state immediately
+
                                 setPages(prev => prev.map(p => p._id === currentPageId ? { ...p, content: json, title: currentTitle } : p));
 
                                 setSavingStatus("Saving...");
@@ -296,7 +301,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 titleRef.current._lastValue = displayTitle;
             }
 
-            // Set content with emitUpdate: false so we don't trigger a save loop
+
             if (editor && !editor.isDestroyed) {
                 editor.commands.setContent(selectedPage.content || { type: 'doc', content: [{ type: 'paragraph' }] }, false);
             }
@@ -323,7 +328,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         titleRef.current._lastValue = initialTitle;
                     }
 
-                    // Format document content safely
+
                     const rawContent = firstPage.content;
                     const parsedContent = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
 
@@ -987,6 +992,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
                                     <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleTaskList().run()}>Task List</button>
                                     <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleBulletList().run()}>Bullet List</button>
+
                                 </FloatingMenu>
                             </>
                         )}
