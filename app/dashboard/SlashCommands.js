@@ -146,9 +146,253 @@ export const slashItems = [
             editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'default' }).run();
         },
     },
+    // ---- Database ---
+    {
+        title:'Table View',
+        description:'Creates a table view',
+        icon:'⊞',
+        group:'Database',
+    },
+    {
+        title:'Board View',
+        description:'Creates a board view',
+        icon:'❚❚❚',
+        group:'Database',
+    },
+    {
+        title:'Gallery View',
+        description:'Creates a Gallery view',
+        icon:'⊞',
+        group:'Database',
+    },
+    {
+        title:'List View',
+        description:'Creates a List view',
+        icon:'☷',
+        group:'Database',
+    },
+    {
+        title:'Feed View',
+        description:'Creates a Feed view',
+        icon:'🗎',
+        group:'Database',
+    },
+    {
+        title:'Dashboard View',
+        description:'Creates a Dashboard view',
+        icon:'◫',
+        group:'Database',
+    },
+    {
+        title:'Calender View',
+        description:'Creates a Calender view',
+        icon:'🗓️',
+        group:'Database',
+    },
+    {
+        title:'Timeline View',
+        description:'Creates a Timeline view',
+        icon:'⊶',
+        group:'Database',
+    },
+    {
+        title:'Map View',
+        description:'Creates a Map view',
+        icon:'⌖',
+        group:'Database',
+    },
+    {
+        title:'Vertical bar Chart',
+        description:'Creates a vertical bar chart ',
+        icon:'📊',
+        group:'Database',
+    },
+    {
+        title:'Horizontal bar Chart',
+        description:'Creates a horizontal bar chart ',
+        icon:'☰',
+        group:'Database',
+    },
+    {
+        title:'Linear Chart',
+        description:'Creates a Linear chart',
+        icon:'📈',
+        group:'Database',
+    },
+    {
+        title:'Donut Chart',
+        description:'Creates a Donut Chart',
+        icon:'⭘',
+        group:'Database',
+    },
+    {
+        title:'Number Chart',
+        description:'Creates a Number Chart',
+        icon:'#',
+        group:'Database',
+    },
+    {
+        title:'Form',
+        description:'Create a Form',
+        icon:'📝️',
+        group:'Database',
+    },
+    {
+        title:'Database Inline',
+        description:'Adds a newline database to this page ',
+        icon:'⛃',
+        group:'Database',
+    },
+    {
+        title:'Database Full Page',
+        description:'Adds a new database as a new sub page',
+        icon:'⛁',
+        group:'Database',
+    },
+    {
+        title:'Linked view of a different data source',
+        description:'Adds a view of an existing data source to this page ',
+        icon:'⛁↗',
+        group:'Database',
+    },
+    //---Advanced Blocks---
+
+    {
+        title:'Table of Contents',
+        description:'Shows an outline of your page ',
+        icon:'☰',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'Block Equation',
+        description:'Displays a standalone math equation',
+        icon:'∑',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'Button',
+        description:'Runs custom automation with a click ',
+        icon:'◉',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'Breadcrumb',
+        description:'Shows the current page location ',
+        icon:'🍞',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'Tabs',
+        description:'Organize content in tabs ',
+        icon:'🗂️',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'Synced Blocks',
+        description:'Sync content across pages',
+        icon:'⇄',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'Toggle Heading 1',
+        description:'Hide content in a large heading ',
+        icon:'▶',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'Toggle Heading 2',
+        description:'Hide content in a medium heading ',
+        icon:'▶',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'Toggle Heading 3',
+        description:'Hide content in a small heading ',
+        icon:'▶',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'2 Columns',
+        description:'Creates a 2 column block ',
+        icon:'❚️❚️',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'3 Columns',
+        description:'Creates a 3 column block ',
+        icon:'❚️❚️❚️',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'4 Columns',
+        description:'Creates a 4 column block ',
+        icon:'❚️❚️❚️❚️',
+        group:'Advanced Blocks',
+    },
+    {
+        title:'5 Columns',
+        description:'Creates a 5 column block ',
+        icon:'❚️❚️❚️❚️❚️',
+        group:'Advanced Blocks',
+    },
+
+    //---Inline---
+    {
+        title:'Mention a person',
+        description:'Ping someone so that they get a notification ',
+        icon:'👤',
+        group:'Inline',
+    },
+    {
+        title:'Mention a page or data source',
+        description:'Mention a page or data source and place in text ',
+        icon:'@',
+        group:'Inline',
+    },
+    {
+        title:'Date or Reminder',
+        description:'Mention a date or reminder in text ',
+        icon:'📅',
+        group:'Inline',
+    },
+    {
+        title:'Emoji',
+        description:'Search for an emoji to place in text ',
+        icon:'☺',
+        group:'Inline',
+    },
+    {
+        title:'Inline Equation',
+        description:'Adds mathematical symbols in text ',
+        icon:'🗓️',
+        group:'Inline',
+    },
+
+
+
 
 
     // --- Embeds ---
+    {
+        title:'Embed',
+        description:'For PDFs, Google Maps and more ',
+        icon:'⧉',
+        group:'Embeds',
+    },
+    {
+        title:'HTML',
+        description:'Upload or link an HTML file ',
+        icon:'<>',
+        group:'Embeds',
+    },
+    {
+        title:'Replit',
+        description:'Embed a replit ',
+        icon: '⚡',
+        group:'Embeds',
+
+    },
+
     {
         title: 'Google Maps',
         description: 'Embed an interactive Google Map',
@@ -156,24 +400,6 @@ export const slashItems = [
         group: 'Embeds',
         command: ({ editor, range }) => {
             editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'maps' }).run();
-        },
-    },
-    {
-        title: 'YouTube',
-        description: 'Embed a YouTube video player',
-        icon: '▶',
-        group: 'Embeds',
-        command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'youtube' }).run();
-        },
-    },
-    {
-        title: 'Spotify',
-        description: 'Embed Spotify song or playlist',
-        icon: '🎵',
-        group: 'Embeds',
-        command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'spotify' }).run();
         },
     },
     {
@@ -185,6 +411,50 @@ export const slashItems = [
             editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'figma' }).run();
         },
     },
+
+    {
+        title: 'Spotify',
+        description: 'Embed Spotify song or playlist',
+        icon: '🎵',
+        group: 'Embeds',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'spotify' }).run();
+        },
+    },
+    {
+        title: 'Youtube',
+        description: 'Embed a youtube video',
+        icon: '🎬',
+        group: 'Embeds',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'youtube' }).run();
+        },
+    },
+
+    //---Import---
+    {
+        title:'CSV',
+        description:'Bring Data from CSV into Notion file ',
+        icon: '▦',
+        group:'Import',
+
+    },
+    {
+        title:'Text and Markdown',
+        description:'Brings Data from Text and Markdown into Notion ',
+        icon: '¶',
+        group:'Import',
+
+    },
+    {
+        title:'PDf',
+        description:'Bring data from PDF into PDF into Notion ',
+        icon: 'pdf',
+        group:'Import',
+
+    },
+
+
 ];
 
 export const SlashCommands = Extension.create({
