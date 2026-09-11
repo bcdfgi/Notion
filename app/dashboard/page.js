@@ -17,7 +17,9 @@ import PageIcon from './PageIcon';
 import IconPickerModal from './IconPickerModal';
 import { Image } from '@tiptap/extension-image';
 import { Smile } from 'lucide-react';
-import{ SlashCommands } from './SlashCommands'
+import { SlashCommands, slashItems, plusMenuItems } from './SlashCommands';
+import { SlashCommandList } from './SlashCommandList';
+
 import {EmbedExtension} from './EmbedExtension';
 
 
@@ -76,6 +78,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const dragRef = useRef({ startY: 0, startPos: 50 });
     const [pageIcon, setPageIcon] = useState(null);
     const [showIconPicker, setShowIconPicker] = useState(false);
+    const [showPlusMenu, setShowPlusMenu] = useState(false);
+    const plusMenuRef = useRef(null);
 
 
     const editor = useEditor({
@@ -541,6 +545,17 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setSavingStatus(res.success ? "Saved" : "Error");
         }
     };
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) {
+                setShowPlusMenu(false);
+            }
+        };
+        if (showPlusMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showPlusMenu]);
 
 
 
@@ -753,24 +768,54 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         onMouseMove={handleMouseMove}
                         className={`max-w-3xl mx-auto px-16 relative group pb-40 ${coverImage ? 'mt-8' : 'mt-16'}`}
                     >
-
                         <div
+                            ref={plusMenuRef}
                             className="absolute flex items-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100"
                             style={{
                                 transform: `translate3d(calc(-100% - 180px), ${handlePos.top}px, 0)`,
                                 transition: 'transform 100ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms',
                             }}
                         >
-                            <button
-                                className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 transition-colors"
-                                onClick={() => editor?.chain().focus().insertContent('<p></p>').run()}
-                            >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            </button>
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 transition-colors"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowPlusMenu((prev) => !prev);
+                                    }}
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                </button>
+
+                                {showPlusMenu && (
+                                    <div className="absolute left-0 top-full mt-1 z-50">
+                                        <SlashCommandList
+                                            items={plusMenuItems}
+                                            command={(item) => {
+                                                if (item.command && editor) {
+                                                    const { from, to } = editor.state.selection;
+                                                    item.command({ editor, range: { from, to } });
+                                                }
+                                                setShowPlusMenu(false);
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 cursor-grab active:cursor-grabbing">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" /><circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" /></svg>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" />
+                                    <circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" />
+                                </svg>
                             </div>
                         </div>
+
+
 
                         {showCoverPicker && (
                             <div className="absolute top-0 right-16 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72">
