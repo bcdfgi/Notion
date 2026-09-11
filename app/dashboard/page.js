@@ -19,6 +19,7 @@ import { Image } from '@tiptap/extension-image';
 import { Smile } from 'lucide-react';
 import { SlashCommands, slashItems, plusMenuItems } from './SlashCommands';
 import { SlashCommandList } from './SlashCommandList';
+import BlockActionMenu from './BlockActionMenu';
 
 import {EmbedExtension} from './EmbedExtension';
 
@@ -80,6 +81,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [showIconPicker, setShowIconPicker] = useState(false);
     const [showPlusMenu, setShowPlusMenu] = useState(false);
     const plusMenuRef = useRef(null);
+    const [showBlockMenu, setShowBlockMenu] = useState(false);
+    const blockMenuRef = useRef(null);
 
 
     const editor = useEditor({
@@ -568,6 +571,20 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             debouncedSave(json, cleanTitle, currentPageId);
         }
     }, [currentPageId, debouncedSave, isLoading]);
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) {
+                setShowPlusMenu(false);
+            }
+            if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) {
+                setShowBlockMenu(false);
+            }
+        };
+        if (showPlusMenu || showBlockMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showPlusMenu, showBlockMenu]);
 
 
 
@@ -807,11 +824,32 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 )}
                             </div>
 
-                            <div className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 cursor-grab active:cursor-grabbing">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" />
-                                    <circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" />
-                                </svg>
+                            {/* Six-dots handle with action menu */}
+                            <div ref={blockMenuRef} className="relative">
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowBlockMenu((prev) => !prev);
+                                        setShowPlusMenu(false);
+                                    }}
+                                    className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 cursor-pointer transition-colors"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" />
+                                        <circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" />
+                                    </svg>
+                                </button>
+
+                                {showBlockMenu && (
+                                    <div className="absolute left-0 top-full mt-1 z-50">
+                                        <BlockActionMenu
+                                            editor={editor}
+                                            userEmail={userEmail}
+                                            onClose={() => setShowBlockMenu(false)}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
 
