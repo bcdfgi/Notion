@@ -20,7 +20,9 @@ import { Smile } from 'lucide-react';
 import { SlashCommands, slashItems, plusMenuItems } from './SlashCommands';
 import { SlashCommandList } from './SlashCommandList';
 import BlockActionMenu from './BlockActionMenu';
-
+import PageMoreMenu from './PageMoreMenu';
+import { MoreHorizontal,Star } from 'lucide-react';
+import SettingsModal from './SettingsMenu';
 import {EmbedExtension} from './EmbedExtension';
 
 
@@ -83,6 +85,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const plusMenuRef = useRef(null);
     const [showBlockMenu, setShowBlockMenu] = useState(false);
     const blockMenuRef = useRef(null);
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const moreMenuRef = useRef(null);
+    const [fontStyle, setFontStyle] = useState('default');
+    const [isSmallText, setIsSmallText] = useState(false);
+    const [isFullWidth, setIsFullWidth] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
 
     const editor = useEditor({
@@ -364,6 +373,25 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             loadPage(result.pageId, newPage);
         }
     };
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) {
+                setShowPlusMenu(false);
+            }
+            if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) {
+                setShowBlockMenu(false);
+            }
+            if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
+                setShowMoreMenu(false);
+            }
+        };
+
+        if (showPlusMenu || showBlockMenu || showMoreMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showPlusMenu, showBlockMenu, showMoreMenu]);
+
     const handleDeletePage = async (e, pageId) => {
         e.stopPropagation();
 
@@ -410,6 +438,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
     };
 
+
     const handleRemoveCover = () => {
         handleUpdateCover(null);
     };
@@ -439,6 +468,17 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         };
         reader.readAsDataURL(file);
     };
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) setShowPlusMenu(false);
+            if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) setShowBlockMenu(false);
+            if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setShowMoreMenu(false);
+        };
+        if (showPlusMenu || showBlockMenu || showMoreMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showPlusMenu, showBlockMenu, showMoreMenu]);
 
     const handleMouseDownCover = (e) => {
         if (!isRepositioning) return;
@@ -571,20 +611,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             debouncedSave(json, cleanTitle, currentPageId);
         }
     }, [currentPageId, debouncedSave, isLoading]);
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) {
-                setShowPlusMenu(false);
-            }
-            if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) {
-                setShowBlockMenu(false);
-            }
-        };
-        if (showPlusMenu || showBlockMenu) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showPlusMenu, showBlockMenu]);
 
 
 
@@ -648,7 +674,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         </button>
                         <div className="mt-8">
                             <div className="flex items-center justify-between px-3 mb-2 group">
-                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Private</span>
+                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recents</span>
                                 <button
                                     onClick={handleCreatePage}
                                     className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded transition-all"
@@ -688,7 +714,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 ))}
                             </div>
                         </div>
-                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group"
+                        >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                             Settings
                         </button>
@@ -704,18 +733,65 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
             <div className="flex-1 flex flex-col min-w-0 bg-white relative">
-                <header className="h-11 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md z-10">
+                <header className="h-11 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md z-20 border-b border-gray-100">
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
                     >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
                     </button>
-                    <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${savingStatus === "Saving..." ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                            {savingStatus}
-                        </span>
+
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                        {/* Edited status with pulse dot */}
+                        <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400">
+                            <div className={`w-2 h-2 rounded-full ${savingStatus === "Saving..." ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+                            <span>{savingStatus === "Saving..." ? "Saving..." : "Edited just now"}</span>
+                        </div>
+
+                        {/* Favorite (Star) Button */}
+                        <button
+                            type="button"
+                            onClick={() => setIsFavorite(prev => !prev)}
+                            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+                            title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                        >
+                            <Star
+                                size={16}
+                                className={isFavorite ? "fill-amber-400 text-amber-400" : "text-gray-400 hover:text-gray-600"}
+                            />
+                        </button>
+
+                        {/* More options menu (...) */}
+                        <div ref={moreMenuRef} className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setShowMoreMenu((prev) => !prev)}
+                                className="p-1.5 hover:bg-gray-100 rounded-md text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <MoreHorizontal size={18} />
+                            </button>
+
+                            {showMoreMenu && (
+                                <div className="absolute right-0 top-full mt-1 z-50">
+                                    <PageMoreMenu
+                                        editor={editor}
+                                        onClose={() => setShowMoreMenu(false)}
+                                        onDeletePage={() => currentPageId && handleDeletePage({ stopPropagation: () => {} }, currentPageId)}
+                                        fontStyle={fontStyle}
+                                        setFontStyle={setFontStyle}
+                                        isSmallText={isSmallText}
+                                        setIsSmallText={setIsSmallText}
+                                        isFullWidth={isFullWidth}
+                                        setIsFullWidth={setIsFullWidth}
+                                        userEmail={userEmail}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </header>
 
@@ -783,7 +859,15 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     <main
                         ref={containerRef}
                         onMouseMove={handleMouseMove}
-                        className={`max-w-3xl mx-auto px-16 relative group pb-40 ${coverImage ? 'mt-8' : 'mt-16'}`}
+                        className={`mx-auto relative group pb-40 transition-all duration-150 ${
+                            isFullWidth ? 'max-w-full px-12' : 'max-w-3xl px-16'
+                        } ${
+                            coverImage ? 'mt-8' : 'mt-16'
+                        } ${
+                            fontStyle === 'serif' ? 'font-serif' : fontStyle === 'mono' ? 'font-mono' : 'font-sans'
+                        } ${
+                            isSmallText ? 'text-xs' : 'text-base'
+                        }`}
                     >
                         <div
                             ref={plusMenuRef}
@@ -1019,71 +1103,250 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         </h1>
 
                         {editor && (
-                            <>
-                                <BubbleMenu
-                                    editor={editor}
-                                    tippyOptions={{ duration: 150}}
-                                    className="flex items-center gap-0.5 bg-white border border-gray-200 shadow-xl rounded-lg p-1.5 "
-                                >
-                                    <button className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded text-xs font-semibold text-gray-700 transition-colors">
-                                        T
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6"/></svg>
+                            <BubbleMenu
+                                editor={editor}
+                                tippyOptions={{
+                                    duration: 150,
+                                    placement: 'top-start',
+                                    offset: [0, 10],
+                                }}
+                                className="w-64 bg-white border border-gray-200/80 shadow-2xl rounded-2xl p-2.5 flex flex-col gap-2 z-50 text-slate-700 select-none animate-in fade-in zoom-in-95 duration-100"
+                            >
+                                {/* Block Type Dropdown Selector */}
+                                <div className="relative group/type">
+                                    <button
+                                        type="button"
+                                        className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100/80 rounded-lg text-[13px] font-medium transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-serif text-[15px] font-semibold text-slate-600 leading-none">T</span>
+                                            <span className="text-slate-700">
+                        {editor.isActive('heading', { level: 1 })
+                            ? 'Heading 1'
+                            : editor.isActive('heading', { level: 2 })
+                                ? 'Heading 2'
+                                : editor.isActive('heading', { level: 3 })
+                                    ? 'Heading 3'
+                                    : 'Normal text'}
+                    </span>
+                                        </div>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-400">
+                                            <polyline points="9 18 15 12 9 6" />
+                                        </svg>
                                     </button>
 
-                                    <VerticalDivider />
+                                    {/* Hover/Click Submenu for Text Types */}
+                                    <div className="hidden group-hover/type:flex flex-col absolute left-0 top-full mt-1 w-44 bg-white border border-gray-200 shadow-xl rounded-xl p-1 z-50">
+                                        <button
+                                            type="button"
+                                            onClick={() => editor.chain().focus().setParagraph().run()}
+                                            className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                        >
+                                            Normal text
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                                            className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                        >
+                                            Heading 1
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                                            className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                        >
+                                            Heading 2
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                                            className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                        >
+                                            Heading 3
+                                        </button>
+                                    </div>
+                                </div>
 
-                                    <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')}>
-                                        <span className="font-bold text-[13px]">B</span>
-                                    </ToolbarButton>
+                                <div className="h-px bg-gray-100 mx-1" />
 
-                                    <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')}>
-                                        <span className="italic serif text-[14px]">I</span>
-                                    </ToolbarButton>
-
-                                    <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')}>
-                                        <span className="underline text-[13px] underline-offset-2">U</span>
-                                    </ToolbarButton>
-
-                                    <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} isActive={editor.isActive('code')}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                                    </ToolbarButton>
-
-                                    <VerticalDivider />
-
-                                    <ToolbarButton onClick={() => {
-                                        const url = window.prompt('Enter URL');
-                                        if (url) editor.chain().focus().setLink({ href: url }).run();
-                                    }} isActive={editor.isActive('link')}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                                    </ToolbarButton>
-
-                                    <ToolbarButton>
-                                        <div className="flex flex-col items-center leading-none">
-                                            <span className="text-[13px] font-semibold text-gray-700">A</span>
-                                            <div className="w-3 h-0.5 bg-red-500 rounded-full mt-0.5" />
+                                {/* Row 1: Text Styling (A color, Bold, Italic, Underline, Clear Formatting) */}
+                                <div className="flex items-center justify-between px-0.5">
+                                    {/* Text Color / Highlight */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const color = window.prompt('Enter hex color or leave empty to clear:', '#2563eb');
+                                            if (color) editor.chain().focus().setColor(color).run();
+                                            else editor.chain().focus().unsetColor().run();
+                                        }}
+                                        className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
+                                        title="Text Color"
+                                    >
+                                        <div className="flex flex-col items-center justify-center leading-none">
+                                            <span className="font-semibold text-xs text-slate-700">A</span>
+                                            <span className="w-3 h-0.5 bg-blue-500 rounded-full mt-0.5" />
                                         </div>
-                                    </ToolbarButton>
+                                    </button>
 
-                                    <VerticalDivider />
+                                    {/* Bold */}
+                                    <button
+                                        type="button"
+                                        onClick={() => editor.chain().focus().toggleBold().run()}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-colors ${
+                                            editor.isActive('bold') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                        }`}
+                                        title="Bold"
+                                    >
+                                        B
+                                    </button>
 
-                                    <ToolbarButton>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
-                                    </ToolbarButton>
-                                </BubbleMenu>
+                                    {/* Italic */}
+                                    <button
+                                        type="button"
+                                        onClick={() => editor.chain().focus().toggleItalic().run()}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-serif italic transition-colors ${
+                                            editor.isActive('italic') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                        }`}
+                                        title="Italic"
+                                    >
+                                        I
+                                    </button>
 
-                                <FloatingMenu editor={editor} className="flex gap-1 bg-white border border-gray-200 shadow-lg rounded-lg p-1.5 animate-in fade-in slide-in-from-bottom-2">
-                                    <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
-                                    <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleTaskList().run()}>Task List</button>
-                                    <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleBulletList().run()}>Bullet List</button>
+                                    {/* Underline */}
+                                    <button
+                                        type="button"
+                                        onClick={() => editor.chain().focus().toggleUnderline().run()}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs underline underline-offset-2 transition-colors ${
+                                            editor.isActive('underline') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                        }`}
+                                        title="Underline"
+                                    >
+                                        U
+                                    </button>
 
-                                </FloatingMenu>
-                            </>
+                                    {/* Clear Formatting */}
+                                    <button
+                                        type="button"
+                                        onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
+                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-slate-800 transition-colors"
+                                        title="Clear formatting"
+                                    >
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                            <path d="M4 7V4h16v3" />
+                                            <path d="M9 20h6" />
+                                            <path d="M12 4v16" />
+                                            <line x1="18" y1="18" x2="22" y2="22" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                {/* Row 2: Inserts & Formatting (Link, Strike, Code, Math/Equation, More) */}
+                                <div className="flex items-center justify-between px-0.5">
+                                    {/* Link */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const prevUrl = editor.getAttributes('link').href;
+                                            const url = window.prompt('Enter URL:', prevUrl || '');
+                                            if (url === null) return;
+                                            if (url === '') {
+                                                editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                                                return;
+                                            }
+                                            editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+                                        }}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                            editor.isActive('link') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                        }`}
+                                        title="Link"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Strikethrough */}
+                                    <button
+                                        type="button"
+                                        onClick={() => editor.chain().focus().toggleStrike().run()}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                            editor.isActive('strike') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                        }`}
+                                        title="Strikethrough"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                            <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+                                            <path d="M14 12a4 4 0 0 1 0 8H6" />
+                                            <line x1="4" y1="12" x2="20" y2="12" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Inline Code */}
+                                    <button
+                                        type="button"
+                                        onClick={() => editor.chain().focus().toggleCode().run()}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                            editor.isActive('code') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                        }`}
+                                        title="Inline Code"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                            <polyline points="16 18 22 12 16 6" />
+                                            <polyline points="8 6 2 12 8 18" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Code Block / Equation symbol */}
+                                    <button
+                                        type="button"
+                                        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                            editor.isActive('codeBlock') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                        }`}
+                                        title="Code Block"
+                                    >
+                                        <span className="font-serif italic text-xs font-semibold text-slate-700">√x</span>
+                                    </button>
+
+                                    {/* More / Additional Options */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const currentText = editor.state.doc.textBetween(
+                                                editor.state.selection.from,
+                                                editor.state.selection.to
+                                            );
+                                            navigator.clipboard.writeText(currentText);
+                                        }}
+                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-slate-700 transition-colors"
+                                        title="Copy selection"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                            <circle cx="12" cy="12" r="1" />
+                                            <circle cx="19" cy="12" r="1" />
+                                            <circle cx="5" cy="12" r="1" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </BubbleMenu>
                         )}
+
 
                         <EditorContent editor={editor} />
                     </main>
+
                 </div>
             </div>
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                userEmail={userEmail}
+            />
+
+
+
         </div>
     );
 };

@@ -13,7 +13,7 @@ import { slashItems } from './SlashCommands';
 
 export default function BlockActionMenu({ editor, onClose, userEmail = "User" }) {
     const [search, setSearch] = useState('');
-    const [submenu, setSubmenu] = useState(null); // 'turnInto' | 'color' | null
+    const [submenu, setSubmenu] = useState(null);
 
     const turnIntoItems = slashItems.filter(i => i.group === 'Turn into');
     const textColors = slashItems.filter(i => i.group === 'Text color');
