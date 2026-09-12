@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import { BubbleMenu, FloatingMenu } from '@tiptap/react/menus';
+import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -16,12 +16,11 @@ import { Underline } from '@tiptap/extension-underline';
 import PageIcon from './PageIcon';
 import IconPickerModal from './IconPickerModal';
 import { Image } from '@tiptap/extension-image';
-import { Smile } from 'lucide-react';
 import { SlashCommands, slashItems, plusMenuItems } from './SlashCommands';
 import { SlashCommandList } from './SlashCommandList';
 import BlockActionMenu from './BlockActionMenu';
 import PageMoreMenu from './PageMoreMenu';
-import { MoreHorizontal,Star } from 'lucide-react';
+import { Smile, MoreHorizontal, Star, Plus } from 'lucide-react';
 import SettingsModal from './SettingsMenu';
 import {EmbedExtension} from './EmbedExtension';
 
@@ -685,10 +684,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                             <div className="space-y-0.5">
                                 {pages.map((page) => (
-                                    <div key={page._id} className="group relative">
+                                    <div key={page._id} className="group relative flex items-center">
                                         <button
                                             onClick={() => loadPage(page._id)}
-                                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors ${
                                                 currentPageId === page._id
                                                     ? 'bg-gray-200 text-slate-900 font-medium'
                                                     : 'text-slate-600 hover:bg-gray-200/50'
@@ -697,19 +696,44 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                             {page.icon ? (
                                                 <PageIcon icon={page.icon} size={16} />
                                             ) : (
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                                </svg>
                                             )}
-                                            <span className="truncate pr-6">{page.title || "Untitled"}</span>
+                                            <span className="truncate pr-14 text-left">{page.title || "Untitled"}</span>
                                         </button>
 
+                                        {/* Hover Action Buttons */}
+                                        <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {/* Add nested page button with tooltip */}
+                                            <div className="relative group/tooltip">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleCreatePage();
+                                                    }}
+                                                    className="p-1 rounded hover:bg-gray-300/80 text-gray-500 hover:text-gray-800 transition-colors"
+                                                >
+                                                    <Plus size={14} strokeWidth={2.5} />
+                                                </button>
 
-                                        <button
-                                            onClick={(e) => handleDeletePage(e, page._id)}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-300 rounded text-gray-400 hover:text-red-500 transition-all"
-                                            title="Delete page"
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                        </button>
+                                                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tooltip:block z-50 whitespace-nowrap rounded bg-stone-900 px-2 py-1 text-[11px] font-medium text-white shadow-md">
+                                                    Add a page inside
+                                                </div>
+                                            </div>
+
+                                            {/* More options / Delete button */}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => handleDeletePage(e, page._id)}
+                                                className="p-1 rounded hover:bg-gray-300/80 text-gray-500 hover:text-red-600 transition-colors"
+                                                title="Delete page"
+                                            >
+                                                <MoreHorizontal size={14} />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
