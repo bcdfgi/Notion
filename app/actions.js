@@ -141,7 +141,6 @@ export async function createPage(userEmail) {
         return { success: false };
     }
 }
-
 export async function getPages(userEmail) {
     try {
         const client = await clientPromise;
@@ -150,6 +149,8 @@ export async function getPages(userEmail) {
             .find({ userEmail })
             .sort({ updatedAt: -1 })
             .toArray();
+
+        console.log(`[DB LOAD] Loaded ${pages.length} pages. First page has imageBlock:`, JSON.stringify(pages[0]?.content).includes('imageBlock'));
 
         return {
             success: true,
@@ -163,13 +164,10 @@ export async function getPages(userEmail) {
 export async function updatePageContent(pageId, rawData) {
     try {
         if (!pageId || !ObjectId.isValid(pageId)) {
-            console.error("Invalid Page ID provided");
             return { success: false, error: "Invalid ID" };
         }
 
-        // 💡 Strip Next.js client proxy wrappers into a clean plain JavaScript object
         const data = JSON.parse(JSON.stringify(rawData));
-
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
@@ -195,6 +193,8 @@ export async function updatePageContent(pageId, rawData) {
             filter,
             { $set: updateData }
         );
+
+        console.log(`[DB SAVE] Page: ${pageId} | Matched: ${updateResult.matchedCount} | Modified: ${updateResult.modifiedCount}`);
 
         if (updateResult.matchedCount === 0) {
             return { success: false, error: "Page not found or unauthorized" };

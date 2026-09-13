@@ -19,7 +19,6 @@ import {TableCell} from '@tiptap/extension-table-cell';
 import {TableHeader} from '@tiptap/extension-table-header';
 import PageIcon from './PageIcon';
 import IconPickerModal from './IconPickerModal';
-import { Image } from '@tiptap/extension-image';
 import { SlashCommands, slashItems, plusMenuItems } from './SlashCommands';
 import { SlashCommandList } from './SlashCommandList';
 import BlockActionMenu from './BlockActionMenu';
@@ -30,6 +29,7 @@ import {EmbedExtension} from './EmbedExtension';
 import { TableControlsOverlay } from './TableControl';
 import { PageLinkModal } from './LinkPage';
 import { PageMention } from './PageMention';
+import { ImageBlock } from './AddImage';
 
 
 
@@ -42,21 +42,7 @@ const useIsMounted = () => {
     return mounted;
 };
 
-const ToolbarButton = ({ onClick, isActive, children, className = "" }) => (
-    <button
-        type="button"
-        onClick={onClick}
-        className={`h-7 min-w-7 px-1.5 rounded flex items-center justify-center transition-all duration-200 ease-in-out ${
-            isActive
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-        } ${className}`}
-    >
-        {children}
-    </button>
-);
 
-const VerticalDivider = () => <div className="w-px h-4 bg-gray-200 mx-1.5" />;
 
 const NOTION_COVERS = [
     "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1600&auto=format&fit=crop",
@@ -114,6 +100,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             Table.configure({
                 resizable: true,
             }),
+            ImageBlock,
             TableRow,
             TableHeader,
             TableCell,
@@ -132,33 +119,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             Placeholder.configure({ placeholder: "Type '/' for commands..." }),
             EmbedExtension,
             SlashCommands,
-            Image.extend({
 
-                addAttributes() {
-                    return {
-                        src: {
-                            default: null,
-                            parseHTML: element => element.getAttribute('src'),
-                            renderHTML: attributes => {
-                                if (!attributes.src) return {};
-                                return { src: attributes.src };
-                            },
-                        },
-                        alt: {
-                            default: null,
-                        },
-                        title: {
-                            default: null,
-                        },
-                    };
-                },
-            }).configure({
-                inline: false,
-                allowBase64: true,
-                HTMLAttributes: {
-                    class: 'rounded-lg max-w-full my-4 shadow-sm',
-                },
-            }),
         ],
         content: '',
         immediatelyRender: false,
@@ -176,36 +137,19 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 if (!file) return false;
 
                 if (file.size > MAX_FILE_SIZE) {
-                    alert('Image size exceeds 5MB limit.');
+                    alert('Image size exceeds 1MB limit.');
                     return true;
                 }
 
-
                 const reader = new FileReader();
-                reader.onload = async (e) => {
+                reader.onload = (e) => {
                     const src = e.target?.result;
                     if (typeof src === 'string') {
-                        const imageType = view.state.schema.nodes.image;
+                        const imageType = view.state.schema.nodes.imageBlock;
                         if (imageType) {
                             const node = imageType.create({ src });
                             const transaction = view.state.tr.replaceSelectionWith(node);
                             view.dispatch(transaction);
-
-                            if (currentPageId) {
-                                const currentTitle = titleRef.current?.innerText || "Untitled";
-                                const json = view.state.doc.toJSON();
-
-
-                                setPages(prev => prev.map(p => p._id === currentPageId ? { ...p, content: json, title: currentTitle } : p));
-
-                                setSavingStatus("Saving...");
-                                const res = await updatePageContent(currentPageId, {
-                                    title: currentTitle,
-                                    content: json,
-                                    userEmail,
-                                });
-                                setSavingStatus(res.success ? "Saved" : "Error");
-                            }
                         }
                     }
                 };
@@ -219,38 +163,21 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 if (!file.type.startsWith('image/')) return false;
 
                 if (file.size > MAX_FILE_SIZE) {
-                    alert('Image size exceeds 5MB limit.');
+                    alert('Image size exceeds 1MB limit.');
                     return true;
                 }
 
-
                 const reader = new FileReader();
-                reader.onload = async (e) => {
+                reader.onload = (e) => {
                     const src = e.target?.result;
                     if (typeof src === 'string') {
                         const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
-                        const imageType = view.state.schema.nodes.image;
+                        const imageType = view.state.schema.nodes.imageBlock;
 
                         if (coordinates && imageType) {
                             const node = imageType.create({ src });
                             const transaction = view.state.tr.insert(coordinates.pos, node);
                             view.dispatch(transaction);
-
-                            if (currentPageId) {
-                                const currentTitle = titleRef.current?.innerText || "Untitled";
-                                const json = view.state.doc.toJSON();
-
-
-                                setPages(prev => prev.map(p => p._id === currentPageId ? { ...p, content: json, title: currentTitle } : p));
-
-                                setSavingStatus("Saving...");
-                                const res = await updatePageContent(currentPageId, {
-                                    title: currentTitle,
-                                    content: json,
-                                    userEmail,
-                                });
-                                setSavingStatus(res.success ? "Saved" : "Error");
-                            }
                         }
                     }
                 };
@@ -261,7 +188,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
         onUpdate: ({ editor }) => {
-            if (isSwitchingPageRef.current) return;
+            if (isSwitchingPageRef.current || !isHydratedRef.current) return;
             const currentTitle = titleRef.current?.innerText || "Untitled";
             saveContent(editor.getJSON(), currentTitle);
         },
@@ -282,25 +209,30 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const debouncedSave = useMemo(
         () => debounce(async (json, currentTitle, pageId) => {
             if (!pageId) return;
+            console.log("SAVING TO DB:", JSON.stringify(json).slice(0, 100));
+
             setSavingStatus("Saving...");
+
             try {
                 const result = await updatePageContent(pageId, {
                     title: currentTitle,
                     content: json,
                     userEmail,
                 });
+
                 if (result.success) {
                     setSavingStatus("Saved");
-
-                    setPages(prevPages => {
-                        return prevPages.map(p =>
+                    setPages(prevPages =>
+                        prevPages.map(p =>
                             p._id === pageId ? { ...p, title: currentTitle, content: json } : p
-                        );
-                    });
+                        )
+                    );
                 } else {
+                    console.error("❌ DB SAVE FAILED:", result.error);
                     setSavingStatus("Error");
                 }
             } catch (error) {
+                console.error("❌ SERVER ACTION CRASHED:", error);
                 setSavingStatus("Error");
             }
         }, 1000),
@@ -314,38 +246,23 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     useEffect(() => {
         pagesRef.current = pages;
     }, [pages]);
+    const isHydratedRef = useRef(false);
 
-    const isSwitchingPageRef = useRef(false);
+    const isSwitchingPageRef = useRef(true);
 
     const loadPage = useCallback(async (pageId, forceData = null) => {
         if (!pageId || (pageId === currentPageId && !forceData)) return;
 
-        // 1. Immediately persist the outgoing page before switching
-        if (editor && currentPageId) {
-            const outgoingTitle = titleRef.current?.innerText || "Untitled";
-            const outgoingContent = editor.getJSON();
-
-            // Cancel any pending debounced timer
-            debouncedSave.cancel();
-
-            // Persist to MongoDB
-            updatePageContent(currentPageId, {
-                title: outgoingTitle,
-                content: outgoingContent,
-                userEmail,
-            });
-
-            // Update local state and ref synchronously
-            const updatedPages = pagesRef.current.map(p =>
-                p._id === currentPageId ? { ...p, title: outgoingTitle, content: outgoingContent } : p
-            );
-            pagesRef.current = updatedPages;
-            setPages(updatedPages);
+        // 1. Flush any pending save for current page before switching
+        if (editor && currentPageId && isHydratedRef.current) {
+            debouncedSave.flush();
         }
 
+        // Lock hydration during transition
+        isHydratedRef.current = false;
+        isSwitchingPageRef.current = true;
         setCurrentPageId(pageId);
 
-        // 2. Read from updated ref first, not stale React state
         let selectedPage = forceData || pagesRef.current.find(p => p._id === pageId);
 
         if (!selectedPage) {
@@ -372,20 +289,75 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 const raw = selectedPage.content;
                 const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
-                // Set flag to prevent onUpdate from overwriting during switch
-                isSwitchingPageRef.current = true;
                 editor.commands.setContent(
                     parsed && parsed.type ? parsed : { type: 'doc', content: [{ type: 'paragraph' }] },
-                    false
+                    { emitUpdate: false }
                 );
-                setTimeout(() => {
-                    isSwitchingPageRef.current = false;
-                }, 50);
+
+                // Enable saving once content is populated
+                isSwitchingPageRef.current = false;
+                isHydratedRef.current = true;
             }
         }
         setIsLoading(false);
     }, [currentPageId, editor, userEmail, debouncedSave]);
 
+    useEffect(() => {
+        let isMountedFlag = true;
+
+        const initialize = async () => {
+            if (isMounted && editor && !currentPageId) {
+                isSwitchingPageRef.current = true;
+                isHydratedRef.current = false;
+
+                const result = await getPages(userEmail);
+                if (!isMountedFlag) return;
+
+                if (result.success && result.pages.length > 0) {
+                    setPages(result.pages);
+                    pagesRef.current = result.pages;
+                    const firstPage = result.pages[0];
+
+                    setCurrentPageId(firstPage._id);
+                    setCoverImage(firstPage.coverImage || null);
+                    setCoverPosition(firstPage.coverPosition ?? 50);
+                    setPageIcon(firstPage.icon || null);
+
+                    const initialTitle = firstPage.title || "Untitled";
+                    if (titleRef.current) {
+                        titleRef.current.innerText = initialTitle;
+                        titleRef.current._lastValue = initialTitle;
+                    }
+
+                    const rawContent = firstPage.content;
+                    const parsedContent = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
+
+                    editor.commands.setContent(
+                        parsedContent && parsedContent.type ? parsedContent : { type: 'doc', content: [{ type: 'paragraph' }] },
+                        { emitUpdate: false }
+                    );
+
+                    debouncedSave.cancel();
+
+
+                    setIsLoading(false);
+
+                    // Allow TipTap's NodeViews to finish mounting then immediately enable saving
+                } else if (result.success && result.pages.length === 0) {
+                    setIsLoading(false);
+                    isSwitchingPageRef.current = false;
+                    isHydratedRef.current = true;
+                    handleCreatePage();
+                }
+            }
+        };
+
+        initialize();
+
+        return () => {
+            isMountedFlag = false;
+        };
+    }, [isMounted, editor, userEmail]);
     const handleInsertPageLink = (selectedPage) => {
         if (!editor || !currentPageId) return;
 
@@ -435,11 +407,19 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     }, [editor, loadPage]);
 
     useEffect(() => {
+        let isMountedFlag = true;
+
         const initialize = async () => {
             if (isMounted && editor && !currentPageId) {
+                isSwitchingPageRef.current = true;
+                isHydratedRef.current = false;
+
                 const result = await getPages(userEmail);
+                if (!isMountedFlag) return;
+
                 if (result.success && result.pages.length > 0) {
                     setPages(result.pages);
+                    pagesRef.current = result.pages;
                     const firstPage = result.pages[0];
 
                     setCurrentPageId(firstPage._id);
@@ -447,29 +427,47 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     setCoverPosition(firstPage.coverPosition ?? 50);
                     setPageIcon(firstPage.icon || null);
 
+                    const initialTitle = firstPage.title || "Untitled";
                     if (titleRef.current) {
-                        const initialTitle = firstPage.title || "Untitled";
                         titleRef.current.innerText = initialTitle;
                         titleRef.current._lastValue = initialTitle;
                     }
 
-
                     const rawContent = firstPage.content;
                     const parsedContent = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
 
+                    // Load content while keeping auto-save completely locked
+                    // Inside Dashboard.jsx -> initialize function:
                     editor.commands.setContent(
                         parsedContent && parsedContent.type ? parsedContent : { type: 'doc', content: [{ type: 'paragraph' }] },
-                        false
+                        { emitUpdate: false }
                     );
+
+                    debouncedSave.cancel();
                     setIsLoading(false);
+
+                    // Allow TipTap's NodeViews to finish mounting before enabling save triggers
+                    setTimeout(() => {
+                        if (isMountedFlag) {
+                            isSwitchingPageRef.current = false;
+                            isHydratedRef.current = true;
+                        }
+                    }, 1000);
                 } else if (result.success && result.pages.length === 0) {
+                    setIsLoading(false);
+                    isSwitchingPageRef.current = false;
+                    isHydratedRef.current = true;
                     handleCreatePage();
                 }
             }
         };
-        initialize();
-    }, [isMounted, editor, userEmail]);
 
+        initialize();
+
+        return () => {
+            isMountedFlag = false;
+        };
+    }, [isMounted, editor, userEmail]);
     const handleCreatePage = async () => {
         const result = await createPage(userEmail);
         if (result.success) {
@@ -564,7 +562,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
 
         if (file.size > MAX_FILE_SIZE) {
-            setUploadError('Image size exceeds 5MB limit.');
+            setUploadError('Image size exceeds 1MB limit.');
             return;
         }
 
@@ -719,9 +717,9 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
     const saveContent = useCallback((json, title) => {
+        if (!isHydratedRef.current || isSwitchingPageRef.current) return;
 
         const cleanTitle = title.replace(/\n/g, '').trim();
-
 
         if (!isLoading && currentPageId && cleanTitle.length > 0) {
             debouncedSave(json, cleanTitle, currentPageId);
@@ -730,16 +728,16 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
 
-    useEffect(() => {
-        if (!editor || !currentPageId) return;
-
-        editor.setOptions({
-            onUpdate: ({ editor }) => {
-                const currentTitle = titleRef.current?.innerText || "Untitled";
-                saveContent(editor.getJSON(), currentTitle);
-            },
-        });
-    }, [editor, currentPageId, saveContent]);
+    // useEffect(() => {
+    //     if (!editor || !currentPageId) return;
+    //
+    //     editor.setOptions({
+    //         onUpdate: ({ editor }) => {
+    //             const currentTitle = titleRef.current?.innerText || "Untitled";
+    //             saveContent(editor.getJSON(), currentTitle);
+    //         },
+    //     });
+    // }, [editor, currentPageId, saveContent]);
     useEffect(() => {
         const currentPage = pages.find(p => p._id === currentPageId);
 
@@ -1125,7 +1123,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                             </svg>
                                             Upload custom image
                                         </button>
-                                        <div className="text-[10px] text-gray-400 text-center">Max file size: 5MB</div>
+                                        <div className="text-[10px] text-gray-400 text-center">Max file size: 1MB</div>
 
 
                                         {uploadError && (
