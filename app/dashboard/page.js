@@ -13,6 +13,10 @@ import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Code } from '@tiptap/extension-code';
 import { Underline } from '@tiptap/extension-underline';
+import {Table} from '@tiptap/extension-table';
+import {TableRow} from '@tiptap/extension-table-row';
+import {TableCell} from '@tiptap/extension-table-cell';
+import {TableHeader} from '@tiptap/extension-table-header';
 import PageIcon from './PageIcon';
 import IconPickerModal from './IconPickerModal';
 import { Image } from '@tiptap/extension-image';
@@ -23,6 +27,7 @@ import PageMoreMenu from './PageMoreMenu';
 import { Smile, MoreHorizontal, Star, Plus } from 'lucide-react';
 import SettingsModal from './SettingsMenu';
 import {EmbedExtension} from './EmbedExtension';
+import { TableControlsOverlay } from './TableControl';
 
 
 
@@ -99,7 +104,18 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 code: false,
                 link: false,
                 underline: false,
+                heading: {
+                    levels: [1, 2, 3, 4],
+                },
             }),
+            Table.configure({
+                resizable: true,
+            }),
+            TableRow,
+            TableHeader,
+            TableCell,
+            TaskList,
+            TaskItem.configure({ nested: true }),
             Underline,
             TextStyle,
             Color,
@@ -108,8 +124,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 openOnClick: false,
                 HTMLAttributes: { class: 'text-blue-500 underline cursor-pointer' }
             }),
-            TaskList,
-            TaskItem.configure({ nested: true }),
+
             Placeholder.configure({ placeholder: "Type '/' for commands..." }),
             EmbedExtension,
             SlashCommands,
@@ -1358,7 +1373,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         )}
 
 
-                        <EditorContent editor={editor} />
+                        <div className="relative w-full">
+                            <EditorContent editor={editor} />
+                            <TableControlsOverlay editor={editor} />
+                        </div>
                     </main>
 
                 </div>
