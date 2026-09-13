@@ -53,9 +53,18 @@ export const PageMention = Node.create({
             },
             icon: {
                 default: null,
-                parseHTML: (element) => element.getAttribute('data-page-icon'),
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-page-icon');
+                    try {
+                        return JSON.parse(raw);
+                    } catch {
+                        return raw;
+                    }
+                },
                 renderHTML: (attributes) => ({
-                    'data-page-icon': attributes.icon,
+                    'data-page-icon': typeof attributes.icon === 'object' && attributes.icon !== null
+                        ? JSON.stringify(attributes.icon)
+                        : attributes.icon,
                 }),
             },
         };

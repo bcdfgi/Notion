@@ -261,6 +261,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
         onUpdate: ({ editor }) => {
+            if (isSwitchingPageRef.current) return;
             const currentTitle = titleRef.current?.innerText || "Untitled";
             saveContent(editor.getJSON(), currentTitle);
         },
@@ -308,6 +309,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
 
+    // Add a ref to track the latest pages synchronously
+    const pagesRef = useRef(pages);
+    useEffect(() => {
+        pagesRef.current = pages;
+    }, [pages]);
+
+    const isSwitchingPageRef = useRef(false);
+
     const loadPage = useCallback(async (pageId, forceData = null) => {
         if (!pageId || (pageId === currentPageId && !forceData)) return;
 
@@ -316,39 +325,35 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             const outgoingTitle = titleRef.current?.innerText || "Untitled";
             const outgoingContent = editor.getJSON();
 
-            // Cancel any pending debounced timers so they don't fire late
+            // Cancel any pending debounced timer
             debouncedSave.cancel();
 
-            // Update in MongoDB
+            // Persist to MongoDB
             updatePageContent(currentPageId, {
                 title: outgoingTitle,
                 content: outgoingContent,
                 userEmail,
             });
 
-            // Update in React state
-            setPages((prevPages) =>
-                prevPages.map((p) =>
-                    p._id === currentPageId
-                        ? { ...p, title: outgoingTitle, content: outgoingContent }
-                        : p
-                )
+            // Update local state and ref synchronously
+            const updatedPages = pagesRef.current.map(p =>
+                p._id === currentPageId ? { ...p, title: outgoingTitle, content: outgoingContent } : p
             );
+            pagesRef.current = updatedPages;
+            setPages(updatedPages);
         }
 
         setCurrentPageId(pageId);
 
-        // 2. Fetch or retrieve the target page
-        let selectedPage = forceData;
+        // 2. Read from updated ref first, not stale React state
+        let selectedPage = forceData || pagesRef.current.find(p => p._id === pageId);
+
         if (!selectedPage) {
-            // Check local state first
-            selectedPage = pages.find((p) => p._id === pageId);
-            if (!selectedPage) {
-                const result = await getPages(userEmail);
-                if (result.success && result.pages) {
-                    setPages(result.pages);
-                    selectedPage = result.pages.find((p) => p._id === pageId);
-                }
+            const result = await getPages(userEmail);
+            if (result.success && result.pages) {
+                pagesRef.current = result.pages;
+                setPages(result.pages);
+                selectedPage = result.pages.find(p => p._id === pageId);
             }
         }
 
@@ -365,17 +370,21 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
             if (editor && !editor.isDestroyed) {
                 const raw = selectedPage.content;
-                const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+                const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
-                // Load parsed document structure into editor
+                // Set flag to prevent onUpdate from overwriting during switch
+                isSwitchingPageRef.current = true;
                 editor.commands.setContent(
-                    parsed && parsed.type ? parsed : { type: "doc", content: [{ type: "paragraph" }] },
+                    parsed && parsed.type ? parsed : { type: 'doc', content: [{ type: 'paragraph' }] },
                     false
                 );
+                setTimeout(() => {
+                    isSwitchingPageRef.current = false;
+                }, 50);
             }
         }
         setIsLoading(false);
-    }, [currentPageId, editor, pages, userEmail, debouncedSave]);
+    }, [currentPageId, editor, userEmail, debouncedSave]);
 
     const handleInsertPageLink = (selectedPage) => {
         if (!editor || !currentPageId) return;
@@ -394,19 +403,16 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             .insertContent(' ')
             .run();
 
-        // Get freshly updated document JSON
-        const updatedDoc = editor.getJSON();
+        const updatedJson = editor.getJSON();
         const currentTitle = titleRef.current?.innerText || "Untitled";
 
-        // Sync local cache
-        setPages(prev =>
-            prev.map(p =>
-                p._id === currentPageId ? { ...p, content: updatedDoc } : p
-            )
+        const nextPages = pagesRef.current.map(p =>
+            p._id === currentPageId ? { ...p, content: updatedJson, title: currentTitle } : p
         );
+        pagesRef.current = nextPages;
+        setPages(nextPages);
 
-        // Persist immediately
-        saveContent(updatedDoc, currentTitle);
+        saveContent(updatedJson, currentTitle);
     };
     useEffect(() => {
         const handlePageMentionClick = (e) => {
