@@ -119,17 +119,12 @@ export const slashItems = [
     },
     {
         title: 'Link to a Page',
-        description: 'Link an external or sub-page link',
+        description: 'Link an existing page in this workspace',
         icon: '↗',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
-            const url = window.prompt('Enter link URL:');
-            if (url) {
-                editor.chain().focus().deleteRange(range).insertContent({
-                    type: 'paragraph',
-                    content: [{ type: 'text', text: url, marks: [{ type: 'link', attrs: { href: url } }] }]
-                }).run();
-            }
+            editor.chain().focus().deleteRange(range).run();
+            window.dispatchEvent(new CustomEvent('notion:open-page-linker'));
         },
     },
 

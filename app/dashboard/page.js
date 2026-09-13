@@ -28,6 +28,8 @@ import { Smile, MoreHorizontal, Star, Plus } from 'lucide-react';
 import SettingsModal from './SettingsMenu';
 import {EmbedExtension} from './EmbedExtension';
 import { TableControlsOverlay } from './TableControl';
+import { PageLinkModal } from './LinkPage';
+import { PageMention } from './PageMention';
 
 
 
@@ -96,6 +98,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [isSmallText, setIsSmallText] = useState(false);
     const [isFullWidth, setIsFullWidth] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [showPageLinkModal, setShowPageLinkModal] = useState(false);
 
 
     const editor = useEditor({
@@ -120,6 +123,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             TextStyle,
             Color,
             Code,
+            PageMention,
             Link.configure({
                 openOnClick: false,
                 HTMLAttributes: { class: 'text-blue-500 underline cursor-pointer' }
@@ -307,16 +311,44 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const loadPage = useCallback(async (pageId, forceData = null) => {
         if (!pageId || (pageId === currentPageId && !forceData)) return;
 
-        debouncedSave.flush();
+        // 1. Immediately persist the outgoing page before switching
+        if (editor && currentPageId) {
+            const outgoingTitle = titleRef.current?.innerText || "Untitled";
+            const outgoingContent = editor.getJSON();
+
+            // Cancel any pending debounced timers so they don't fire late
+            debouncedSave.cancel();
+
+            // Update in MongoDB
+            updatePageContent(currentPageId, {
+                title: outgoingTitle,
+                content: outgoingContent,
+                userEmail,
+            });
+
+            // Update in React state
+            setPages((prevPages) =>
+                prevPages.map((p) =>
+                    p._id === currentPageId
+                        ? { ...p, title: outgoingTitle, content: outgoingContent }
+                        : p
+                )
+            );
+        }
+
         setCurrentPageId(pageId);
 
-        let selectedPage = forceData || pages.find(p => p._id === pageId);
-
+        // 2. Fetch or retrieve the target page
+        let selectedPage = forceData;
         if (!selectedPage) {
-            const result = await getPages(userEmail);
-            if (result.success && result.pages) {
-                setPages(result.pages);
-                selectedPage = result.pages.find(p => p._id === pageId);
+            // Check local state first
+            selectedPage = pages.find((p) => p._id === pageId);
+            if (!selectedPage) {
+                const result = await getPages(userEmail);
+                if (result.success && result.pages) {
+                    setPages(result.pages);
+                    selectedPage = result.pages.find((p) => p._id === pageId);
+                }
             }
         }
 
@@ -331,13 +363,70 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 titleRef.current._lastValue = displayTitle;
             }
 
-
             if (editor && !editor.isDestroyed) {
-                editor.commands.setContent(selectedPage.content || { type: 'doc', content: [{ type: 'paragraph' }] }, false);
+                const raw = selectedPage.content;
+                const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+                // Load parsed document structure into editor
+                editor.commands.setContent(
+                    parsed && parsed.type ? parsed : { type: "doc", content: [{ type: "paragraph" }] },
+                    false
+                );
             }
         }
         setIsLoading(false);
     }, [currentPageId, editor, pages, userEmail, debouncedSave]);
+
+    const handleInsertPageLink = (selectedPage) => {
+        if (!editor || !currentPageId) return;
+
+        editor
+            .chain()
+            .focus()
+            .insertContent({
+                type: 'pageMention',
+                attrs: {
+                    pageId: selectedPage._id,
+                    title: selectedPage.title || 'Untitled',
+                    icon: selectedPage.icon || null,
+                },
+            })
+            .insertContent(' ')
+            .run();
+
+        // Get freshly updated document JSON
+        const updatedDoc = editor.getJSON();
+        const currentTitle = titleRef.current?.innerText || "Untitled";
+
+        // Sync local cache
+        setPages(prev =>
+            prev.map(p =>
+                p._id === currentPageId ? { ...p, content: updatedDoc } : p
+            )
+        );
+
+        // Persist immediately
+        saveContent(updatedDoc, currentTitle);
+    };
+    useEffect(() => {
+        const handlePageMentionClick = (e) => {
+            const pill = e.target.closest('[data-page-id]');
+            if (pill) {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetPageId = pill.getAttribute('data-page-id');
+                if (targetPageId) {
+                    loadPage(targetPageId);
+                }
+            }
+        };
+
+        const dom = editor?.view?.dom;
+        if (dom) {
+            dom.addEventListener('click', handlePageMentionClick);
+            return () => dom.removeEventListener('click', handlePageMentionClick);
+        }
+    }, [editor, loadPage]);
 
     useEffect(() => {
         const initialize = async () => {
@@ -613,6 +702,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showPlusMenu]);
+    useEffect(() => {
+        const handleOpenLinker = () => setShowPageLinkModal(true);
+        window.addEventListener('notion:open-page-linker', handleOpenLinker);
+        return () => window.removeEventListener('notion:open-page-linker', handleOpenLinker);
+    }, []);
+
+
 
 
 
@@ -1385,6 +1481,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
                 userEmail={userEmail}
+            />
+            <PageLinkModal
+                isOpen={showPageLinkModal}
+                onClose={() => setShowPageLinkModal(false)}
+                pages={pages}
+                currentPageId={currentPageId}
+                onSelectPage={handleInsertPageLink}
             />
 
 
