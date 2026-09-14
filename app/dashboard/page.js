@@ -30,6 +30,7 @@ import { TableControlsOverlay } from './TableControl';
 import { PageLinkModal } from './LinkPage';
 import { PageMention } from './PageMention';
 import { ImageBlock } from './AddImage';
+import { CodeBlockComponent } from './CodeBlock';
 
 
 
@@ -91,6 +92,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         extensions: [
             StarterKit.configure({
                 code: false,
+                codeBlock: false,
                 link: false,
                 underline: false,
                 heading: {

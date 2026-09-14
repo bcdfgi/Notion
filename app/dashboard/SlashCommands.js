@@ -123,7 +123,9 @@ export const slashItems = [
         icon: '↗',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).run();
+            if (range && range.from !== range.to) {
+                editor.chain().deleteRange(range).run();
+            }
             window.dispatchEvent(new CustomEvent('notion:open-page-linker'));
         },
     },
@@ -162,7 +164,12 @@ export const slashItems = [
         icon: '</>',
         group: 'Media',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .setCodeBlock()
+                .run();
         },
     },
     {

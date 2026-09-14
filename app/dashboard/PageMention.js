@@ -11,6 +11,8 @@ const PageMentionComponent = ({ node }) => {
         <NodeViewWrapper as="span" className="inline-block align-baseline mx-0.5">
             <span
                 data-page-id={pageId}
+                data-page-title={title}
+                data-page-icon={typeof icon === 'object' && icon !== null ? JSON.stringify(icon) : icon}
                 contentEditable={false}
                 className="page-mention-pill inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-gray-100/80 hover:bg-gray-200/80 text-slate-800 font-medium text-xs border border-gray-200/60 transition-colors cursor-pointer select-none"
             >
@@ -28,7 +30,6 @@ const PageMentionComponent = ({ node }) => {
         </NodeViewWrapper>
     );
 };
-
 export const PageMention = Node.create({
     name: 'pageMention',
     group: 'inline',
