@@ -50,7 +50,7 @@ const NOTION_COVERS = [
     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop"
 ]
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 1024 * 1024;
 
 const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const isMounted = useIsMounted();
@@ -125,71 +125,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: 'tiptap prose prose-slate max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 -ml-45 ',
-            },
-            handlePaste: (view, event) => {
-                const items = Array.from(event.clipboardData?.items || []);
-                const imageItem = items.find(item => item.type.startsWith('image/'));
-
-                if (!imageItem) return false;
-
-                const file = imageItem.getAsFile();
-                if (!file) return false;
-
-                if (file.size > MAX_FILE_SIZE) {
-                    alert('Image size exceeds 1MB limit.');
-                    return true;
-                }
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const src = e.target?.result;
-                    if (typeof src === 'string') {
-                        const imageType = view.state.schema.nodes.imageBlock;
-                        if (imageType) {
-                            const node = imageType.create({ src });
-                            const transaction = view.state.tr.replaceSelectionWith(node);
-                            view.dispatch(transaction);
-                        }
-                    }
-                };
-                reader.readAsDataURL(file);
-                return true;
-            },
-            handleDrop: (view, event, slice, moved) => {
-                if (moved || !event.dataTransfer?.files.length) return false;
-
-                const file = event.dataTransfer.files[0];
-                if (!file.type.startsWith('image/')) return false;
-
-                if (file.size > MAX_FILE_SIZE) {
-                    alert('Image size exceeds 1MB limit.');
-                    return true;
-                }
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const src = e.target?.result;
-                    if (typeof src === 'string') {
-                        const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
-                        const imageType = view.state.schema.nodes.imageBlock;
-
-                        if (coordinates && imageType) {
-                            const node = imageType.create({ src });
-                            const transaction = view.state.tr.insert(coordinates.pos, node);
-                            view.dispatch(transaction);
-                        }
-                    }
-                };
-                reader.readAsDataURL(file);
-                return true;
+                class: 'tiptap prose prose-slate max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 -ml-45',
             },
         },
 
 
         onUpdate: ({ editor }) => {
             if (isSwitchingPageRef.current || !isHydratedRef.current) return;
-            const currentTitle = titleRef.current?.innerText || "Untitled";
+            const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
             saveContent(editor.getJSON(), currentTitle);
         },
         onSelectionUpdate: ({ editor }) => {
@@ -206,18 +149,21 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         },
     });
 
+    const userEmailRef = useRef(userEmail);
+    useEffect(() => {
+        userEmailRef.current = userEmail;
+    }, [userEmail]);
+
     const debouncedSave = useMemo(
         () => debounce(async (json, currentTitle, pageId) => {
             if (!pageId) return;
-            console.log("SAVING TO DB:", JSON.stringify(json).slice(0, 100));
-
             setSavingStatus("Saving...");
 
             try {
                 const result = await updatePageContent(pageId, {
                     title: currentTitle,
                     content: json,
-                    userEmail,
+                    userEmail: userEmailRef.current,
                 });
 
                 if (result.success) {
@@ -228,15 +174,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         )
                     );
                 } else {
-                    console.error("❌ DB SAVE FAILED:", result.error);
                     setSavingStatus("Error");
                 }
             } catch (error) {
-                console.error("❌ SERVER ACTION CRASHED:", error);
                 setSavingStatus("Error");
             }
         }, 1000),
-        [userEmail]
+        []
     );
 
 
@@ -341,6 +285,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
                     setIsLoading(false);
+                    isSwitchingPageRef.current = false;
+                    isHydratedRef.current = true;
 
                     // Allow TipTap's NodeViews to finish mounting then immediately enable saving
                 } else if (result.success && result.pages.length === 0) {
@@ -406,68 +352,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
     }, [editor, loadPage]);
 
-    useEffect(() => {
-        let isMountedFlag = true;
 
-        const initialize = async () => {
-            if (isMounted && editor && !currentPageId) {
-                isSwitchingPageRef.current = true;
-                isHydratedRef.current = false;
-
-                const result = await getPages(userEmail);
-                if (!isMountedFlag) return;
-
-                if (result.success && result.pages.length > 0) {
-                    setPages(result.pages);
-                    pagesRef.current = result.pages;
-                    const firstPage = result.pages[0];
-
-                    setCurrentPageId(firstPage._id);
-                    setCoverImage(firstPage.coverImage || null);
-                    setCoverPosition(firstPage.coverPosition ?? 50);
-                    setPageIcon(firstPage.icon || null);
-
-                    const initialTitle = firstPage.title || "Untitled";
-                    if (titleRef.current) {
-                        titleRef.current.innerText = initialTitle;
-                        titleRef.current._lastValue = initialTitle;
-                    }
-
-                    const rawContent = firstPage.content;
-                    const parsedContent = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
-
-                    // Load content while keeping auto-save completely locked
-                    // Inside Dashboard.jsx -> initialize function:
-                    editor.commands.setContent(
-                        parsedContent && parsedContent.type ? parsedContent : { type: 'doc', content: [{ type: 'paragraph' }] },
-                        { emitUpdate: false }
-                    );
-
-                    debouncedSave.cancel();
-                    setIsLoading(false);
-
-                    // Allow TipTap's NodeViews to finish mounting before enabling save triggers
-                    setTimeout(() => {
-                        if (isMountedFlag) {
-                            isSwitchingPageRef.current = false;
-                            isHydratedRef.current = true;
-                        }
-                    }, 1000);
-                } else if (result.success && result.pages.length === 0) {
-                    setIsLoading(false);
-                    isSwitchingPageRef.current = false;
-                    isHydratedRef.current = true;
-                    handleCreatePage();
-                }
-            }
-        };
-
-        initialize();
-
-        return () => {
-            isMountedFlag = false;
-        };
-    }, [isMounted, editor, userEmail]);
     const handleCreatePage = async () => {
         const result = await createPage(userEmail);
         if (result.success) {
@@ -643,7 +528,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         const currentPage = pages.find(p => p._id === currentPageId);
         setCoverPosition(currentPage?.coverPosition ?? 50);
     };
-
     useEffect(() => {
         const handleBeforeUnload = () => {
             debouncedSave.flush();
@@ -652,8 +536,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
+            debouncedSave.flush();
         };
     }, [debouncedSave]);
+
 
 
 
@@ -715,13 +601,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
 
-
-    const saveContent = useCallback((json, title) => {
+    const saveContent = useCallback((json, title = "Untitled") => {
         if (!isHydratedRef.current || isSwitchingPageRef.current) return;
 
-        const cleanTitle = title.replace(/\n/g, '').trim();
+        const cleanTitle = title.replace(/\n/g, '').trim() || "Untitled";
 
-        if (!isLoading && currentPageId && cleanTitle.length > 0) {
+        if (!isLoading && currentPageId) {
             debouncedSave(json, cleanTitle, currentPageId);
         }
     }, [currentPageId, debouncedSave, isLoading]);
