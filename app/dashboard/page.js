@@ -31,6 +31,8 @@ import { PageLinkModal } from './LinkPage';
 import { PageMention } from './PageMention';
 import { ImageBlock } from './AddImage';
 import { CodeBlockComponent } from './CodeBlock';
+import CodeBlock from '@tiptap/extension-code-block';
+import { ReactNodeViewRenderer } from '@tiptap/react';
 
 
 
@@ -97,6 +99,11 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 underline: false,
                 heading: {
                     levels: [1, 2, 3, 4],
+                },
+            }),
+            CodeBlock.extend({
+                addNodeView() {
+                    return ReactNodeViewRenderer(CodeBlockComponent);
                 },
             }),
             Table.configure({
