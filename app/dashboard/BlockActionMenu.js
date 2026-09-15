@@ -50,7 +50,6 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User" })
         onClose();
     };
 
-
     const text = editor?.state.doc.textContent || '';
     const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
     const charCount = text.length;
@@ -72,7 +71,7 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User" })
 
                 <div className="px-2 py-1 text-[11px] font-medium text-gray-400">Text</div>
 
-
+                {/* Turn into Menu */}
                 <div
                     className="relative"
                     onMouseEnter={() => setSubmenu('turnInto')}
@@ -109,7 +108,7 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User" })
                     )}
                 </div>
 
-
+                {/* Color Menu */}
                 <div
                     className="relative"
                     onMouseEnter={() => setSubmenu('color')}
@@ -131,31 +130,30 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User" })
                             onMouseLeave={() => setSubmenu(null)}
                         >
                             <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase">Text color</div>
-                            {textColors.map((color, idx) => (
+                            {textColors.map((item, idx) => (
                                 <button
                                     key={idx}
                                     type="button"
-                                    onClick={() => {
-                                        editor?.chain().focus().setColor(color.title.toLowerCase().replace(' text', '')).run();
-                                        onClose();
-                                    }}
-                                    className="w-full flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+                                    onClick={() => handleApplyCommand(item)}
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors text-left"
                                 >
-                                    <span>{color.icon}</span>
-                                    <span>{color.title}</span>
+                                    <span>{item.icon}</span>
+                                    <span>{item.title}</span>
                                 </button>
                             ))}
 
-                            <div className="px-2 pt-2 pb-1 text-[10px] font-semibold text-gray-400 uppercase border-t border-gray-100 mt-1">Background color</div>
-                            {bgColors.map((color, idx) => (
+                            <div className="px-2 pt-2 pb-1 text-[10px] font-semibold text-gray-400 uppercase border-t border-gray-100 mt-1">
+                                Background color
+                            </div>
+                            {bgColors.map((item, idx) => (
                                 <button
                                     key={idx}
                                     type="button"
-                                    onClick={onClose}
-                                    className="w-full flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+                                    onClick={() => handleApplyCommand(item)}
+                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 transition-colors text-left"
                                 >
-                                    <span>{color.icon}</span>
-                                    <span>{color.title}</span>
+                                    <span>{item.icon}</span>
+                                    <span>{item.title}</span>
                                 </button>
                             ))}
                         </div>
@@ -163,7 +161,6 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User" })
                 </div>
 
                 <div className="my-1 border-t border-gray-100" />
-
 
                 <button
                     type="button"
@@ -212,7 +209,6 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User" })
                     </div>
                     <span className="text-[10px] text-red-400">Del</span>
                 </button>
-
 
                 <div className="mt-2 pt-2 border-t border-gray-100 px-2 text-[10px] text-gray-400 space-y-0.5 select-none">
                     <div>Last edited by {userEmail.split('@')[0]}</div>
