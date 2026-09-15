@@ -111,9 +111,42 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 resizable: true,
             }),
             ImageBlock,
+            // AFTER:
             TableRow,
-            TableHeader,
-            TableCell,
+            TableHeader.extend({
+                addAttributes() {
+                    return {
+                        ...this.parent?.(),
+                        backgroundColor: {
+                            default: null,
+                            parseHTML: element => element.style.backgroundColor || null,
+                            renderHTML: attributes => {
+                                if (!attributes.backgroundColor) return {};
+                                return {
+                                    style: `background-color: ${attributes.backgroundColor}`,
+                                };
+                            },
+                        },
+                    };
+                },
+            }),
+            TableCell.extend({
+                addAttributes() {
+                    return {
+                        ...this.parent?.(),
+                        backgroundColor: {
+                            default: null,
+                            parseHTML: element => element.style.backgroundColor || null,
+                            renderHTML: attributes => {
+                                if (!attributes.backgroundColor) return {};
+                                return {
+                                    style: `background-color: ${attributes.backgroundColor}`,
+                                };
+                            },
+                        },
+                    };
+                },
+            }),
             TaskList,
             TaskItem.configure({ nested: true }),
             Underline,

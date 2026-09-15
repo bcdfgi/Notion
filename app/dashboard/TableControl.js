@@ -1,12 +1,50 @@
 'use client';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Plus, Trash2, ArrowRight, ArrowLeft, GripHorizontal } from 'lucide-react';
+import {
+    Plus,
+    Trash2,
+    ArrowRight,
+    ArrowLeft,
+    GripHorizontal,
+    Paintbrush,
+    ChevronRight,
+    Copy,
+    Delete
+} from 'lucide-react';
+
+const TEXT_COLORS = [
+    { title: 'Default text', color: null, preview: '#37352F' },
+    { title: 'Grey text', color: '#787774', preview: '#787774' },
+    { title: 'Brown text', color: '#9F6B53', preview: '#9F6B53' },
+    { title: 'Orange text', color: '#D9730D', preview: '#D9730D' },
+    { title: 'Yellow text', color: '#CB912F', preview: '#CB912F' },
+    { title: 'Green text', color: '#448361', preview: '#448361' },
+    { title: 'Blue text', color: '#337EA9', preview: '#337EA9' },
+    { title: 'Purple text', color: '#9065B0', preview: '#9065B0' },
+    { title: 'Pink text', color: '#C14C8A', preview: '#C14C8A' },
+    { title: 'Red text', color: '#D44C47', preview: '#D44C47' },
+];
+
+const BG_COLORS = [
+    { title: 'Default background', color: null, preview: '#FFFFFF', border: true },
+    { title: 'Gray background', color: '#F1F1EF', preview: '#F1F1EF' },
+    { title: 'Brown background', color: '#F4EEEE', preview: '#F4EEEE' },
+    { title: 'Orange background', color: '#FBECDD', preview: '#FBECDD' },
+    { title: 'Yellow background', color: '#FBF3DB', preview: '#FBF3DB' },
+    { title: 'Green background', color: '#EDF3EC', preview: '#EDF3EC' },
+    { title: 'Blue background', color: '#E7F3F8', preview: '#E7F3F8' },
+    { title: 'Purple background', color: '#F4EEF8', preview: '#F4EEF8' },
+    { title: 'Pink background', color: '#F9EEF3', preview: '#F9EEF3' },
+    { title: 'Red background', color: '#FDEBEC', preview: '#FDEBEC' },
+];
 
 export const TableControlsOverlay = ({ editor }) => {
     const containerRef = useRef(null);
     const [tablePos, setTablePos] = useState(null);
     const [activeColPos, setActiveColPos] = useState(null);
     const [showMenu, setShowMenu] = useState(false);
+    const [showColorSubmenu, setShowColorSubmenu] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const menuRef = useRef(null);
 
     const updateCoordinates = useCallback(() => {
@@ -23,7 +61,6 @@ export const TableControlsOverlay = ({ editor }) => {
             const parentRect = containerRef.current.getBoundingClientRect();
             const tableRect = table.getBoundingClientRect();
 
-            // Calculate coordinates relative to THIS wrapper container
             setTablePos({
                 top: tableRect.top - parentRect.top,
                 left: tableRect.left - parentRect.left,
@@ -45,6 +82,7 @@ export const TableControlsOverlay = ({ editor }) => {
             setTablePos(null);
             setActiveColPos(null);
             setShowMenu(false);
+            setShowColorSubmenu(false);
         }
     }, [editor]);
 
@@ -66,17 +104,40 @@ export const TableControlsOverlay = ({ editor }) => {
         const handleClickOutside = (e) => {
             if (menuRef.current && !menuRef.current.contains(e.target)) {
                 setShowMenu(false);
+                setShowColorSubmenu(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const applyTextColor = (hex) => {
+        if (!editor) return;
+        if (hex) {
+            editor.chain().focus().setColor(hex).run();
+        } else {
+            editor.chain().focus().unsetColor().run();
+        }
+        setShowMenu(false);
+        setShowColorSubmenu(false);
+    };
+
+    const applyCellBackground = (hex) => {
+        if (!editor) return;
+        if (hex) {
+            editor.chain().focus().setCellAttribute('backgroundColor', hex).run();
+        } else {
+            editor.chain().focus().setCellAttribute('backgroundColor', null).run();
+        }
+        setShowMenu(false);
+        setShowColorSubmenu(false);
+    };
+
     return (
         <div ref={containerRef} className="pointer-events-none absolute inset-0 z-20 overflow-visible">
             {tablePos && (
                 <>
-                    {/* 1. Add Column Button (Right Side Pill) */}
+                    {/* Add Column Button */}
                     <div
                         style={{
                             top: `${tablePos.top}px`,
@@ -98,7 +159,7 @@ export const TableControlsOverlay = ({ editor }) => {
                         </button>
                     </div>
 
-                    {/* 2. Add Row Button (Bottom Pill Matching Exact Table Width) */}
+                    {/* Add Row Button */}
                     <div
                         style={{
                             top: `${tablePos.top + tablePos.height + 4}px`,
@@ -120,7 +181,7 @@ export const TableControlsOverlay = ({ editor }) => {
                         </button>
                     </div>
 
-                    {/* 3. Blue Column Handle */}
+                    {/* Column Grip Handle */}
                     {activeColPos && (
                         <div
                             style={{
@@ -134,18 +195,92 @@ export const TableControlsOverlay = ({ editor }) => {
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setShowMenu((prev) => !prev);
+                                    setShowColorSubmenu(false);
                                 }}
                                 className="w-6 h-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center justify-center shadow transition-colors cursor-pointer"
                             >
                                 <GripHorizontal size={10} strokeWidth={3} />
                             </button>
 
-                            {/* Dropdown Menu */}
+                            {/* Main Dropdown Menu */}
                             {showMenu && (
                                 <div
                                     ref={menuRef}
-                                    className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 p-1.5 z-50 text-xs text-slate-700 select-none"
+                                    className="absolute left-0 top-full mt-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-200 p-1.5 z-50 text-xs text-slate-700 select-none animate-in fade-in zoom-in-95 duration-75"
                                 >
+                                    <div className="p-1 mb-1">
+                                        <input
+                                            type="text"
+                                            placeholder="Search actions..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-500 placeholder:text-gray-400"
+                                        />
+                                    </div>
+
+                                    {/* Colour Flyout Toggle */}
+                                    <div
+                                        className="relative"
+                                        onMouseEnter={() => setShowColorSubmenu(true)}
+                                    >
+                                        <button
+                                            type="button"
+                                            className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-100 text-left font-medium transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Paintbrush size={13} className="text-gray-500" />
+                                                <span>Colour</span>
+                                            </div>
+                                            <ChevronRight size={13} className="text-gray-400" />
+                                        </button>
+
+                                        {/* Nested Colour Submenu */}
+                                        {showColorSubmenu && (
+                                            <div
+                                                onMouseLeave={() => setShowColorSubmenu(false)}
+                                                className="absolute left-full top-0 ml-1 w-56 max-h-80 overflow-y-auto bg-white rounded-xl shadow-2xl border border-gray-200 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-75"
+                                            >
+                                                <div className="px-2 py-1 text-[11px] font-semibold text-gray-400">
+                                                    Text colour
+                                                </div>
+                                                {TEXT_COLORS.map((item, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => applyTextColor(item.color)}
+                                                        className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-gray-100 text-left text-xs text-slate-700 transition-colors"
+                                                    >
+                                                        <span
+                                                            className="w-5 h-5 rounded border border-gray-200 flex items-center justify-center font-serif text-xs font-semibold bg-white shadow-xs"
+                                                            style={{ color: item.preview }}
+                                                        >
+                                                            A
+                                                        </span>
+                                                        <span>{item.title}</span>
+                                                    </button>
+                                                ))}
+
+                                                <div className="px-2 pt-2 pb-1 text-[11px] font-semibold text-gray-400 border-t border-gray-100 mt-1">
+                                                    Background colour
+                                                </div>
+                                                {BG_COLORS.map((item, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        type="button"
+                                                        onClick={() => applyCellBackground(item.color)}
+                                                        className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-gray-100 text-left text-xs text-slate-700 transition-colors"
+                                                    >
+                                                        <span
+                                                            className="w-5 h-5 rounded border border-gray-200 shadow-xs"
+                                                            style={{ backgroundColor: item.preview }}
+                                                        />
+                                                        <span>{item.title}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -155,7 +290,7 @@ export const TableControlsOverlay = ({ editor }) => {
                                         }}
                                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 text-left font-medium"
                                     >
-                                        <ArrowLeft size={13} className="text-gray-400" /> Insert left
+                                        <ArrowLeft size={13} className="text-gray-500" /> Insert left
                                     </button>
 
                                     <button
@@ -167,8 +302,37 @@ export const TableControlsOverlay = ({ editor }) => {
                                         }}
                                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 text-left font-medium"
                                     >
-                                        <ArrowRight size={13} className="text-gray-400" /> Insert right
+                                        <ArrowRight size={13} className="text-gray-500" /> Insert right
                                     </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const { state } = editor;
+                                            const cell = state.selection.$from.node(-1);
+                                            editor.chain().focus().insertContent(cell.toJSON()).run();
+                                            setShowMenu(false);
+                                        }}
+                                        className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-100 text-left font-medium"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Copy size={13} className="text-gray-500" /> Duplicate
+                                        </div>
+                                        <span className="text-[10px] text-gray-400">⌘D</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            editor.chain().focus().setContent('').run();
+                                            setShowMenu(false);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 text-left font-medium"
+                                    >
+                                        <Delete size={13} className="text-gray-500" /> Clear contents
+                                    </button>
+
+                                    <div className="h-px bg-gray-100 my-1" />
 
                                     <button
                                         type="button"
@@ -180,20 +344,6 @@ export const TableControlsOverlay = ({ editor }) => {
                                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-red-50 text-left font-medium text-red-600"
                                     >
                                         <Trash2 size={13} /> Delete column
-                                    </button>
-
-                                    <div className="h-px bg-gray-100 my-1" />
-
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            editor.chain().focus().deleteTable().run();
-                                            setShowMenu(false);
-                                            setTablePos(null);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-red-50 text-left font-medium text-red-600"
-                                    >
-                                        <Trash2 size={13} /> Delete table
                                     </button>
                                 </div>
                             )}
