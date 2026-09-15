@@ -33,6 +33,7 @@ import { ImageBlock } from './AddImage';
 import { CodeBlockComponent } from './CodeBlock';
 import CodeBlock from '@tiptap/extension-code-block';
 import { ReactNodeViewRenderer } from '@tiptap/react';
+import Highlight from '@tiptap/extension-highlight';
 
 
 
@@ -118,6 +119,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             Underline,
             TextStyle,
             Color,
+            Highlight.configure({ multicolor: true }),
             Code,
             PageMention,
             Link.configure({

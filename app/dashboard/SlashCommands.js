@@ -280,6 +280,172 @@ export const slashItems = [
             editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
         },
     },
+    // --- Text color ---
+    {
+        title: 'Default text',
+        icon: '⚫',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).unsetColor().run();
+        },
+    },
+    {
+        title: 'Gray Text',
+        icon: '🔘',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#787774').run();
+        },
+    },
+    {
+        title: 'Brown Text',
+        icon: '🟤',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#9F6B53').run();
+        },
+    },
+    {
+        title: 'Orange Text',
+        icon: '🟠',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#D9730D').run();
+        },
+    },
+    {
+        title: 'Yellow Text',
+        icon: '🟡',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#CB912F').run();
+        },
+    },
+    {
+        title: 'Green Text',
+        icon: '🟢',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#448361').run();
+        },
+    },
+    {
+        title: 'Blue Text',
+        icon: '🔵',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#337EA9').run();
+        },
+    },
+    {
+        title: 'Purple Text',
+        icon: '🟣',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#9065B0').run();
+        },
+    },
+    {
+        title: 'Pink Text',
+        icon: '🩷',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#C14C8A').run();
+        },
+    },
+    {
+        title: 'Red Text',
+        icon: '🔴',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#D44C47').run();
+        },
+    },
+
+    // --- Background color ---
+    {
+        title: 'Default Background',
+        icon: '⚪',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).unsetHighlight().run();
+        },
+    },
+    {
+        title: 'Gray Background',
+        icon: '🔘',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#F1F1EF' }).run();
+        },
+    },
+    {
+        title: 'Brown Background',
+        icon: '🟤',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#F4EEEE' }).run();
+        },
+    },
+    {
+        title: 'Orange Background',
+        icon: '🟠',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#FBECDD' }).run();
+        },
+    },
+    {
+        title: 'Yellow Background',
+        icon: '🟡',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#FBF3DB' }).run();
+        },
+    },
+    {
+        title: 'Green Background',
+        icon: '🟢',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#EDF3EC' }).run();
+        },
+    },
+    {
+        title: 'Blue Background',
+        icon: '🔵',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#E7F3F8' }).run();
+        },
+    },
+    {
+        title: 'Purple Background',
+        icon: '🟣',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#F4EEF8' }).run();
+        },
+    },
+    {
+        title: 'Pink Background',
+        icon: '🩷',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#F9EEF3' }).run();
+        },
+    },
+    {
+        title: 'Red Background',
+        icon: '🔴',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#FDEBEC' }).run();
+        },
+    },
+
+
+];
 
 
     // {
@@ -339,7 +505,7 @@ export const slashItems = [
     //     icon:'❚️❚️❚️❚️❚️',
     //     group:'Turn into',
     // },
-    ];
+
 // ---- Database ---
 // {
 //     title:'Table View',
@@ -670,116 +836,7 @@ export const slashItems = [
 //         group:'Actions',
 //     },
 //
-//     //---Text color---
-//     {
-//         title:'Default text',
-//         icon:'⚫',
-//         group:'Text color'
-//     },
-//     {
-//         title:'Gray Text',
-//         icon:'🔘',
-//         group:'Text color'
-//     },
 //
-//     {
-//         title:'Brown text',
-//         icon:'🟤',
-//         group:'Text color'
-//     },
-//     {
-//         title:'Orange text',
-//         icon:'🟠',
-//         group:'Text color'
-//     },
-//     {
-//         title:'Yellow text',
-//         icon:'🟡',
-//         group:'Text color'
-//     },
-//     {
-//         title:'Green text',
-//         icon:'🟢',
-//         group:'Text color'
-//     },
-//     {
-//         title:'Blue text',
-//         icon:'🔵',
-//         group:'Text color'
-//     },
-//     {
-//         title:'Purple text',
-//         icon:'🟣',
-//         group:'Text color'
-//     },
-//     {
-//         title:'Pink text',
-//         icon:'🩷',
-//         group:'Text color'
-//     },
-//     {
-//         title:'Red text',
-//         icon:'🔴',
-//         group:'Text color'
-//     },
-//     //---Background color---
-//     {
-//         title:'Default Background',
-//         icon:'⚪',
-//         group:'Background color'
-//     },
-//     {
-//         title:'Gray Background',
-//         icon:'🔘',
-//         group:'Background color'
-//     },
-//
-//     {
-//         title:'Brown Background',
-//         icon:'🟤',
-//         group:'Background color'
-//     },
-//     {
-//         title:'Orange Background',
-//         icon:'🟠',
-//         group:'Background color'
-//     },
-//     {
-//         title:'Yellow Background',
-//         icon:'🟡',
-//         group:'Background color'
-//     },
-//     {
-//         title:'Green Background',
-//         icon:'🟢',
-//         group:'Background color'
-//     },
-//     {
-//         title:'Blue Background',
-//         icon:'🔵',
-//         group:'Background color'
-//     },
-//     {
-//         title:'Purple Background',
-//         icon:'🟣',
-//         group:'Background color'
-//     },
-//     {
-//         title:'Pink Background',
-//         icon:'🩷',
-//         group:'Background color'
-//     },
-//     {
-//         title:'Red Background',
-//         icon:'🔴',
-//         group:'Background color'
-//     },
-//
-//
-//
-//
-//
-// ];
 const EXCLUDED_GROUPS = ['Turn into', 'Text color', 'Background color', 'Actions'];
 
 export const plusMenuItems = slashItems.filter(
