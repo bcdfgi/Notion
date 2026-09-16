@@ -181,6 +181,66 @@ export const slashItems = [
             editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'default' }).run();
         },
     },
+    // --- Embeds---
+    {
+        title: 'Embed',
+        description: 'For PDFs, Google Maps and more',
+        icon: '⧉',
+        group: 'Embeds',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'default' }).run();
+        },
+    },
+
+
+    {
+        title: 'YouTube',
+        description: 'Embed a YouTube video player',
+        icon: '🎬',
+        group: 'Embeds',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'youtube' }).run();
+        },
+    },
+    {
+        title: 'Google Maps',
+        description: 'Embed an interactive Google Map',
+        icon: '📍',
+        group: 'Embeds',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .setEmbed({ src: null, embedType: 'maps' })
+                .run();
+        },
+    },
+    {
+        title: 'Figma',
+        description: 'Embed an interactive Figma file',
+        icon: '🎨',
+        group: 'Embeds',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .setEmbed({ src: null, embedType: 'figma' })
+                .run();
+        },
+    },
+    {
+        title: 'Spotify',
+        description: 'Embed an interactive spotify playlist',
+        icon: '🎶',
+        group: 'Embeds',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'spotify' }).run();
+        },
+    },
+
+
 
     // --- Turn into ---
     {
@@ -750,65 +810,7 @@ export const slashItems = [
 //
 //
 // ];
-// {
-//     title:'Embed',
-//         description:'For PDFs, Google Maps and more ',
-//     icon:'⧉',
-//     group:'Embeds',
-// },
-// {
-//     title:'HTML',
-//         description:'Upload or link an HTML file ',
-//     icon:'<>',
-//     group:'Embeds',
-// },
-// {
-//     title:'Replit',
-//         description:'Embed a replit ',
-//     icon: '⚡',
-//     group:'Embeds',
-//
-// },
-//
-// {
-//     title: 'Google Maps',
-//         description: 'Embed an interactive Google Map',
-// @@ -159,14 +403,15 @@ export const slashItems = [
-// },
-// },
-// {
-//     title: 'YouTube',
-//         description: 'Embed a YouTube video player',
-//     icon: '▶',
-//     title: 'Figma',
-//     description: 'Embed an interactive Figma file',
-//     icon: '🎨',
-//     group: 'Embeds',
-//     command: ({ editor, range }) => {
-//     editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'youtube' }).run();
-//     editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'figma' }).run();
-// },
-// },
-//
-// {
-//     title: 'Spotify',
-//         description: 'Embed Spotify song or playlist',
-// @@ -177,14 +422,39 @@ export const slashItems = [
-// },
-// },
-// {
-//     title: 'Figma',
-//         description: 'Embed an interactive Figma file',
-//     icon: '🎨',
-//     title: 'Youtube',
-//     description: 'Embed a youtube video',
-//     icon: '🎬',
-//     group: 'Embeds',
-//     command: ({ editor, range }) => {
-//     editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'figma' }).run();
-//     editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'youtube' }).run();
-// },
-// },
+
 
 //     //--- Action ---
 //     {
