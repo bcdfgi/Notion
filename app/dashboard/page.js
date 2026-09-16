@@ -34,6 +34,7 @@ import { CodeBlockComponent } from './CodeBlock';
 import CodeBlock from '@tiptap/extension-code-block';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import Highlight from '@tiptap/extension-highlight';
+import MoveToModal from './MoveToModal';
 
 
 
@@ -89,6 +90,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [isFullWidth, setIsFullWidth] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [showPageLinkModal, setShowPageLinkModal] = useState(false);
+    const [showMoveToModal, setShowMoveToModal] = useState(false);
+    const [blockToMove, setBlockToMove] = useState(null);
 
 
     const editor = useEditor({
@@ -585,7 +588,65 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     }, [debouncedSave]);
 
 
+    const handleOpenMoveTo = () => {
+        if (!editor) return;
+        const { selection } = editor.state;
+        // Capture the top-level block node
+        const node = selection.$from.parent;
+        setBlockToMove(node.toJSON());
+        setShowMoveToModal(true);
+    };
 
+    const handleExecuteMoveBlock = async (targetPage) => {
+        setShowMoveToModal(false);
+        if (!blockToMove || !editor || !currentPageId) return;
+
+        // 1. Delete the block from the current editor
+        const { selection } = editor.state;
+        const from = selection.$from.before(1);
+        const to = selection.$from.after(1);
+        editor.chain().focus().deleteRange({ from, to }).run();
+
+        // 2. Save current page changes
+        const updatedContent = editor.getJSON();
+        const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+        saveContent(updatedContent, currentTitle);
+
+        // 3. Append block to target page JSON
+        let targetContent = targetPage.content;
+        if (typeof targetContent === 'string') {
+            try {
+                targetContent = JSON.parse(targetContent);
+            } catch {
+                targetContent = { type: 'doc', content: [] };
+            }
+        }
+
+        if (!targetContent || !targetContent.content) {
+            targetContent = { type: 'doc', content: [] };
+        }
+
+        const nextTargetDoc = {
+            ...targetContent,
+            content: [...targetContent.content, blockToMove],
+        };
+
+        // 4. Persist target page update
+        await updatePageContent(targetPage._id, {
+            title: targetPage.title || "Untitled",
+            content: nextTargetDoc,
+            userEmail: userEmailRef.current,
+        });
+
+        // Update in-memory pages state
+        setPages((prev) =>
+            prev.map((p) =>
+                p._id === targetPage._id ? { ...p, content: nextTargetDoc } : p
+            )
+        );
+
+        setBlockToMove(null);
+    };
 
 
     const updateHandlePosition = useCallback((targetElement, isTitle = false) => {
@@ -999,6 +1060,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                             editor={editor}
                                             userEmail={userEmail}
                                             onClose={() => setShowBlockMenu(false)}
+                                            onOpenMoveTo={handleOpenMoveTo}
                                         />
                                     </div>
                                 )}
@@ -1421,6 +1483,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 pages={pages}
                 currentPageId={currentPageId}
                 onSelectPage={handleInsertPageLink}
+            />
+            <MoveToModal
+                isOpen={showMoveToModal}
+                onClose={() => setShowMoveToModal(false)}
+                pages={pages}
+                currentPageId={currentPageId}
+                onSelectDestination={handleExecuteMoveBlock}
             />
 
 

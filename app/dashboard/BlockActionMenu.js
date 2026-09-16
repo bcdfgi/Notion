@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import { slashItems } from './SlashCommands';
 
-export default function BlockActionMenu({ editor, onClose, userEmail = "User" }) {
+
+export default function BlockActionMenu({ editor, onClose, userEmail = "User", onOpenMoveTo }) {
     const [search, setSearch] = useState('');
     const [submenu, setSubmenu] = useState(null);
 
@@ -188,7 +189,10 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User" })
 
                 <button
                     type="button"
-                    onClick={onClose}
+                    onClick={() => {
+                        onClose();
+                        if (onOpenMoveTo) onOpenMoveTo();
+                    }}
                     className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                     <div className="flex items-center gap-2">
