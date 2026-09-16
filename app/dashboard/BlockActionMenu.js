@@ -37,11 +37,45 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User", o
         editor.chain().focus().deleteRange({ from, to }).run();
         onClose();
     };
+    const handleCopyBlock = async () => {
+        if (!editor) return;
+        const { selection } = editor.state;
+        const node = selection.$from.parent;
 
-    const handleCopyLink = () => {
-        navigator.clipboard.writeText(window.location.href);
+        // 1. Get plain text of the block
+        const textContent = node.textContent || '';
+
+        // 2. Get HTML representation using DOMSerializer
+        let htmlContent = '';
+        try {
+            const schema = editor.schema;
+            const dom = editor.view.domAtPos(selection.$from.pos).node;
+            htmlContent = dom instanceof HTMLElement ? dom.outerHTML : textContent;
+        } catch {
+            htmlContent = textContent;
+        }
+
+        try {
+            if (navigator.clipboard && window.ClipboardItem) {
+                const blobHtml = new Blob([htmlContent], { type: 'text/html' });
+                const blobText = new Blob([textContent], { type: 'text/plain' });
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': blobHtml,
+                        'text/plain': blobText,
+                    }),
+                ]);
+            } else {
+                await navigator.clipboard.writeText(textContent);
+            }
+        } catch {
+            // Fallback for older browsers or restricted clipboard permissions
+            await navigator.clipboard.writeText(textContent);
+        }
+
         onClose();
     };
+
 
     const handleApplyCommand = (item) => {
         if (item.command && editor) {
@@ -165,14 +199,14 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User", o
 
                 <button
                     type="button"
-                    onClick={handleCopyLink}
+                    onClick={handleCopyBlock}
                     className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                     <div className="flex items-center gap-2">
-                        <Link size={14} className="text-gray-500" />
-                        <span>Copy link to block</span>
+                        <Copy size={14} className="text-gray-500" />
+                        <span>Copy block</span>
                     </div>
-                    <span className="text-[10px] text-gray-400">⌘^L</span>
+                    <span className="text-[10px] text-gray-400">⌘C</span>
                 </button>
 
                 <button
