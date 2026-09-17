@@ -239,6 +239,26 @@ export const slashItems = [
             editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'spotify' }).run();
         },
     },
+    // ----Import---
+    {
+        title:'CSV',
+        description:'Bring Data from CSV into Notion file ',
+        icon: '▦',
+        group:'Import',
+    },
+    {
+        title: 'Text and Markdown',
+        description: 'Brings Data from Text and Markdown into Notion ',
+        icon: '¶',
+        group: 'Import',
+    },
+    {
+        title:'PDf',
+        description:'Bring data from PDF into PDF into Notion ',
+        icon: 'pdf',
+        group:'Import',
+
+},
 
 
 
@@ -785,28 +805,7 @@ export const slashItems = [
 //     icon:'🗓️',
 //     group:'Inline',
 // },
-//---Import---
-// {
-//     title:'CSV',
-//         description:'Bring Data from CSV into Notion file ',
-//     icon: '▦',
-//     group:'Import',
-//
-// },
-// {
-//     title:'Text and Markdown',
-//         description:'Brings Data from Text and Markdown into Notion ',
-//     icon: '¶',
-//     group:'Import',
-//
-// },
-// {
-//     title:'PDf',
-//         description:'Bring data from PDF into PDF into Notion ',
-//     icon: 'pdf',
-//     group:'Import',
-//
-// },
+
 //
 //
 // ];

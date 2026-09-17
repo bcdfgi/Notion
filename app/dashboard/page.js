@@ -296,6 +296,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setCoverImage(selectedPage.coverImage || null);
             setCoverPosition(selectedPage.coverPosition ?? 50);
             setPageIcon(selectedPage.icon || null);
+            setIsFavorite(Boolean(selectedPage.isFavorite));
             setLastEditedTime(selectedPage.updatedAt ? new Date(selectedPage.updatedAt) : new Date());
 
             if (titleRef.current) {
@@ -340,6 +341,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     setCoverImage(firstPage.coverImage || null);
                     setCoverPosition(firstPage.coverPosition ?? 50);
                     setPageIcon(firstPage.icon || null);
+                    setIsFavorite(Boolean(firstPage.isFavorite));
                     setLastEditedTime(firstPage.updatedAt ? new Date(firstPage.updatedAt) : new Date());
 
                     const initialTitle = firstPage.title || "Untitled";
@@ -678,6 +680,29 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
         setBlockToMove(null);
     };
+    const handleToggleFavorite = async () => {
+        if (!currentPageId) return;
+
+        const newFavoriteStatus = !isFavorite;
+        setIsFavorite(newFavoriteStatus);
+
+        // Update in-memory pages list
+        setPages(prev =>
+            prev.map(p => (p._id === currentPageId ? { ...p, isFavorite: newFavoriteStatus } : p))
+        );
+
+        // Persist to database
+        try {
+            await updatePageContent(currentPageId, {
+                title: titleRef.current?.innerText?.trim() || "Untitled",
+                content: editor?.getJSON(),
+                isFavorite: newFavoriteStatus,
+                userEmail: userEmailRef.current,
+            });
+        } catch (err) {
+            console.error("Failed to update favorite status:", err);
+        }
+    };
 
 
     const updateHandlePosition = useCallback((targetElement, isTitle = false) => {
@@ -808,7 +833,42 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
                             Library
                         </button>
-                        <div className="mt-8">
+
+                        {/* FAVORITES SECTION (Shows only when pages are favorited) */}
+                        {pages.some((p) => p.isFavorite) && (
+                            <div className="mt-6">
+                                <div className="px-3 mb-1">
+                                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Favorites</span>
+                                </div>
+                                <div className="space-y-0.5">
+                                    {pages
+                                        .filter((page) => page.isFavorite)
+                                        .map((page) => (
+                                            <button
+                                                key={`fav-${page._id}`}
+                                                onClick={() => loadPage(page._id)}
+                                                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors text-left ${
+                                                    currentPageId === page._id
+                                                        ? 'bg-gray-200 text-slate-900 font-medium'
+                                                        : 'text-slate-600 hover:bg-gray-200/50'
+                                                }`}
+                                            >
+                                                {page.icon ? (
+                                                    <PageIcon icon={page.icon} size={16} />
+                                                ) : (
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                                    </svg>
+                                                )}
+                                                <span className="truncate">{page.title || "Untitled"}</span>
+                                            </button>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="mt-6">
                             <div className="flex items-center justify-between px-3 mb-2 group">
                                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recents</span>
                                 <button
@@ -930,7 +990,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         {/* Favorite (Star) Button */}
                         <button
                             type="button"
-                            onClick={() => setIsFavorite(prev => !prev)}
+                            onClick={handleToggleFavorite}
                             className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
                             title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
                         >
