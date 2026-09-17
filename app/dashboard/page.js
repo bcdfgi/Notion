@@ -35,6 +35,12 @@ import CodeBlock from '@tiptap/extension-code-block';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import Highlight from '@tiptap/extension-highlight';
 import MoveToModal from './MoveToModal';
+import Papa from 'papaparse';
+import { marked } from 'marked';
+import * as pdfjsLib from 'pdfjs-dist';
+
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 
 function formatRelativeTime(date) {
@@ -112,6 +118,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [blockToMove, setBlockToMove] = useState(null);
     const [lastEditedTime, setLastEditedTime] = useState(null);
     const [, setTick] = useState(0);
+    const importInputRef = useRef(null);
+    const [importType, setImportType] = useState('markdown');
 
 
     const editor = useEditor({
@@ -772,6 +780,78 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             debouncedSave(json, cleanTitle, currentPageId);
         }
     }, [currentPageId, debouncedSave, isLoading]);
+    useEffect(() => {
+        const handleTriggerImport = (e) => {
+            const type = e.detail?.type || 'markdown';
+            setImportType(type);
+            if (importInputRef.current) {
+                if (type === 'csv') importInputRef.current.accept = '.csv';
+                else if (type === 'pdf') importInputRef.current.accept = '.pdf';
+                else importInputRef.current.accept = '.md,.markdown,.txt';
+                importInputRef.current.value = '';
+                importInputRef.current.click();
+            }
+        };
+
+        window.addEventListener('notion:trigger-import', handleTriggerImport);
+        return () => window.removeEventListener('notion:trigger-import', handleTriggerImport);
+    }, []);
+    const handleFileImport = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !editor) return;
+
+        // --- CSV IMPORT (Converted to TipTap Table) ---
+        if (importType === 'csv') {
+            Papa.parse(file, {
+                skipEmptyLines: true,
+                complete: (results) => {
+                    const rows = results.data;
+                    if (!rows || rows.length === 0) return;
+
+                    const tableContent = rows.map((row, rowIndex) => {
+                        const isHeader = rowIndex === 0;
+                        return {
+                            type: 'tableRow',
+                            content: row.map((cellText) => ({
+                                type: isHeader ? 'tableHeader' : 'tableCell',
+                                content: [{ type: 'paragraph', content: [{ type: 'text', text: String(cellText || '').trim() }] }],
+                            })),
+                        };
+                    });
+
+                    editor.chain().focus().insertContent({ type: 'table', content: tableContent }).run();
+                },
+            });
+        }
+
+        // --- MARKDOWN & TEXT IMPORT ---
+        else if (importType === 'markdown') {
+            const text = await file.text();
+            const html = marked.parse(text);
+            editor.chain().focus().insertContent(html).run();
+        }
+
+        // --- PDF TEXT IMPORT ---
+        else if (importType === 'pdf') {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let extractedParagraphs = [];
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const text = content.items.map((item) => item.str).join(' ');
+                if (text.trim()) extractedParagraphs.push(text.trim());
+            }
+
+            const nodes = extractedParagraphs.map((paragraph) => ({
+                type: 'paragraph',
+                content: [{ type: 'text', text: paragraph }],
+            }));
+
+            editor.chain().focus().insertContent(nodes).run();
+        }
+    };
 
 
 
@@ -1596,6 +1676,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 pages={pages}
                 currentPageId={currentPageId}
                 onSelectDestination={handleExecuteMoveBlock}
+            />
+            <input
+                type="file"
+                ref={importInputRef}
+                onChange={handleFileImport}
+                className="hidden"
             />
 
 

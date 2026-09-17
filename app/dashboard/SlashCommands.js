@@ -239,26 +239,37 @@ export const slashItems = [
             editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'spotify' }).run();
         },
     },
-    // ----Import---
+    // ---- Import ---
     {
-        title:'CSV',
-        description:'Bring Data from CSV into Notion file ',
+        title: 'CSV',
+        description: 'Bring Data from CSV into Notion file',
         icon: '▦',
-        group:'Import',
+        group: 'Import',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).run();
+            window.dispatchEvent(new CustomEvent('notion:trigger-import', { detail: { type: 'csv' } }));
+        },
     },
     {
         title: 'Text and Markdown',
-        description: 'Brings Data from Text and Markdown into Notion ',
+        description: 'Brings Data from Text and Markdown into Notion',
         icon: '¶',
         group: 'Import',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).run();
+            window.dispatchEvent(new CustomEvent('notion:trigger-import', { detail: { type: 'markdown' } }));
+        },
     },
     {
-        title:'PDf',
-        description:'Bring data from PDF into PDF into Notion ',
-        icon: 'pdf',
-        group:'Import',
-
-},
+        title: 'PDF',
+        description: 'Bring data from PDF into Notion',
+        icon: '📄',
+        group: 'Import',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).run();
+            window.dispatchEvent(new CustomEvent('notion:trigger-import', { detail: { type: 'pdf' } }));
+        },
+    },
 
 
 
