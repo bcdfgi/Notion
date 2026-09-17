@@ -37,6 +37,24 @@ import Highlight from '@tiptap/extension-highlight';
 import MoveToModal from './MoveToModal';
 
 
+function formatRelativeTime(date) {
+    if (!date) return 'Edited just now';
+    const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+
+    if (seconds < 10) return 'Edited just now';
+    if (seconds < 60) return `Edited ${seconds}s ago`;
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `Edited ${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `Edited ${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `Edited ${days}d ago`;
+
+    return new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
 
 
 const useIsMounted = () => {
@@ -92,6 +110,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [showPageLinkModal, setShowPageLinkModal] = useState(false);
     const [showMoveToModal, setShowMoveToModal] = useState(false);
     const [blockToMove, setBlockToMove] = useState(null);
+    const [lastEditedTime, setLastEditedTime] = useState(null);
+    const [, setTick] = useState(0);
 
 
     const editor = useEditor({
@@ -215,6 +235,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                 if (result.success) {
                     setSavingStatus("Saved");
+                    const now = new Date();
+                    setLastEditedTime(now);
                     setPages(prevPages =>
                         prevPages.map(p =>
                             p._id === pageId ? { ...p, title: currentTitle, content: json } : p
@@ -229,6 +251,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }, 1000),
         []
     );
+    useEffect(() => {
+        const timer = setInterval(() => setTick((t) => t + 1), 30000);
+        return () => clearInterval(timer);
+    }, []);
 
 
 
@@ -270,6 +296,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setCoverImage(selectedPage.coverImage || null);
             setCoverPosition(selectedPage.coverPosition ?? 50);
             setPageIcon(selectedPage.icon || null);
+            setLastEditedTime(selectedPage.updatedAt ? new Date(selectedPage.updatedAt) : new Date());
 
             if (titleRef.current) {
                 titleRef.current.innerText = displayTitle;
@@ -313,6 +340,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     setCoverImage(firstPage.coverImage || null);
                     setCoverPosition(firstPage.coverPosition ?? 50);
                     setPageIcon(firstPage.icon || null);
+                    setLastEditedTime(firstPage.updatedAt ? new Date(firstPage.updatedAt) : new Date());
 
                     const initialTitle = firstPage.title || "Untitled";
                     if (titleRef.current) {
@@ -456,6 +484,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const handleUpdateCover = async (newCoverUrl) => {
         setCoverImage(newCoverUrl);
         setShowCoverPicker(false);
+        setLastEditedTime(new Date());
 
         if (currentPageId) {
             const currentTitle = titleRef.current?.innerText || "Untitled";
@@ -551,8 +580,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     }, [isDraggingCover, handleMouseMoveCover, handleMouseUpCover]);
     const handleSavePosition = async () => {
         setIsRepositioning(false);
+        setLastEditedTime(new Date());
         if (currentPageId) {
             setSavingStatus("Saving...");
+
 
             setPages(prev => prev.map(p =>
                 p._id === currentPageId ? { ...p, coverPosition } : p
@@ -671,6 +702,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const handleUpdateIcon = async (selectedIcon) => {
         setPageIcon(selectedIcon);
         setShowIconPicker(false);
+        setLastEditedTime(new Date());
 
         if (currentPageId) {
             setPages(prev =>
@@ -875,10 +907,24 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     </button>
 
                     <div className="flex items-center gap-1.5 text-slate-500">
-                        {/* Edited status with pulse dot */}
-                        <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400">
-                            <div className={`w-2 h-2 rounded-full ${savingStatus === "Saving..." ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
-                            <span>{savingStatus === "Saving..." ? "Saving..." : "Edited just now"}</span>
+                        {/* Status with dynamic relative time */}
+                        <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 select-none">
+                            <div
+                                className={`w-2 h-2 rounded-full ${
+                                    savingStatus === "Saving..."
+                                        ? "bg-amber-400 animate-pulse"
+                                        : savingStatus === "Error"
+                                            ? "bg-red-400"
+                                            : "bg-emerald-400"
+                                }`}
+                            />
+                            <span>
+                                {savingStatus === "Saving..."
+                                    ? "Saving..."
+                                    : savingStatus === "Error"
+                                        ? "Failed to save"
+                                        : formatRelativeTime(lastEditedTime)}
+                            </span>
                         </div>
 
                         {/* Favorite (Star) Button */}

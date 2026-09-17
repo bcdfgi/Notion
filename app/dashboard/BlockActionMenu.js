@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import {
     RefreshCw,
     Palette,
-    Link,
     Copy,
     CornerUpRight,
     Trash2,
