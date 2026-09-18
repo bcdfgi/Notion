@@ -38,6 +38,7 @@ import MoveToModal from './MoveToModal';
 import Papa from 'papaparse';
 import { marked } from 'marked';
 import * as pdfjsLib from 'pdfjs-dist';
+import { DatabaseExtension } from './DatabaseExtension';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -192,6 +193,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }),
 
             Placeholder.configure({ placeholder: "Type '/' for commands..." }),
+            DatabaseExtension,
             EmbedExtension,
             SlashCommands,
 
@@ -852,6 +854,28 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             editor.chain().focus().insertContent(nodes).run();
         }
     };
+    useEffect(() => {
+        const handleCreateSubpageDatabase = async () => {
+            const result = await createPage(userEmail);
+            if (result.success) {
+                const initialDatabaseDoc = {
+                    type: 'doc',
+                    content: [{ type: 'databaseBlock', attrs: { title: 'Untitled Database', currentView: 'table' } }]
+                };
+                await updatePageContent(result.pageId, {
+                    title: 'Untitled Database',
+                    content: initialDatabaseDoc,
+                    userEmail: userEmailRef.current
+                });
+                const sidebarResult = await getPages(userEmail);
+                setPages(sidebarResult.pages);
+                loadPage(result.pageId);
+            }
+        };
+
+        window.addEventListener('notion:create-subpage-database', handleCreateSubpageDatabase);
+        return () => window.removeEventListener('notion:create-subpage-database', handleCreateSubpageDatabase);
+    }, [userEmail, loadPage]);
 
 
 

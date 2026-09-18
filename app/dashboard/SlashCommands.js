@@ -240,47 +240,42 @@ export const slashItems = [
         },
     },
     // -----Databases----
+
     {
-        title:'Table View',
-        description:'Creates a table view',
-        icon:'⊞',
-        group:'Database',
+        title: 'Table View',
+        description: 'Creates a table database',
+        icon: '⊞',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'table' }).run();
+        },
     },
     {
-        title:'Board View',
-        description:'Creates a board view',
-        icon:'❚❚❚',
-        group:'Database',
+        title: 'Gallery View',
+        description: 'Creates a visual gallery database',
+        icon: '⊞',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'gallery' }).run();
+        },
     },
     {
-        title:'Gallery View',
-        description:'Creates a Gallery view',
-        icon:'⊞',
-        group:'Database',
+        title: 'Board View',
+        description: 'Creates a Kanban board database',
+        icon: '❚❚❚',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'board' }).run();
+        },
     },
     {
-        title:'List View',
-        description:'Creates a List view',
-        icon:'☷',
-        group:'Database',
-    },
-    {
-        title:'Calender View',
-        description:'Creates a Calender view',
-        icon:'🗓️',
-        group:'Database',
-    },
-    {
-        title:'Database Inline',
-        description:'Adds a newline database to this page ',
-        icon:'⛃',
-        group:'Database',
-    },
-    {
-        title:'Database Full Page',
-        description:'Adds a new database as a new sub page',
-        icon:'⛁',
-        group:'Database',
+        title: 'List View',
+        description: 'Creates a list database',
+        icon: '☷',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'list' }).run();
+        },
     },
 
     // ---- Import ---
