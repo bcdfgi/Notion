@@ -240,7 +240,6 @@ export const slashItems = [
         },
     },
     // -----Databases----
-
     {
         title: 'Table View',
         description: 'Creates a table database',
@@ -248,15 +247,6 @@ export const slashItems = [
         group: 'Database',
         command: ({ editor, range }) => {
             editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'table' }).run();
-        },
-    },
-    {
-        title: 'Gallery View',
-        description: 'Creates a visual gallery database',
-        icon: '⊞',
-        group: 'Database',
-        command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'gallery' }).run();
         },
     },
     {
@@ -269,12 +259,30 @@ export const slashItems = [
         },
     },
     {
+        title: 'Gallery View',
+        description: 'Creates a visual gallery database',
+        icon: '⊞',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'gallery' }).run();
+        },
+    },
+    {
         title: 'List View',
         description: 'Creates a list database',
         icon: '☷',
         group: 'Database',
         command: ({ editor, range }) => {
             editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'list' }).run();
+        },
+    },
+    {
+        title: 'Calendar View',
+        description: 'Creates a monthly calendar view',
+        icon: '🗓️',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'calendar' }).run();
         },
     },
 
