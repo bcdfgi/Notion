@@ -272,8 +272,8 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             <thead>
                             <tr className="border-b border-gray-200/70 text-gray-400 text-[12px] bg-white">
                                 <th className="py-2 px-3 font-normal w-1/2 border-r border-gray-100">Name</th>
-                                <th className="py-2 px-3 font-normal w-1/4 border-r border-gray-100">Status</th>
-                                <th className="py-2 px-3 font-normal w-1/4 border-r border-gray-100">Date</th>
+                                <th className="py-2 px-3 font-normal w-1/2 border-r border-gray-100">Add Property</th>
+
                                 <th className="w-8 border-r border-gray-100 px-2 text-center text-gray-400 font-light">
                                     <Plus size={13} className="mx-auto" />
                                 </th>

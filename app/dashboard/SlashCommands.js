@@ -285,6 +285,54 @@ export const slashItems = [
             editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'calendar' }).run();
         },
     },
+    // ---Database Inline
+    {
+        title: 'Date or Reminder',
+        description: 'Mention a date or reminder in text',
+        icon: '📅',
+        group: 'Inline',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'dateMention',
+                    attrs: { date: new Date().toISOString().split('T')[0] },
+                })
+                .insertContent(' ')
+                .run();
+        },
+    },
+    {
+        title: 'Emoji',
+        description: 'Search for an emoji to place in text',
+        icon: '☺',
+        group: 'Inline',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).run();
+            window.dispatchEvent(new CustomEvent('notion:open-inline-emoji'));
+        },
+    },
+    {
+        title: 'Inline Equation',
+        description: 'Adds mathematical symbols in text',
+        icon: '√x',
+        group: 'Inline',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'inlineMath',
+                    attrs: { latex: 'f(x)' },
+                })
+                .insertContent(' ')
+                .run();
+        },
+    },
+
 
     // ---- Import ---
     {

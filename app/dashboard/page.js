@@ -39,6 +39,8 @@ import Papa from 'papaparse';
 import { marked } from 'marked';
 import * as pdfjsLib from 'pdfjs-dist';
 import { DatabaseExtension } from './DatabaseExtension';
+import { DateExtension } from './DateExtension';
+import { InlineMathExtension } from './InlineMathExtension';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -134,6 +136,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     levels: [1, 2, 3, 4],
                 },
             }),
+            DateExtension,
+            InlineMathExtension,
             CodeBlock.extend({
                 addNodeView() {
                     return ReactNodeViewRenderer(CodeBlockComponent);
@@ -143,7 +147,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 resizable: true,
             }),
             ImageBlock,
-            // AFTER:
             TableRow,
             TableHeader.extend({
                 addAttributes() {
@@ -492,6 +495,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
         }
     };
+
 
     const handleUpdateCover = async (newCoverUrl) => {
         setCoverImage(newCoverUrl);
