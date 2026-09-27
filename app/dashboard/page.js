@@ -41,6 +41,10 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { DatabaseExtension } from './DatabaseExtension';
 import { DateExtension } from './DateExtension';
 import { InlineMathExtension } from './InlineMathExtension';
+import { ColumnGroup, Column } from './ColumnsExtension';
+import { Details, DetailsSummary, DetailsContent } from './ToggleExtension';
+import { TableOfContentsExtension } from './TableOfContentExtension';
+import { BlockEquationExtension, ButtonBlockExtension } from './AdvancedNodes';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -123,6 +127,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [, setTick] = useState(0);
     const importInputRef = useRef(null);
     const [importType, setImportType] = useState('markdown');
+    const [showInlineEmojiPicker, setShowInlineEmojiPicker] = useState(false);
 
 
     const editor = useEditor({
@@ -189,6 +194,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             Color,
             Highlight.configure({ multicolor: true }),
             Code,
+            ColumnGroup,
+            Column,
+            Details,
+            DetailsSummary,
+            DetailsContent,
+            TableOfContentsExtension,
+            BlockEquationExtension,
+            ButtonBlockExtension,
             PageMention,
             Link.configure({
                 openOnClick: false,
@@ -521,6 +534,16 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setSavingStatus(res.success ? "Saved" : "Error");
         }
     };
+    const handleSelectInlineEmoji = (selected) => {
+        setShowInlineEmojiPicker(false);
+        if (!editor || !selected) return;
+
+        // IconPickerModal sends { type: 'emoji', value: '😀' }
+        const emojiChar = typeof selected === 'object' ? selected.value : selected;
+        if (emojiChar) {
+            editor.chain().focus().insertContent(`${emojiChar} `).run();
+        }
+    };
 
 
     const handleRemoveCover = () => {
@@ -633,6 +656,11 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             debouncedSave.flush();
         };
     }, [debouncedSave]);
+    useEffect(() => {
+        const handleOpenInlineEmoji = () => setShowInlineEmojiPicker(true);
+        window.addEventListener('notion:open-inline-emoji', handleOpenInlineEmoji);
+        return () => window.removeEventListener('notion:open-inline-emoji', handleOpenInlineEmoji);
+    }, []);
 
 
     const handleOpenMoveTo = () => {
@@ -1711,6 +1739,19 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 onChange={handleFileImport}
                 className="hidden"
             />
+            {showInlineEmojiPicker && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]"
+                    onClick={() => setShowInlineEmojiPicker(false)}
+                >
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <IconPickerModal
+                            onSelect={handleSelectInlineEmoji}
+                            onClose={() => setShowInlineEmojiPicker(false)}
+                        />
+                    </div>
+                </div>
+            )}
 
 
 

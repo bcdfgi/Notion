@@ -129,6 +129,98 @@ export const slashItems = [
             window.dispatchEvent(new CustomEvent('notion:open-page-linker'));
         },
     },
+    //---Advanced Blocks
+    //---Advanced Blocks
+    {
+        title: 'Table of Contents',
+        description: 'Shows an outline of your page',
+        icon: '☰',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertContent({ type: 'tableOfContents' }).run();
+        },
+    },
+    {
+        title: 'Block Equation',
+        description: 'Displays a standalone math equation',
+        icon: '∑',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertContent({ type: 'blockEquation', attrs: { latex: 'f(x) = \\int_{-\\infty}^\\infty e^{-x^2} dx' } }).run();
+        },
+    },
+    {
+        title: 'Button',
+        description: 'Runs custom automation with a click',
+        icon: '◉',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertContent({ type: 'buttonBlock', attrs: { label: 'New Action' } }).run();
+        },
+    },
+    {
+        title: 'Toggle Heading 1',
+        description: 'Hide content in a large heading',
+        icon: '▶',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertToggleHeading(1).run();
+        },
+    },
+    {
+        title: 'Toggle Heading 2',
+        description: 'Hide content in a medium heading',
+        icon: '▶',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertToggleHeading(2).run();
+        },
+    },
+    {
+        title: 'Toggle Heading 3',
+        description: 'Hide content in a small heading',
+        icon: '▶',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertToggleHeading(3).run();
+        },
+    },
+    {
+        title: '2 Columns',
+        description: 'Creates a 2 column block',
+        icon: '❚️❚️',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColumns(2).run();
+        },
+    },
+    {
+        title: '3 Columns',
+        description: 'Creates a 3 column block',
+        icon: '❚️❚️❚️',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColumns(3).run();
+        },
+    },
+    {
+        title: '4 Columns',
+        description: 'Creates a 4 column block',
+        icon: '❚️❚️❚️❚️',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColumns(4).run();
+        },
+    },
+    {
+        title: '5 Columns',
+        description: 'Creates a 5 column block',
+        icon: '❚️❚️❚️❚️❚️',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColumns(5).run();
+        },
+    },
 
     // --- Media ---
     {
