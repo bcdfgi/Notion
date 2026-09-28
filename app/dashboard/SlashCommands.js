@@ -80,7 +80,7 @@ export const slashItems = [
     },
     {
         title: 'Quote',
-        description: 'Capture a quote or callout block',
+        description: 'Capture a quote',
         icon: '“ ”',
         group: 'Basic blocks',
         command: ({ editor, range }) => {

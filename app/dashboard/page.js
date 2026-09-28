@@ -208,7 +208,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 HTMLAttributes: { class: 'text-blue-500 underline cursor-pointer' }
             }),
 
-            Placeholder.configure({ placeholder: "Type '/' for commands..." }),
+            Placeholder.configure({
+                placeholder: "Type '/' for commands..." }),
             DatabaseExtension,
             EmbedExtension,
             SlashCommands,

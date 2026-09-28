@@ -15,7 +15,7 @@ export default function SettingsModal({ isOpen, onClose, userEmail }) {
     const navItems = [
         { id: 'preferences', label: 'Preferences', icon: Sliders, group: 'Account' },
         { id: 'general', label: 'General', icon: Settings, group: 'Workspace' },
-        { id: 'import', label: 'Import', icon: Download, group: 'Workspace' },
+       // { id: 'import', label: 'Import', icon: Download, group: 'Workspace' },
     ];
 
     return (
@@ -89,17 +89,17 @@ export default function SettingsModal({ isOpen, onClose, userEmail }) {
                                         <Settings size={14} />
                                         General
                                     </button>
-                                    <button
-                                        onClick={() => setActiveTab('import')}
-                                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                                            activeTab === 'import'
-                                                ? 'bg-gray-200 text-slate-900'
-                                                : 'text-slate-600 hover:bg-gray-200/50'
-                                        }`}
-                                    >
-                                        <Download size={14} />
-                                        Import
-                                    </button>
+                                    {/*<button*/}
+                                    {/*    onClick={() => setActiveTab('import')}*/}
+                                    {/*    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${*/}
+                                    {/*        activeTab === 'import'*/}
+                                    {/*            ? 'bg-gray-200 text-slate-900'*/}
+                                    {/*            : 'text-slate-600 hover:bg-gray-200/50'*/}
+                                    {/*    }`}*/}
+                                    {/*>*/}
+                                    {/*    <Download size={14} />*/}
+                                    {/*    Import*/}
+                                    {/*</button>*/}
                                 </div>
                             </div>
                         </div>

@@ -1,15 +1,118 @@
 @import "tailwindcss";
 
-
-
 @layer components {
-
+    /* --------------------------------------------------
+       1. Placeholders (Root Editor & Nested Quotes)
+    -------------------------------------------------- */
+    /* Editor root empty placeholder */
     .tiptap p.is-editor-empty:first-child::before {
         @apply text-gray-300 float-left h-0 pointer-events-none;
         content: attr(data-placeholder);
     }
 
+    .dark .tiptap p.is-editor-empty:first-child::before {
+        @apply text-[#474747];
+    }
 
+    /* Notion-style Quote Placeholder ("Empty quote") */
+    .tiptap blockquote p.is-empty::before {
+        content: attr(data-placeholder);
+        float: left;
+        color: #9ca3af; /* Tailwind text-gray-400 */
+        pointer-events: none;
+        height: 0;
+    }
+
+    .dark .tiptap blockquote p.is-empty::before {
+        color: #6b7280; /* Tailwind dark:text-gray-500 */
+    }
+
+    /* --------------------------------------------------
+       2. Notion-Style Quote Block
+    -------------------------------------------------- */
+    .tiptap blockquote {
+        border-left: 3px solid #111827 !important; /* Solid dark bar */
+        padding-left: 0.875rem !important;
+        margin-top: 0.375rem !important;
+        margin-bottom: 0.375rem !important;
+        font-style: normal !important;
+        color: inherit !important;
+    }
+
+    .dark .tiptap blockquote {
+        border-left-color: #e5e7eb !important;     /* White/Light bar in dark mode */
+        color: inherit !important;
+    }
+
+    /* Strip Tailwind Typography (@tailwindcss/typography) pseudo quotes */
+    .tiptap blockquote p:first-of-type::before,
+    .tiptap blockquote p:last-of-type::after {
+        content: "" !important;
+    }
+
+    /* --------------------------------------------------
+       3. Headings & Typography
+    -------------------------------------------------- */
+    .tiptap h1,
+    .tiptap h2,
+    .tiptap h3,
+    .tiptap h4 {
+        @apply outline-none font-bold text-slate-800 tracking-tight;
+    }
+
+    .tiptap h1 {
+        font-size: 2rem;
+        line-height: 2.25rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .tiptap h2 {
+        font-size: 1.5rem;
+        line-height: 2rem;
+        margin-top: 1.25rem;
+        margin-bottom: 0.375rem;
+    }
+
+    .tiptap h3 {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        margin-top: 1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .tiptap h4 {
+        font-size: 1.1rem;
+        line-height: 1.5rem;
+        margin-top: 0.75rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .dark .tiptap h1,
+    .dark .tiptap h2,
+    .dark .tiptap h3,
+    .dark .tiptap h4 {
+        @apply text-slate-100;
+    }
+
+    /* --------------------------------------------------
+       4. Text Selection & Base Dark Theme
+    -------------------------------------------------- */
+    .tiptap ::selection {
+        @apply bg-blue-100;
+    }
+
+    .dark .tiptap {
+        @apply text-[#EBEBEB];
+    }
+
+    .dark .tiptap ::selection {
+        background: #233D5E;
+    }
+
+    /* --------------------------------------------------
+       5. Task Lists
+    -------------------------------------------------- */
     .tiptap ul[data-type="taskList"] {
         @apply list-none p-0 my-4;
     }
@@ -26,65 +129,18 @@
         @apply w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer;
     }
 
+    .dark .tiptap ul[data-type="taskList"] input[type="checkbox"] {
+        @apply border-[#3F3F3F] bg-[#252525];
+    }
+
     .tiptap ul[data-type="taskList"] li > div {
         @apply flex-auto;
     }
-
-
-    .tiptap h1,
-    .tiptap h2,
-    .tiptap h3,
-    .tiptap h4 {
-        @apply outline-none font-bold text-slate-800 tracking-tight;
-    }
-
-    .tiptap h1 {
-        font-size: 2rem;       /* 32px */
-        line-height: 2.25rem;
-        margin-top: 1.5rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .tiptap h2 {
-        font-size: 1.5rem;     /* 24px */
-        line-height: 2rem;
-        margin-top: 1.25rem;
-        margin-bottom: 0.375rem;
-    }
-
-    .tiptap h3 {
-        font-size: 1.25rem;    /* 20px */
-        line-height: 1.75rem;
-        margin-top: 1rem;
-        margin-bottom: 0.25rem;
-    }
-
-    .tiptap h4 {
-        font-size: 1.1rem;     /* ~17-18px */
-        line-height: 1.5rem;
-        margin-top: 0.75rem;
-        margin-bottom: 0.25rem;
-    }
-
-    /* Dark mode support */
-    .dark .tiptap h1,
-    .dark .tiptap h2,
-    .dark .tiptap h3,
-    .dark .tiptap h4 {
-        @apply text-slate-100;
-    }
-
-
-    .tiptap ::selection {
-        @apply bg-blue-100;
-    }
 }
 
-
-
-
-
-
+/* --------------------------------------------------
+   6. Notion Handle Container & Buttons
+-------------------------------------------------- */
 .notion-handle-container {
     position: absolute;
     left: -50px;
@@ -103,7 +159,6 @@
     @apply p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-600 transition-colors;
 }
 
-
 .editor-shell:hover .notion-handle-container {
     opacity: 1;
 }
@@ -112,48 +167,6 @@
     background-color: #f1f5f9;
     color: #64748b;
 }
-.tiptap ul[data-type="taskList"] {
-    list-style: none;
-    padding: 0;
-}
-
-.tiptap ul[data-type="taskList"] li {
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: 0.5rem;
-}
-
-.tiptap ul[data-type="taskList"] li > label {
-    flex: 0 0 auto;
-    user-select: none;
-    margin-right: 0.75rem;
-    margin-top: 0.25rem;
-}
-
-.tiptap ul[data-type="taskList"] li > div {
-    flex: 1 1 auto;
-}
-
-@layer components {
-
-    .dark .tiptap p.is-editor-empty:first-child::before {
-        @apply text-[#474747];
-    }
-
-    .dark .tiptap {
-        @apply text-[#EBEBEB];
-    }
-
-
-    .dark .tiptap ::selection {
-        background: #233D5E;
-    }
-
-    .dark .tiptap ul[data-type="taskList"] input[type="checkbox"] {
-        @apply border-[#3F3F3F] bg-[#252525];
-    }
-}
-
 
 .dark .handle-btn {
     color: #474747;
@@ -163,38 +176,10 @@
     background-color: #2C2C2C;
     color: #EBEBEB;
 }
-/* TipTap Task List styling */
-ul[data-type="taskList"] {
-    list-style: none;
-    padding: 0;
-}
-ul[data-type="taskList"] li {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
 
-/* TipTap Table styling */
-.tiptap table {
-    border-collapse: collapse;
-    margin: 1rem 0;
-    width: 100%;
-    table-layout: fixed;
-}
-.tiptap table td,
-.tiptap table th {
-    min-width: 1em;
-    border: 1px solid #e2e8f0;
-    padding: 6px 8px;
-    vertical-align: top;
-    box-sizing: border-box;
-    position: relative;
-}
-.tiptap table th {
-    background-color: #f8fafc;
-    font-weight: 600;
-}
-/* Bulleted List */
+/* --------------------------------------------------
+   7. Standard Lists (Bulleted & Numbered)
+-------------------------------------------------- */
 .tiptap ul:not([data-type="taskList"]) {
     list-style-type: disc;
     padding-left: 1.5rem;
@@ -202,7 +187,6 @@ ul[data-type="taskList"] li {
     margin-bottom: 0.5rem;
 }
 
-/* Numbered / Ordered List */
 .tiptap ol {
     list-style-type: decimal;
     padding-left: 1.5rem;
@@ -210,7 +194,6 @@ ul[data-type="taskList"] li {
     margin-bottom: 0.5rem;
 }
 
-/* List Items */
 .tiptap ul:not([data-type="taskList"]) li,
 .tiptap ol li {
     margin-top: 0.25rem;
@@ -222,7 +205,6 @@ ul[data-type="taskList"] li {
     margin: 0;
 }
 
-/* Nested Lists */
 .tiptap ul ul,
 .tiptap ol ul {
     list-style-type: circle;
@@ -233,40 +215,9 @@ ul[data-type="taskList"] li {
     list-style-type: square;
 }
 
-/* Blockquotes / Callouts */
-.tiptap blockquote {
-    border-left: 3px solid #cbd5e1;
-    padding-left: 1rem;
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
-    color: #475569;
-    font-style: italic;
-}
-
-.dark .tiptap blockquote {
-    border-left-color: #475569;
-    color: #94a3b8;
-}
-/* Notion-style faint horizontal divider */
-.tiptap hr {
-    border: none;
-    border-top: 1px solid #e5e7eb; /* Subtle, faint grey (Tailwind gray-200) */
-    margin: 1.5rem 0;
-    cursor: default;
-}
-
-/* Selected state (when clicked/highlighted in TipTap) */
-.tiptap hr.ProseMirror-selectednode {
-    border-top-color: #3b82f6; /* Blue highlight on click */
-    outline: none;
-}
-
-/* Dark mode support */
-.dark .tiptap hr {
-    border-top-color: #2e2e2e;
-}
-
-/* Notion-like Table Base */
+/* --------------------------------------------------
+   8. Notion-like Table Styling
+-------------------------------------------------- */
 .tiptap .tableWrapper {
     margin: 1.5rem 0;
     overflow-x: auto;
@@ -276,13 +227,13 @@ ul[data-type="taskList"] li {
     border-collapse: collapse;
     width: 100%;
     table-layout: fixed;
-    margin: 0;
+    margin: 1rem 0;
 }
 
 .tiptap table td,
 .tiptap table th {
     min-width: 100px;
-    border: 1px solid #e5e7eb; /* faint grey */
+    border: 1px solid #e5e7eb;
     padding: 7px 10px;
     vertical-align: top;
     box-sizing: border-box;
@@ -296,17 +247,45 @@ ul[data-type="taskList"] li {
     font-weight: 500;
 }
 
-/* Cell selection highlight */
 .tiptap table .selectedCell:after {
     z-index: 2;
     position: absolute;
     content: "";
-    left: 0; right: 0; top: 0; bottom: 0;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
     background: rgba(37, 99, 235, 0.08);
     pointer-events: none;
     border: 1.5px solid #3b82f6;
 }
-/* TipTap Image styling */
+
+/* --------------------------------------------------
+   9. Horizontal Rule (Divider)
+-------------------------------------------------- */
+.tiptap hr {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 1.5rem 0;
+    cursor: default;
+
+    /* Stretch out past the container padding */
+    width: calc(100% + 8rem);
+    margin-left: 0rem; /* Adjust to match the container's px padding */
+}
+
+.tiptap hr.ProseMirror-selectednode {
+    border-top-color: #3b82f6;
+    outline: none;
+}
+
+.dark .tiptap hr {
+    border-top-color: #2e2e2e;
+}
+
+/* --------------------------------------------------
+   10. Images
+-------------------------------------------------- */
 .tiptap img {
     max-width: 100%;
     height: auto;
