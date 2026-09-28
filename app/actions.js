@@ -1,14 +1,11 @@
-
 'use server';
 import { Resend } from 'resend';
 import clientPromise from "@/lib/mongodb";
 import { cookies } from "next/headers";
-import {redirect} from "next/navigation";
+import { redirect } from "next/navigation";
 import { ObjectId } from "mongodb";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-
 
 export async function syncUser(accessToken) {
     try {
@@ -22,8 +19,10 @@ export async function syncUser(accessToken) {
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
+        const normalizedEmail = googleUser.email.toLowerCase().trim();
+
         await db.collection("users").updateOne(
-            { email: googleUser.email },
+            { email: normalizedEmail },
             {
                 $set: {
                     name: googleUser.name,
@@ -34,9 +33,8 @@ export async function syncUser(accessToken) {
             { upsert: true }
         );
 
-
         const cookieStore = await cookies();
-        cookieStore.set("user_email", googleUser.email, {
+        cookieStore.set("user_email", normalizedEmail, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             maxAge: 60 * 60 * 24,
@@ -50,31 +48,26 @@ export async function syncUser(accessToken) {
     }
 }
 
-
-
 export async function sendMagicLink(email) {
     try {
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
-
+        const normalizedEmail = email.toLowerCase().trim();
         const token = Math.random().toString(36).substring(2, 15);
         const expires = new Date(Date.now() + 3600000);
 
-
         await db.collection("verificationTokens").updateOne(
-            { email },
+            { email: normalizedEmail },
             { $set: { token, expires } },
             { upsert: true }
         );
 
-
-        const magicLink = `${process.env.NEXT_PUBLIC_BASE_URL}/api/verify?token=${token}&email=${email}`;
-
+        const magicLink = `${process.env.NEXT_PUBLIC_BASE_URL}/api/verify?token=${token}&email=${encodeURIComponent(normalizedEmail)}`;
 
         await resend.emails.send({
             from: 'notion@resend.dev',
-            to: email,
+            to: normalizedEmail,
             subject: 'Log in to your Notion Workspace',
             html: `<p>Click the link below to log in:</p><a href="${magicLink}">Log in to Notion</a>`
         });
@@ -86,20 +79,17 @@ export async function sendMagicLink(email) {
     }
 }
 
-
-
-
-
 export async function getUserData(email) {
     try {
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
-        const user = await db.collection("users").findOne({ email: email });
+        const user = await db.collection("users").findOne({
+            email: email.toLowerCase().trim()
+        });
 
         return {
             success: true,
-
             data: {
                 title: user?.dashboardTitle || "Untitled",
                 content: user?.dashboardContent || ''
@@ -111,26 +101,27 @@ export async function getUserData(email) {
     }
 }
 
-export async function logout(){
+export async function logout() {
     const cookieStore = await cookies();
     cookieStore.delete("user_email");
     redirect("/");
 }
-
-
 
 export async function createPage(userEmail) {
     try {
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
+        const normalizedEmail = userEmail?.toLowerCase()?.trim() || "";
+
         const newPage = {
-            userEmail,
+            userEmail: normalizedEmail,
             title: "Untitled",
             icon: null,
             coverImage: null,
             coverPosition: 50,
-            content: { type: 'doc', content: [{type: 'paragraph'}] },
+            isFavorite: false,
+            content: { type: 'doc', content: [{ type: 'paragraph' }] },
             createdAt: new Date(),
             updatedAt: new Date()
         };
@@ -138,25 +129,38 @@ export async function createPage(userEmail) {
         const result = await db.collection("pages").insertOne(newPage);
         return { success: true, pageId: result.insertedId.toString() };
     } catch (e) {
+        console.error("Create Page Error:", e);
         return { success: false };
     }
 }
+
 export async function getPages(userEmail) {
     try {
         const client = await clientPromise;
         const db = client.db("notion_clone");
+
+        const cookieStore = await cookies();
+        const cookieEmail = cookieStore.get("user_email")?.value;
+        const activeEmail = (cookieEmail || userEmail || "").toLowerCase().trim();
+
         const pages = await db.collection("pages")
-            .find({ userEmail })
+            .find({
+                userEmail: { $regex: new RegExp(`^${activeEmail}$`, 'i') }
+            })
             .sort({ updatedAt: -1 })
             .toArray();
 
-        console.log(`[DB LOAD] Loaded ${pages.length} pages. First page has imageBlock:`, JSON.stringify(pages[0]?.content).includes('imageBlock'));
-
         return {
             success: true,
-            pages: pages.map(p => ({ ...p, _id: p._id.toString() }))
+            pages: pages.map(p => ({
+                ...p,
+                _id: p._id.toString(),
+                createdAt: p.createdAt ? p.createdAt.toISOString() : null,
+                updatedAt: p.updatedAt ? p.updatedAt.toISOString() : null,
+            }))
         };
     } catch (e) {
+        console.error("Get Pages Error:", e);
         return { success: false, pages: [] };
     }
 }
@@ -171,33 +175,27 @@ export async function updatePageContent(pageId, rawData) {
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
-        const cookieStore = await cookies();
-        const userEmail = cookieStore.get("user_email")?.value || data.userEmail;
-
         const updateData = {
             updatedAt: new Date()
         };
 
+        // Explicitly map all supported page properties
         if (data.title !== undefined) updateData.title = data.title || "Untitled";
         if (data.content !== undefined) updateData.content = data.content;
         if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
         if (data.coverPosition !== undefined) updateData.coverPosition = data.coverPosition;
         if (data.icon !== undefined) updateData.icon = data.icon;
+        if (data.isFavorite !== undefined) updateData.isFavorite = Boolean(data.isFavorite); // Added fix
 
-        const filter = { _id: new ObjectId(pageId) };
-        if (userEmail) {
-            filter.userEmail = userEmail;
-        }
-
+        // Update directly by ObjectId
         const updateResult = await db.collection("pages").updateOne(
-            filter,
+            { _id: new ObjectId(pageId) },
             { $set: updateData }
         );
 
-        console.log(`[DB SAVE] Page: ${pageId} | Matched: ${updateResult.matchedCount} | Modified: ${updateResult.modifiedCount}`);
-
         if (updateResult.matchedCount === 0) {
-            return { success: false, error: "Page not found or unauthorized" };
+            console.warn(`[DB SAVE WARN] Page ${pageId} not found`);
+            return { success: false, error: "Page not found" };
         }
 
         return { success: true };
@@ -214,17 +212,38 @@ export async function deletePage(pageId) {
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
-        const cookieStore = await cookies();
-        const userEmail = cookieStore.get("user_email")?.value;
-
         const result = await db.collection("pages").deleteOne({
             _id: new ObjectId(pageId),
-            userEmail: userEmail
         });
 
         return { success: result.deletedCount > 0 };
     } catch (e) {
         console.error("Delete Error:", e);
         return { success: false };
+    }
+}
+
+export async function getPageById(pageId) {
+    try {
+        if (!pageId || !ObjectId.isValid(pageId)) return null;
+
+        const client = await clientPromise;
+        const db = client.db("notion_clone");
+
+        const page = await db.collection("pages").findOne(
+            { _id: new ObjectId(pageId) },
+            { projection: { title: 1, icon: 1 } }
+        );
+
+        if (!page) return null;
+
+        return {
+            _id: page._id.toString(),
+            title: page.title || "Untitled",
+            icon: page.icon || null
+        };
+    } catch (err) {
+        console.error("Get Page By ID Error:", err);
+        return null;
     }
 }

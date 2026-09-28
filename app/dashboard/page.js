@@ -226,7 +226,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
         onUpdate: ({ editor }) => {
             if (isSwitchingPageRef.current || !isHydratedRef.current) return;
-            const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+            const currentTitle = titleRef.current?.innerText?.trim();
             saveContent(editor.getJSON(), currentTitle);
         },
         onSelectionUpdate: ({ editor }) => {
@@ -283,13 +283,23 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         return () => clearInterval(timer);
     }, []);
 
+    useEffect(() => {
+        pagesRef.current = pages;
+        if (editor && !editor.isDestroyed) {
+            editor.storage.pageMention = { pages };
+        }
+        if (typeof window !== 'undefined') {
+            window.__NOTION_PAGES__ = pages;
+            window.dispatchEvent(new CustomEvent('notion:pages-updated', { detail: pages }));
+        }
+    }, [pages, editor]);
+
 
 
     // Add a ref to track the latest pages synchronously
+    // Add a ref to track the latest pages synchronously & broadcast to NodeViews
     const pagesRef = useRef(pages);
-    useEffect(() => {
-        pagesRef.current = pages;
-    }, [pages]);
+
     const isHydratedRef = useRef(false);
 
     const isSwitchingPageRef = useRef(true);
@@ -347,6 +357,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
         setIsLoading(false);
     }, [currentPageId, editor, userEmail, debouncedSave]);
+
+
 
     useEffect(() => {
         let isMountedFlag = true;
@@ -409,7 +421,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         };
     }, [isMounted, editor, userEmail]);
     const handleInsertPageLink = (selectedPage) => {
-        if (!editor || !currentPageId) return;
+        if (!editor || !currentPageId || !selectedPage) return;
+
+        // Force string ID
+        const targetId = String(selectedPage._id?.$oid || selectedPage._id || '');
+        const pageTitle = selectedPage.title?.trim() || 'Untitled';
+        const pageIconVal = selectedPage.icon || null;
 
         editor
             .chain()
@@ -417,19 +434,20 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             .insertContent({
                 type: 'pageMention',
                 attrs: {
-                    pageId: selectedPage._id,
-                    title: selectedPage.title || 'Untitled',
-                    icon: selectedPage.icon || null,
+                    pageId: targetId,
+                    title: pageTitle,
+                    icon: pageIconVal,
                 },
             })
             .insertContent(' ')
             .run();
 
         const updatedJson = editor.getJSON();
-        const currentTitle = titleRef.current?.innerText || "Untitled";
+        const currentActivePage = pagesRef.current.find(p => String(p._id) === String(currentPageId));
+        const currentTitle = titleRef.current?.innerText?.trim() || currentActivePage?.title || "Untitled";
 
         const nextPages = pagesRef.current.map(p =>
-            p._id === currentPageId ? { ...p, content: updatedJson, title: currentTitle } : p
+            String(p._id) === String(currentPageId) ? { ...p, content: updatedJson, title: currentTitle } : p
         );
         pagesRef.current = nextPages;
         setPages(nextPages);
@@ -806,10 +824,17 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
 
-    const saveContent = useCallback((json, title = "Untitled") => {
+    const saveContent = useCallback((json, title) => {
         if (!isHydratedRef.current || isSwitchingPageRef.current) return;
 
-        const cleanTitle = title.replace(/\n/g, '').trim() || "Untitled";
+        // Look up the known title from state if DOM ref is missing or empty
+        const currentActivePage = pagesRef.current.find(p => p._id === currentPageId);
+        const existingTitle = currentActivePage?.title || "Untitled";
+
+        let cleanTitle = (title || "").replace(/\n/g, '').trim();
+        if (!cleanTitle || cleanTitle === "Untitled") {
+            cleanTitle = existingTitle;
+        }
 
         if (!isLoading && currentPageId) {
             debouncedSave(json, cleanTitle, currentPageId);
