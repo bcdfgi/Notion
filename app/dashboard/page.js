@@ -242,6 +242,11 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
         },
     });
+    useEffect(() => {
+        if (editor) {
+            window.editor = editor;
+        }
+    }, [editor]);
 
     const userEmailRef = useRef(userEmail);
     useEffect(() => {
@@ -340,20 +345,25 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 titleRef.current.innerText = displayTitle;
                 titleRef.current._lastValue = displayTitle;
             }
-
             if (editor && !editor.isDestroyed) {
                 const raw = selectedPage.content;
                 const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+                isSwitchingPageRef.current = true;
+                isHydratedRef.current = false;
+                debouncedSave.cancel();
 
                 editor.commands.setContent(
                     parsed && parsed.type ? parsed : { type: 'doc', content: [{ type: 'paragraph' }] },
                     { emitUpdate: false }
                 );
 
-                // Enable saving once content is populated
-                isSwitchingPageRef.current = false;
-                isHydratedRef.current = true;
+                setTimeout(() => {
+                    isSwitchingPageRef.current = false;
+                    isHydratedRef.current = true;
+                }, 500);
             }
+
         }
         setIsLoading(false);
     }, [currentPageId, editor, userEmail, debouncedSave]);
@@ -392,17 +402,23 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     const rawContent = firstPage.content;
                     const parsedContent = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
 
+// 1. Lock saving before setting content
+                    isSwitchingPageRef.current = true;
+                    isHydratedRef.current = false;
+                    debouncedSave.cancel();
+
                     editor.commands.setContent(
                         parsedContent && parsedContent.type ? parsedContent : { type: 'doc', content: [{ type: 'paragraph' }] },
                         { emitUpdate: false }
                     );
 
-                    debouncedSave.cancel();
-
-
                     setIsLoading(false);
-                    isSwitchingPageRef.current = false;
-                    isHydratedRef.current = true;
+
+// 2. Only enable saving AFTER the editor finishes rendering
+                    setTimeout(() => {
+                        isSwitchingPageRef.current = false;
+                        isHydratedRef.current = true;
+                    }, 500);
 
                     // Allow TipTap's NodeViews to finish mounting then immediately enable saving
                 } else if (result.success && result.pages.length === 0) {
@@ -420,14 +436,17 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             isMountedFlag = false;
         };
     }, [isMounted, editor, userEmail]);
-    const handleInsertPageLink = (selectedPage) => {
+    const handleInsertPageLink = async (selectedPage) => {
         if (!editor || !currentPageId || !selectedPage) return;
 
-        // Force string ID
-        const targetId = String(selectedPage._id?.$oid || selectedPage._id || '');
-        const pageTitle = selectedPage.title?.trim() || 'Untitled';
+        // Guaranteed string id and title
+        const targetId = String(selectedPage._id?.$oid || selectedPage._id || '').trim();
+        const pageTitle = (selectedPage.title || 'Untitled').trim();
         const pageIconVal = selectedPage.icon || null;
 
+        if (!targetId) return;
+
+        // 1. Insert into TipTap
         editor
             .chain()
             .focus()
@@ -442,17 +461,32 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             .insertContent(' ')
             .run();
 
+        // 2. Capture fresh JSON
         const updatedJson = editor.getJSON();
-        const currentActivePage = pagesRef.current.find(p => String(p._id) === String(currentPageId));
-        const currentTitle = titleRef.current?.innerText?.trim() || currentActivePage?.title || "Untitled";
+        const activePage = pagesRef.current.find(p => String(p._id) === String(currentPageId));
+        const domTitle = titleRef.current?.innerText?.replace(/\n/g, '').trim();
+        const currentTitle = domTitle || activePage?.title || "Untitled";
 
+        // 3. Update React state
         const nextPages = pagesRef.current.map(p =>
             String(p._id) === String(currentPageId) ? { ...p, content: updatedJson, title: currentTitle } : p
         );
         pagesRef.current = nextPages;
         setPages(nextPages);
 
-        saveContent(updatedJson, currentTitle);
+        // 4. Force immediate write to database
+        debouncedSave.cancel();
+        setSavingStatus("Saving...");
+        try {
+            const res = await updatePageContent(currentPageId, {
+                title: currentTitle,
+                content: updatedJson,
+                userEmail: userEmailRef.current,
+            });
+            setSavingStatus(res.success ? "Saved" : "Error");
+        } catch {
+            setSavingStatus("Error");
+        }
     };
     useEffect(() => {
         const handlePageMentionClick = (e) => {

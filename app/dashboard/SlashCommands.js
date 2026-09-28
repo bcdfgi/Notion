@@ -123,8 +123,8 @@ export const slashItems = [
         icon: '↗',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
-            if (range && range.from !== range.to) {
-                editor.chain().deleteRange(range).run();
+            if (range) {
+                editor.chain().focus().deleteRange(range).run();
             }
             window.dispatchEvent(new CustomEvent('notion:open-page-linker'));
         },
