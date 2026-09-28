@@ -9,7 +9,8 @@ import {
     Paintbrush,
     ChevronRight,
     Copy,
-    Delete
+    Delete,
+    XCircle
 } from 'lucide-react';
 
 const TEXT_COLORS = [
@@ -120,6 +121,76 @@ export const TableControlsOverlay = ({ editor }) => {
         }
         setShowMenu(false);
         setShowColorSubmenu(false);
+    };
+    const clearColumnContents = () => {
+        if (!editor) return;
+
+        const { state, dispatch } = editor.view;
+        const { doc, selection, schema } = state;
+        const $pos = selection.$from;
+
+        // 1. Locate the table and the active cell
+        let tableDepth = -1;
+        let cellDepth = -1;
+
+        for (let d = $pos.depth; d > 0; d--) {
+            const name = $pos.node(d).type.name;
+            if (name === 'tableCell' || name === 'tableHeader') {
+                cellDepth = d;
+            }
+            if (name === 'table') {
+                tableDepth = d;
+                break;
+            }
+        }
+
+        if (tableDepth === -1 || cellDepth === -1) return;
+
+        // 2. Determine target column index (accounting for colspan of preceding siblings)
+        const currentRow = $pos.node(cellDepth - 1);
+        const cellIndexInRow = $pos.index(cellDepth - 1);
+        let targetCol = 0;
+        for (let i = 0; i < cellIndexInRow; i++) {
+            targetCol += currentRow.child(i).attrs.colspan || 1;
+        }
+
+        const table = $pos.node(tableDepth);
+        const tableStart = $pos.start(tableDepth);
+
+        // 3. Find the cell in every row belonging to targetCol
+        const cellsToClear = [];
+        let currentPos = tableStart;
+
+        table.forEach((row) => {
+            let col = 0;
+            let cellPos = currentPos + 1; // +1 to step inside the row
+
+            row.forEach((cell) => {
+                const colspan = cell.attrs.colspan || 1;
+                // If this cell covers our target column
+                if (col <= targetCol && targetCol < col + colspan) {
+                    cellsToClear.push({
+                        start: cellPos + 1, // inside cell
+                        end: cellPos + cell.nodeSize - 1, // end of cell content
+                    });
+                }
+                col += colspan;
+                cellPos += cell.nodeSize;
+            });
+
+            currentPos += row.nodeSize;
+        });
+
+        // 4. Dispatch transaction replacing cell contents with an empty paragraph
+        // (traversing backwards so positions do not shift)
+        const tr = state.tr;
+        for (let i = cellsToClear.length - 1; i >= 0; i--) {
+            const { start, end } = cellsToClear[i];
+            tr.replaceWith(start, end, schema.nodes.paragraph.create());
+        }
+
+        dispatch(tr);
+        setShowMenu(false);
     };
 
     const applyCellBackground = (hex) => {
@@ -323,13 +394,11 @@ export const TableControlsOverlay = ({ editor }) => {
 
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            editor.chain().focus().setContent('').run();
-                                            setShowMenu(false);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 text-left font-medium"
+                                        onClick={clearColumnContents}
+                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 text-left font-medium text-slate-700 transition-colors"
                                     >
-                                        <Delete size={13} className="text-gray-500" /> Clear contents
+                                        <XCircle size={14} className="text-gray-600 fill-gray-600 text-white" />
+                                        <span>Clear contents</span>
                                     </button>
 
                                     <div className="h-px bg-gray-100 my-1" />

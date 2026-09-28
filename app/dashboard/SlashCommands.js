@@ -113,7 +113,7 @@ export const slashItems = [
         command: ({ editor, range }) => {
             editor.chain().focus().deleteRange(range).insertContent({
                 type: 'blockquote',
-                content: [{ type: 'paragraph', content: [{ type: 'text', text: '💡 Note: ' }] }]
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: "💡" }] }]
             }).run();
         },
     },
@@ -129,7 +129,7 @@ export const slashItems = [
             window.dispatchEvent(new CustomEvent('notion:open-page-linker'));
         },
     },
-    //---Advanced Blocks
+
     //---Advanced Blocks
     {
         title: 'Table of Contents',
