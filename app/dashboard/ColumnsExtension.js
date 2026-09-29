@@ -1,11 +1,10 @@
-// ColumnsExtension.js
 import { Node, mergeAttributes } from '@tiptap/core';
 
 export const Column = Node.create({
     name: 'column',
     content: 'block+',
     defining: true,
-    isolating: true, // Prevents Backspace / selections from bleeding into adjacent columns
+    isolating: true,
 
     parseHTML() {
         return [{ tag: 'div[data-type="column"]' }];
