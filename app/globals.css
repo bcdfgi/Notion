@@ -358,3 +358,56 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
 .font-serif div[data-type="details-content"] > p:only-child:empty::before {
     font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
+
+/* --------------------------------------------------
+   12. Notion Columns & Vertical Dividers
+-------------------------------------------------- */
+.notion-column-group {
+    display: flex;
+    align-items: stretch;
+    gap: 2rem;
+    position: relative;
+    width: 100%;
+}
+
+.notion-column {
+    position: relative;
+    min-height: 48px;
+    outline: none;
+}
+
+/* The vertical grey divider line between columns (as in Notion) */
+.notion-column:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: -1rem;
+    top: 4px;
+    bottom: 4px;
+    width: 3px;
+    background-color: #e5e7eb; /* Soft grey divider bar */
+    border-radius: 9999px;
+    transform: translateX(50%);
+    pointer-events: none;
+}
+
+.dark .notion-column:not(:last-child)::after {
+    background-color: #374151;
+}
+
+/* Notion Empty Placeholder inside each column */
+.notion-column > p:only-child:empty::before,
+.notion-column > p:only-child > .ProseMirror-trailingBreak:only-child::before,
+.notion-column > p.is-empty::before {
+    content: "Type '/' for commands..." !important;
+    color: #9ca3af !important;
+    float: left;
+    pointer-events: none;
+    height: 0;
+    font-size: 0.95rem;
+}
+
+.dark .notion-column > p:only-child:empty::before,
+.dark .notion-column > p:only-child > .ProseMirror-trailingBreak:only-child::before,
+.dark .notion-column > p.is-empty::before {
+    color: #4b5563 !important;
+}

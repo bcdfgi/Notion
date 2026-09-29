@@ -5,11 +5,21 @@ export const Column = Node.create({
     name: 'column',
     content: 'block+',
     defining: true,
+    isolating: true, // Prevents Backspace / selections from bleeding into adjacent columns
+
     parseHTML() {
         return [{ tag: 'div[data-type="column"]' }];
     },
+
     renderHTML({ HTMLAttributes }) {
-        return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'column', class: 'flex-1 min-w-0 px-2' }), 0];
+        return [
+            'div',
+            mergeAttributes(HTMLAttributes, {
+                'data-type': 'column',
+                class: 'notion-column flex-1 min-w-0',
+            }),
+            0,
+        ];
     },
 });
 
@@ -19,6 +29,7 @@ export const ColumnGroup = Node.create({
     content: 'column+',
     defining: true,
     isolating: true,
+
     addAttributes() {
         return {
             columns: {
@@ -28,33 +39,38 @@ export const ColumnGroup = Node.create({
             },
         };
     },
+
     parseHTML() {
         return [{ tag: 'div[data-type="column-group"]' }];
     },
+
     renderHTML({ HTMLAttributes }) {
         return [
             'div',
             mergeAttributes(HTMLAttributes, {
                 'data-type': 'column-group',
-                class: 'grid gap-4 my-2',
-                style: `grid-template-columns: repeat(${HTMLAttributes['data-columns'] || 2}, minmax(0, 1fr));`,
+                class: 'notion-column-group my-3',
+                'data-columns': HTMLAttributes['data-columns'] || 2,
             }),
             0,
         ];
     },
+
     addCommands() {
         return {
-            setColumns: (count) => ({ commands }) => {
-                const columns = Array.from({ length: count }, () => ({
-                    type: 'column',
-                    content: [{ type: 'paragraph' }],
-                }));
-                return commands.insertContent({
-                    type: 'columnGroup',
-                    attrs: { columns: count },
-                    content: columns,
-                });
-            },
+            setColumns:
+                (count = 2) =>
+                    ({ commands }) => {
+                        const columns = Array.from({ length: count }, () => ({
+                            type: 'column',
+                            content: [{ type: 'paragraph' }],
+                        }));
+                        return commands.insertContent({
+                            type: 'columnGroup',
+                            attrs: { columns: count },
+                            content: columns,
+                        });
+                    },
         };
     },
 });

@@ -208,7 +208,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }),
 
             Placeholder.configure({
-                placeholder: "Type '/' for commands..." }),
+                includeChildren: true,
+                placeholder: ({ node }) => {
+                    if (node.type.name === 'column') {
+                        return "Type '/' for commands...";
+                    }
+                    return "Type '/' for commands...";
+                },
+            }),
             DatabaseExtension,
             EmbedExtension,
             SlashCommands,
