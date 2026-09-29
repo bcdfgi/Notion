@@ -159,18 +159,10 @@ export const slashItems = [
                 .run();
         },
     },
-    {
-        title: 'Button',
-        description: 'Runs custom automation with a click',
-        icon: '◉',
-        group: 'Advanced Blocks',
-        command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).insertContent({ type: 'buttonBlock', attrs: { label: 'New Action' } }).run();
-        },
-    },
+
     {
         title: 'Toggle Heading 1',
-        description: 'Hide content in a large heading',
+        description: 'Large section heading with a collapsible toggle',
         icon: '▶',
         group: 'Advanced Blocks',
         command: ({ editor, range }) => {
@@ -179,7 +171,7 @@ export const slashItems = [
     },
     {
         title: 'Toggle Heading 2',
-        description: 'Hide content in a medium heading',
+        description: 'Medium section heading with a collapsible toggle',
         icon: '▶',
         group: 'Advanced Blocks',
         command: ({ editor, range }) => {
@@ -188,7 +180,7 @@ export const slashItems = [
     },
     {
         title: 'Toggle Heading 3',
-        description: 'Hide content in a small heading',
+        description: 'Small section heading with a collapsible toggle',
         icon: '▶',
         group: 'Advanced Blocks',
         command: ({ editor, range }) => {

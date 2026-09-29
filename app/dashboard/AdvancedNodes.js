@@ -200,20 +200,3 @@ const ButtonBlockComponent = ({ node, updateAttributes }) => {
     );
 };
 
-export const ButtonBlockExtension = Node.create({
-    name: 'buttonBlock',
-    group: 'block',
-    atom: true,
-    addAttributes() {
-        return { label: { default: 'Run Automation' } };
-    },
-    parseHTML() {
-        return [{ tag: 'div[data-type="button-block"]' }];
-    },
-    renderHTML({ HTMLAttributes }) {
-        return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'button-block' })];
-    },
-    addNodeView() {
-        return ReactNodeViewRenderer(ButtonBlockComponent);
-    },
-});

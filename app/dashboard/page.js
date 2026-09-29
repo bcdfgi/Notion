@@ -44,7 +44,7 @@ import { InlineMathExtension } from './InlineMathExtension';
 import { ColumnGroup, Column } from './ColumnsExtension';
 import { Details, DetailsSummary, DetailsContent } from './ToggleExtension';
 import { TableOfContentsExtension } from './TableOfContentExtension';
-import { BlockEquationExtension, ButtonBlockExtension } from './AdvancedNodes';
+import { BlockEquationExtension } from './AdvancedNodes';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -201,7 +201,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             DetailsContent,
             TableOfContentsExtension,
             BlockEquationExtension,
-            ButtonBlockExtension,
             PageMention,
             Link.configure({
                 openOnClick: false,

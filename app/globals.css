@@ -299,3 +299,62 @@
     outline: 2px solid #3b82f6;
     outline-offset: 2px;
 }
+
+/* --------------------------------------------------
+   11. Notion Toggle Headings
+-------------------------------------------------- */
+.notion-toggle-wrapper {
+    position: relative;
+    outline: none;
+}
+
+/* Heading Sizes for the Toggle Header */
+.notion-toggle-wrapper[data-level="1"] .toggle-summary-heading {
+    font-size: 1.875rem; /* 30px */
+    line-height: 2.25rem;
+    font-weight: 700;
+}
+
+.notion-toggle-wrapper[data-level="2"] .toggle-summary-heading {
+    font-size: 1.5rem;   /* 24px */
+    line-height: 2rem;
+    font-weight: 600;
+}
+
+.notion-toggle-wrapper[data-level="3"] .toggle-summary-heading {
+    font-size: 1.25rem;  /* 20px */
+    line-height: 1.75rem;
+    font-weight: 600;
+}
+
+/* Hide content when collapsed */
+
+.notion-toggle-wrapper[data-open="false"] div[data-type="details-content"],
+.notion-toggle-wrapper:not([data-open="true"]) div[data-type="details-content"],
+.notion-toggle-inner.is-closed div[data-type="details-content"],
+.notion-toggle-wrapper[data-open="false"] .toggle-body-content {
+    display: none !important;
+}
+
+/* Notion Empty Toggle Placeholder */
+div[data-type="details-content"] > p:only-child:empty::before,
+div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:only-child::before {
+    content: "Empty toggle. Click to drop blocks inside." !important;
+    color: #9ca3af !important;
+    float: left;
+    pointer-events: none;
+    height: 0;
+    font-weight: 400;
+    font-size: 0.95rem;
+}
+
+/* Dark mode placeholder */
+.dark div[data-type="details-content"] > p:only-child:empty::before,
+.dark div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:only-child::before {
+    color: #6b7280 !important;
+}
+
+/* Serif font support */
+.font-serif div[data-type="details-content"] > p:only-child:empty::before {
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
