@@ -1,41 +1,72 @@
 import { Node, mergeAttributes } from '@tiptap/core';
+import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import React from 'react';
+import PageIcon from './PageIcon';
+import { FileText } from 'lucide-react';
 
+const PageMentionComponent = ({ node }) => {
+    const { pageId, title, icon } = node.attrs;
+
+    return (
+        <NodeViewWrapper as="span" className="inline-block align-baseline mx-0.5">
+            <span
+                data-page-id={pageId}
+                data-page-title={title}
+                data-page-icon={typeof icon === 'object' && icon !== null ? JSON.stringify(icon) : icon}
+                contentEditable={false}
+                className="page-mention-pill inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-gray-100/80 hover:bg-gray-200/80 text-slate-800 font-medium text-xs border border-gray-200/60 transition-colors cursor-pointer select-none"
+            >
+                <span className="shrink-0 flex items-center justify-center text-[13px] leading-none">
+                    {icon ? (
+                        <PageIcon icon={icon} size={13} />
+                    ) : (
+                        <FileText size={13} className="text-gray-400" />
+                    )}
+                </span>
+                <span className="underline underline-offset-2 decoration-gray-300 hover:decoration-slate-800 truncate max-w-[200px]">
+                    {title || 'Untitled'}
+                </span>
+            </span>
+        </NodeViewWrapper>
+    );
+};
 export const PageMention = Node.create({
     name: 'pageMention',
     group: 'inline',
     inline: true,
-    atom: true,
-    selectable: true,
-    draggable: false,
+    atom: true, // Non-editable single token (like an emoji or mention)
 
     addAttributes() {
         return {
             pageId: {
                 default: null,
-                parseHTML: el => el.getAttribute('data-page-id') || null,
-                renderHTML: attrs => {
-                    if (!attrs.pageId) return {};
-                    return { 'data-page-id': attrs.pageId };
-                },
+                parseHTML: (element) => element.getAttribute('data-page-id'),
+                renderHTML: (attributes) => ({
+                    'data-page-id': attributes.pageId,
+                }),
             },
             title: {
                 default: 'Untitled',
-                parseHTML: el => el.getAttribute('data-page-title') || el.innerText?.replace('📄', '').trim() || 'Untitled',
-                renderHTML: attrs => ({ 'data-page-title': attrs.title || 'Untitled' }),
+                parseHTML: (element) => element.getAttribute('data-page-title'),
+                renderHTML: (attributes) => ({
+                    'data-page-title': attributes.title,
+                }),
             },
             icon: {
                 default: null,
-                parseHTML: el => {
-                    const raw = el.getAttribute('data-page-icon');
-                    if (!raw) return null;
-                    try { return JSON.parse(raw); } catch { return raw; }
+                parseHTML: (element) => {
+                    const raw = element.getAttribute('data-page-icon');
+                    try {
+                        return JSON.parse(raw);
+                    } catch {
+                        return raw;
+                    }
                 },
-                renderHTML: attrs => {
-                    if (!attrs.icon) return {};
-                    return {
-                        'data-page-icon': typeof attrs.icon === 'object' ? JSON.stringify(attrs.icon) : attrs.icon,
-                    };
-                },
+                renderHTML: (attributes) => ({
+                    'data-page-icon': typeof attributes.icon === 'object' && attributes.icon !== null
+                        ? JSON.stringify(attributes.icon)
+                        : attributes.icon,
+                }),
             },
         };
     },
@@ -48,20 +79,11 @@ export const PageMention = Node.create({
         ];
     },
 
-    renderHTML({ node, HTMLAttributes }) {
-        const title = node?.attrs?.title || HTMLAttributes['data-page-title'] || 'Untitled';
-        const pageId = node?.attrs?.pageId || HTMLAttributes['data-page-id'] || '';
+    renderHTML({ HTMLAttributes }) {
+        return ['span', mergeAttributes(HTMLAttributes)];
+    },
 
-        return [
-            'span',
-            mergeAttributes(HTMLAttributes, {
-                'data-page-id': pageId,
-                'data-page-title': title,
-                contenteditable: 'false',
-                class: 'page-mention-pill inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium text-xs border border-stone-200 cursor-pointer select-none mx-0.5 align-baseline',
-            }),
-            ['span', { class: 'text-stone-400 select-none' }, '📄'],
-            ['span', { class: 'underline underline-offset-2 decoration-stone-300' }, title],
-        ];
+    addNodeView() {
+        return ReactNodeViewRenderer(PageMentionComponent);
     },
 });

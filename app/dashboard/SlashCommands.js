@@ -126,6 +126,8 @@ export const slashItems = [
             if (range) {
                 editor.chain().focus().deleteRange(range).run();
             }
+            // Save the exact cursor position before opening the modal
+            window.__PAGE_LINK_POS__ = editor.state.selection.from;
             window.dispatchEvent(new CustomEvent('notion:open-page-linker'));
         },
     },
@@ -146,7 +148,15 @@ export const slashItems = [
         icon: '∑',
         group: 'Advanced Blocks',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).insertContent({ type: 'blockEquation', attrs: { latex: 'f(x) = \\int_{-\\infty}^\\infty e^{-x^2} dx' } }).run();
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'blockEquation',
+                    attrs: { latex: '' },
+                })
+                .run();
         },
     },
     {

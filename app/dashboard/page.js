@@ -436,58 +436,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             isMountedFlag = false;
         };
     }, [isMounted, editor, userEmail]);
-    const handleInsertPageLink = async (selectedPage) => {
-        if (!editor || !currentPageId || !selectedPage) return;
 
-        // Guaranteed string id and title
-        const targetId = String(selectedPage._id?.$oid || selectedPage._id || '').trim();
-        const pageTitle = (selectedPage.title || 'Untitled').trim();
-        const pageIconVal = selectedPage.icon || null;
-
-        if (!targetId) return;
-
-        // 1. Insert into TipTap
-        editor
-            .chain()
-            .focus()
-            .insertContent({
-                type: 'pageMention',
-                attrs: {
-                    pageId: targetId,
-                    title: pageTitle,
-                    icon: pageIconVal,
-                },
-            })
-            .insertContent(' ')
-            .run();
-
-        // 2. Capture fresh JSON
-        const updatedJson = editor.getJSON();
-        const activePage = pagesRef.current.find(p => String(p._id) === String(currentPageId));
-        const domTitle = titleRef.current?.innerText?.replace(/\n/g, '').trim();
-        const currentTitle = domTitle || activePage?.title || "Untitled";
-
-        // 3. Update React state
-        const nextPages = pagesRef.current.map(p =>
-            String(p._id) === String(currentPageId) ? { ...p, content: updatedJson, title: currentTitle } : p
-        );
-        pagesRef.current = nextPages;
-        setPages(nextPages);
-
-        // 4. Force immediate write to database
-        debouncedSave.cancel();
-        setSavingStatus("Saving...");
-        try {
-            const res = await updatePageContent(currentPageId, {
-                title: currentTitle,
-                content: updatedJson,
-                userEmail: userEmailRef.current,
-            });
-            setSavingStatus(res.success ? "Saved" : "Error");
-        } catch {
-            setSavingStatus("Error");
-        }
-    };
     useEffect(() => {
         const handlePageMentionClick = (e) => {
             const pill = e.target.closest('[data-page-id]');
@@ -597,6 +546,64 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             editor.chain().focus().insertContent(`${emojiChar} `).run();
         }
     };
+    const handleInsertPageLink = async (selectedPage) => {
+        if (!editor || !currentPageId || !selectedPage) return;
+
+        const targetId = String(selectedPage._id?.$oid || selectedPage._id || '').trim();
+        const pageTitle = (selectedPage.title || 'Untitled').trim();
+        const pageIconVal = selectedPage.icon || null;
+
+        if (!targetId) return;
+
+        // Restore cursor position if saved by slash command
+        const insertPos = typeof window !== 'undefined' && window.__PAGE_LINK_POS__
+            ? window.__PAGE_LINK_POS__
+            : editor.state.selection.from;
+
+        editor
+            .chain()
+            .focus()
+            .setTextSelection(insertPos)
+            .insertContent({
+                type: 'pageMention',
+                attrs: {
+                    pageId: targetId,
+                    title: pageTitle,
+                    icon: pageIconVal,
+                },
+            })
+            .insertContent(' ')
+            .run();
+
+        // Clear saved position
+        if (typeof window !== 'undefined') {
+            delete window.__PAGE_LINK_POS__;
+        }
+
+        const updatedJson = editor.getJSON();
+        const activePage = pagesRef.current.find(p => String(p._id) === String(currentPageId));
+        const domTitle = titleRef.current?.innerText?.replace(/\n/g, '').trim();
+        const currentTitle = domTitle || activePage?.title || "Untitled";
+
+        const nextPages = pagesRef.current.map(p =>
+            String(p._id) === String(currentPageId) ? { ...p, content: updatedJson, title: currentTitle } : p
+        );
+        pagesRef.current = nextPages;
+        setPages(nextPages);
+
+        debouncedSave.cancel();
+        setSavingStatus("Saving...");
+        try {
+            const res = await updatePageContent(currentPageId, {
+                title: currentTitle,
+                content: updatedJson,
+                userEmail: userEmailRef.current,
+            });
+            setSavingStatus(res.success ? "Saved" : "Error");
+        } catch {
+            setSavingStatus("Error");
+        }
+    };
 
 
     const handleRemoveCover = () => {
@@ -628,6 +635,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         };
         reader.readAsDataURL(file);
     };
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) setShowPlusMenu(false);

@@ -1,39 +1,144 @@
 // AdvancedNodes.jsx
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
-// Block Equation Component
+// Notion-style Block Equation Component
 const BlockEquationComponent = ({ node, updateAttributes }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [latex, setLatex] = useState(node.attrs.latex || 'E = mc^2');
+    const rawLatex = node.attrs.latex || '';
+    const [isEditing, setIsEditing] = useState(!rawLatex); // automatically open editor if empty
+    const [latex, setLatex] = useState(rawLatex);
+    const popoverRef = useRef(null);
+    const textareaRef = useRef(null);
+
+    // Keep local state in sync if node attributes change
+    useEffect(() => {
+        setLatex(node.attrs.latex || '');
+    }, [node.attrs.latex]);
+
+    // Auto-focus and resize textarea on edit open
+    useEffect(() => {
+        if (isEditing && textareaRef.current) {
+            textareaRef.current.focus();
+            adjustHeight();
+        }
+    }, [isEditing]);
+
+    // Close when clicking outside the editor popover and block
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+                handleSave();
+            }
+        };
+
+        if (isEditing) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isEditing, latex]);
+
+    const adjustHeight = () => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.max(56, textareaRef.current.scrollHeight)}px`;
+        }
+    };
+
+    const handleSave = () => {
+        updateAttributes({ latex: latex.trim() });
+        setIsEditing(false);
+    };
+
+    // Render LaTeX using KaTeX safely
+    const renderedMath = useMemo(() => {
+        const contentToRender = (isEditing ? latex : rawLatex).trim();
+        if (!contentToRender) return null;
+
+        try {
+            return katex.renderToString(contentToRender, {
+                displayMode: true,
+                throwOnError: false,
+            });
+        } catch {
+            return null;
+        }
+    }, [latex, rawLatex, isEditing]);
 
     return (
-        <NodeViewWrapper className="my-3 flex justify-center">
-            {isEditing ? (
-                <div className="flex gap-2 p-2 border border-gray-200 rounded-lg bg-white shadow-sm w-full max-w-md">
-                    <input
-                        value={latex}
-                        onChange={(e) => setLatex(e.target.value)}
-                        className="flex-1 text-sm font-mono border-none outline-none px-2"
-                        placeholder="LaTeX formula..."
+        <NodeViewWrapper className="relative my-2 select-none group font-sans">
+            {/* --- Block Area --- */}
+            <div
+                onClick={() => setIsEditing(true)}
+                className={`w-full min-h-[44px] py-2 px-3 rounded-md cursor-pointer transition-all flex items-center justify-center ${
+                    isEditing
+                        ? 'bg-[#ebf3ff] ring-1 ring-blue-200'
+                        : rawLatex
+                            ? 'hover:bg-gray-100/70'
+                            : 'bg-[#f4f4f3] hover:bg-[#ebebe9]'
+                }`}
+            >
+                {/* When LaTeX is present: show the rendered equation */}
+                {rawLatex || (isEditing && latex) ? (
+                    <div
+                        className="overflow-x-auto text-slate-900 py-1"
+                        dangerouslySetInnerHTML={{ __html: renderedMath || latex }}
                     />
-                    <button
-                        onClick={() => {
-                            updateAttributes({ latex });
-                            setIsEditing(false);
-                        }}
-                        className="px-2.5 py-1 text-xs bg-blue-500 text-white rounded font-medium"
-                    >
-                        Done
-                    </button>
-                </div>
-            ) : (
+                ) : (
+                    /* Empty Placeholder (Notion Style) */
+                    <div className="w-full flex items-center gap-2.5 text-gray-400 select-none py-1 px-2">
+                        <span className="font-serif font-bold text-xs tracking-tight text-gray-400 border border-gray-300 rounded px-1 py-0.5 leading-none">
+                            T<sub className="text-[9px]">E</sub>X
+                        </span>
+                        <span className="text-sm font-normal text-gray-400">
+                            Add a TeX equation
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {/* --- Notion Floating Editor Popover --- */}
+            {isEditing && (
                 <div
-                    onClick={() => setIsEditing(true)}
-                    className="cursor-pointer px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg font-mono text-base hover:bg-gray-100 transition-colors"
+                    ref={popoverRef}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute left-0 top-[calc(100%+6px)] z-50 w-full max-w-md bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-200/90 p-3 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-100"
                 >
-                    {node.attrs.latex || 'E = mc^2'}
+                    <div className="flex items-start justify-between gap-3">
+                        <textarea
+                            ref={textareaRef}
+                            value={latex}
+                            rows={2}
+                            placeholder="Type a TeX formula..."
+                            onChange={(e) => {
+                                setLatex(e.target.value);
+                                adjustHeight();
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey || !e.shiftKey)) {
+                                    e.preventDefault();
+                                    handleSave();
+                                }
+                                if (e.key === 'Escape') {
+                                    setLatex(rawLatex);
+                                    setIsEditing(false);
+                                }
+                            }}
+                            className="flex-1 bg-transparent resize-none text-[13px] font-mono leading-relaxed text-slate-800 placeholder-gray-400 border-none outline-none p-1 focus:ring-0"
+                        />
+
+                        {/* Notion Done Button */}
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            className="shrink-0 px-2.5 py-1 text-xs font-medium text-white bg-[#2383e2] hover:bg-[#1a73e8] active:bg-[#155fc0] rounded-md shadow-sm transition-colors flex items-center gap-1.5"
+                        >
+                            <span>Done</span>
+                            <span className="text-[10px] opacity-80">↵</span>
+                        </button>
+                    </div>
                 </div>
             )}
         </NodeViewWrapper>
@@ -46,7 +151,7 @@ export const BlockEquationExtension = Node.create({
     atom: true,
     addAttributes() {
         return {
-            latex: { default: 'E = mc^2' },
+            latex: { default: '' },
         };
     },
     parseHTML() {
