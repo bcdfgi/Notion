@@ -673,15 +673,7 @@ const ImageBlockView = (props) => {
                                             <span className="text-[10px] text-gray-400">⌘K</span>
                                         </button>
 
-                                        {/* Alt text */}
-                                        <button
-                                            type="button"
-                                            onClick={handleEditAltText}
-                                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-gray-100 transition-colors"
-                                        >
-                                            <span className="font-mono text-[11px] font-bold text-gray-500">ALT</span>
-                                            <span>Alt text</span>
-                                        </button>
+
 
                                         {/* Full screen */}
                                         <button
@@ -700,37 +692,14 @@ const ImageBlockView = (props) => {
                                             <span className="text-[10px] text-gray-400">Space</span>
                                         </button>
 
-                                        {/* View original */}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                window.open(src, '_blank');
-                                                setShowMenu(false);
-                                                setShowMoreSubmenu(false);
-                                            }}
-                                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-gray-100 transition-colors"
-                                        >
-                                            <ExternalLink size={14} className="text-gray-500" />
-                                            <span>View original</span>
-                                        </button>
+
                                     </div>
                                 )}
                             </div>
 
                             <div className="h-px bg-gray-100 my-1" />
 
-                            {/* Copy link to block */}
-                            <button
-                                type="button"
-                                onClick={handleCopyLinkToBlock}
-                                className="w-full flex items-center justify-between px-2 py-1.5 text-xs rounded hover:bg-gray-100 transition-colors"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <LinkIcon size={14} className="text-gray-500" />
-                                    <span>Copy link to block</span>
-                                </div>
-                                <span className="text-[10px] text-gray-400">⌘^L</span>
-                            </button>
+
 
                             {/* Duplicate */}
                             <button
