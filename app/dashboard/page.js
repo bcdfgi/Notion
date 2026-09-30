@@ -45,6 +45,8 @@ import { ColumnGroup, Column } from './ColumnsExtension';
 import { Details, DetailsSummary, DetailsContent } from './ToggleExtension';
 import { TableOfContentsExtension } from './TableOfContentExtension';
 import { BlockEquationExtension } from './AdvancedNodes';
+import { VideoExtension } from './VideoExtension';
+import { BookmarkExtension } from './BookmarkExtension';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -145,6 +147,32 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             DateExtension,
             InlineMathExtension,
             CodeBlock.extend({
+                addAttributes() {
+                    return {
+                        ...this.parent?.(),
+                        language: {
+                            default: 'Plain Text',
+                            parseHTML: element => element.getAttribute('data-language') || 'Plain Text',
+                            renderHTML: attributes => ({
+                                'data-language': attributes.language,
+                            }),
+                        },
+                        caption: {
+                            default: '',
+                            parseHTML: element => element.getAttribute('data-caption') || '',
+                            renderHTML: attributes => ({
+                                'data-caption': attributes.caption,
+                            }),
+                        },
+                        wrap: {
+                            default: false,
+                            parseHTML: element => element.getAttribute('data-wrap') === 'true',
+                            renderHTML: attributes => ({
+                                'data-wrap': attributes.wrap ? 'true' : 'false',
+                            }),
+                        },
+                    };
+                },
                 addNodeView() {
                     return ReactNodeViewRenderer(CodeBlockComponent);
                 },
@@ -153,6 +181,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 resizable: true,
             }),
             ImageBlock,
+            VideoExtension,
+            BookmarkExtension,
             TableRow,
             TableHeader.extend({
                 addAttributes() {

@@ -243,13 +243,22 @@ export const slashItems = [
         },
     },
 
+
     {
         title: 'Video',
-        description: 'Inserts a video',
+        description: 'Embed or upload a video',
         icon: '🎥',
         group: 'Media',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'default' }).run();
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'videoBlock',
+                    attrs: { src: null },
+                })
+                .run();
         },
     },
     {
@@ -272,7 +281,15 @@ export const slashItems = [
         icon: '🔗',
         group: 'Media',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'default' }).run();
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'bookmarkBlock',
+                    attrs: { url: null },
+                })
+                .run();
         },
     },
     // --- Embeds---
