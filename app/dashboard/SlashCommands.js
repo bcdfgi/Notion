@@ -293,26 +293,7 @@ export const slashItems = [
         },
     },
     // --- Embeds---
-    {
-        title: 'Embed',
-        description: 'For PDFs, Google Maps and more',
-        icon: '⧉',
-        group: 'Embeds',
-        command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'default' }).run();
-        },
-    },
 
-
-    {
-        title: 'YouTube',
-        description: 'Embed a YouTube video player',
-        icon: '🎬',
-        group: 'Embeds',
-        command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'youtube' }).run();
-        },
-    },
     {
         title: 'Google Maps',
         description: 'Embed an interactive Google Map',
