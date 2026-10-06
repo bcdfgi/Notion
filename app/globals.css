@@ -411,3 +411,4 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
 .dark .notion-column > p.is-empty::before {
     color: #4b5563 !important;
 }
+

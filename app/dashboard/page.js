@@ -971,25 +971,122 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             editor.chain().focus().insertContent(html).run();
         }
 
-        // --- PDF TEXT IMPORT ---
+        // --- PDF TEXT IMPORT (Smart Line & Structure Extraction) ---
         else if (importType === 'pdf') {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-            let extractedParagraphs = [];
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const extractedLines = [];
 
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                const text = content.items.map((item) => item.str).join(' ');
-                if (text.trim()) extractedParagraphs.push(text.trim());
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const items = textContent.items;
+
+                    if (!items || items.length === 0) continue;
+
+                    // Group tokens by vertical (Y) coordinate
+                    // In PDF coordinate space, Y = transform[5]
+                    let currentY = null;
+                    let currentLine = '';
+
+                    for (const item of items) {
+                        const str = item.str;
+                        if (!str && !item.hasEOL) continue;
+
+                        const y = Math.round(item.transform[5]);
+
+                        // Threshold of ~4-6px indicates a new line
+                        if (currentY !== null && Math.abs(currentY - y) > 5) {
+                            if (currentLine.trim()) {
+                                extractedLines.push(currentLine.trim());
+                            }
+                            currentLine = str;
+                            currentY = y;
+                        } else {
+                            if (currentY === null) currentY = y;
+                            // Add spacing if not punctuation
+                            if (currentLine && !currentLine.endsWith(' ') && !str.startsWith(' ')) {
+                                currentLine += ' ' + str;
+                            } else {
+                                currentLine += str;
+                            }
+                        }
+                    }
+                    if (currentLine.trim()) {
+                        extractedLines.push(currentLine.trim());
+                    }
+                }
+
+                // 2. Re-combine hyphenated word splits across line breaks
+                const mergedLines = [];
+                for (let i = 0; i < extractedLines.length; i++) {
+                    let line = extractedLines[i];
+                    if (line.endsWith('-') && i + 1 < extractedLines.length) {
+                        const nextLine = extractedLines[i + 1];
+                        const firstWord = nextLine.split(' ')[0];
+                        const rest = nextLine.slice(firstWord.length).trim();
+                        line = line.slice(0, -1) + firstWord;
+                        extractedLines[i + 1] = rest;
+                    }
+                    if (line.trim()) mergedLines.push(line.trim());
+                }
+
+                // 3. Convert lines into structured TipTap Blocks
+                const nodes = [];
+
+                for (const rawLine of mergedLines) {
+                    const line = rawLine.trim();
+                    if (!line) continue;
+
+                    // Detect Main Page Titles
+                    if (/^(Complexity Proof|Practice Questions|Midterm|Exam|Assignment|Homework)/i.test(line) && line.length < 60) {
+                        nodes.push({
+                            type: 'heading',
+                            attrs: { level: 1 },
+                            content: [{ type: 'text', text: line }],
+                        });
+                    }
+                    // Detect Section / Part Headings (e.g., "Part 1: Big-O Bounds")
+                    else if (/^(Part\s+\d+|Section\s+\d+|Chapter\s+\d+):?/i.test(line)) {
+                        nodes.push({
+                            type: 'heading',
+                            attrs: { level: 2 },
+                            content: [{ type: 'text', text: line }],
+                        });
+                    }
+                    // Detect Numbered Questions (e.g., "1. Prove that...", "2. Show that...")
+                    else if (/^\d+[\.\)]\s+/.test(line)) {
+                        nodes.push({
+                            type: 'paragraph',
+                            content: [
+                                {
+                                    type: 'text',
+                                    marks: [{ type: 'bold' }],
+                                    text: line.match(/^\d+[\.\)]\s+/)[0],
+                                },
+                                {
+                                    type: 'text',
+                                    text: line.replace(/^\d+[\.\)]\s+/, ''),
+                                },
+                            ],
+                        });
+                    }
+                    // Standard Paragraph
+                    else {
+                        nodes.push({
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: line }],
+                        });
+                    }
+                }
+
+                if (nodes.length > 0) {
+                    editor.chain().focus().insertContent(nodes).run();
+                }
+            } catch (err) {
+                console.error('Failed to parse PDF:', err);
             }
-
-            const nodes = extractedParagraphs.map((paragraph) => ({
-                type: 'paragraph',
-                content: [{ type: 'text', text: paragraph }],
-            }));
-
-            editor.chain().focus().insertContent(nodes).run();
         }
     };
     useEffect(() => {

@@ -19,7 +19,7 @@ import {
     Image as ImageIcon
 } from 'lucide-react';
 
-// All 5 allowed views: Table, Board, Gallery, List, Calendar
+
 const VIEW_DEFINITIONS = [
     { type: 'table', label: 'Table', icon: TableIcon },
     { type: 'board', label: 'Board', icon: Kanban },
