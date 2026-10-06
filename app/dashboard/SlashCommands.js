@@ -420,7 +420,7 @@ export const slashItems = [
                 .deleteRange(range)
                 .insertContent({
                     type: 'inlineMath',
-                    attrs: { latex: 'f(x)' },
+                    attrs: { latex: '' },
                 })
                 .insertContent(' ')
                 .run();
