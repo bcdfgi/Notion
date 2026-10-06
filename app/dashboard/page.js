@@ -578,11 +578,38 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         setShowInlineEmojiPicker(false);
         if (!editor || !selected) return;
 
-        // IconPickerModal sends { type: 'emoji', value: '😀' }
-        const emojiChar = typeof selected === 'object' ? selected.value : selected;
-        if (emojiChar) {
-            editor.chain().focus().insertContent(`${emojiChar} `).run();
+        // 1. Resolve string value whether from emoji-picker-react or custom object
+        let charToInsert = '';
+        if (typeof selected === 'string') {
+            charToInsert = selected;
+        } else if (selected.type === 'emoji' && selected.value) {
+            charToInsert = selected.value;
+        } else if (selected.emoji) {
+            charToInsert = selected.emoji;
         }
+
+        if (!charToInsert) {
+            console.warn("No valid emoji character detected in selection:", selected);
+            return;
+        }
+
+        // 2. Use setTimeout to allow the modal backdrop to unmount and return DOM focus
+        setTimeout(() => {
+            if (!editor || editor.isDestroyed) return;
+
+            editor.chain().focus().run();
+
+            // 3. Insert text directly via ProseMirror transaction at the current cursor
+            const { state, view } = editor;
+            const { from, to } = state.selection;
+
+            const tr = state.tr.insertText(`${charToInsert} `, from, to);
+            view.dispatch(tr);
+
+            // 4. Force synchronous state sync and save
+            const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+            saveContent(editor.getJSON(), currentTitle);
+        }, 50);
     };
     const handleInsertPageLink = async (selectedPage) => {
         if (!editor || !currentPageId || !selectedPage) return;
@@ -1947,8 +1974,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]"
                     onClick={() => setShowInlineEmojiPicker(false)}
                 >
-                    <div onClick={(e) => e.stopPropagation()}>
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
                         <IconPickerModal
+                            initialTab="emoji"
                             onSelect={handleSelectInlineEmoji}
                             onClose={() => setShowInlineEmojiPicker(false)}
                         />

@@ -402,7 +402,9 @@ export const slashItems = [
         icon: '☺',
         group: 'Inline',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).run();
+            if (range) {
+                editor.chain().focus().deleteRange(range).run();
+            }
             window.dispatchEvent(new CustomEvent('notion:open-inline-emoji'));
         },
     },

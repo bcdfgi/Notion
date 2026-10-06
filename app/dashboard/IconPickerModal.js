@@ -17,8 +17,9 @@ const NOTION_COLORS = [
     { name: 'Red', value: '#E03E3E' },
 ];
 
-export default function IconPickerModal({ onSelect, onClose }) {
-    const [activeTab, setActiveTab] = useState('icons');
+// Change:
+export default function IconPickerModal({ onSelect, onClose, initialTab = 'icons' }) {
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [search, setSearch] = useState('');
     const [activeColorPopover, setActiveColorPopover] = useState(null);
     const [uploadError, setUploadError] = useState(''); // Added error state
