@@ -338,7 +338,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
 
-    // Add a ref to track the latest pages synchronously
+
     // Add a ref to track the latest pages synchronously & broadcast to NodeViews
     const pagesRef = useRef(pages);
 
@@ -1461,7 +1461,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         ref={containerRef}
                         onMouseMove={handleMouseMove}
                         className={`mx-auto relative group pb-40 transition-all duration-150 ${
-                            isFullWidth ? 'max-w-full px-12' : 'max-w-3xl px-16'
+                            
+                            isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'
+
+                            
                         } ${
                             coverImage ? 'mt-8' : 'mt-16'
                         } ${

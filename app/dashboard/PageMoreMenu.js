@@ -192,55 +192,18 @@ export default function PageMoreMenu({
                     </button>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                    <SlidersHorizontal size={14} className="text-gray-500" />
-                    <span>Customize page</span>
-                </button>
+
             </div>
 
             <div className="my-1.5 border-t border-gray-100" />
 
 
             <div className="space-y-0.5">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                    <div className="flex items-center gap-2.5">
-                        <Languages size={14} className="text-gray-500" />
-                        <span>Translate</span>
-                    </div>
-                    <ChevronRight size={13} className="text-gray-400" />
-                </button>
 
-                <button
-                    type="button"
-                    onClick={() => {
-                        editor?.chain().focus().undo().run();
-                        onClose();
-                    }}
-                    className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                    <div className="flex items-center gap-2.5">
-                        <Undo2 size={14} className="text-gray-500" />
-                        <span>Undo</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400">⌘Z</span>
-                </button>
 
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                    <Download size={14} className="text-gray-500" />
-                    <span>Import</span>
-                </button>
+
+
+
 
                 <button
                     type="button"
