@@ -1064,6 +1064,7 @@ export const SlashCommands = Extension.create({
                     let popup;
 
                     return {
+                        // SlashCommands.js
                         onStart: (props) => {
                             component = new ReactRenderer(SlashCommandList, {
                                 props,
@@ -1080,6 +1081,7 @@ export const SlashCommands = Extension.create({
                                 interactive: true,
                                 trigger: 'manual',
                                 placement: 'bottom-start',
+                                zIndex: 99999,
                             });
                         },
 

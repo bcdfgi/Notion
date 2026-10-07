@@ -23,7 +23,6 @@ import { SlashCommands, slashItems, plusMenuItems } from './SlashCommands';
 import { SlashCommandList } from './SlashCommandList';
 import BlockActionMenu from './BlockActionMenu';
 import PageMoreMenu from './PageMoreMenu';
-import { Smile, MoreHorizontal, Star, Plus } from 'lucide-react';
 import SettingsModal from './SettingsMenu';
 import {EmbedExtension} from './EmbedExtension';
 import { TableControlsOverlay } from './TableControl';
@@ -47,6 +46,7 @@ import { TableOfContentsExtension } from './TableOfContentExtension';
 import { BlockEquationExtension } from './AdvancedNodes';
 import { VideoExtension } from './VideoExtension';
 import { BookmarkExtension } from './BookmarkExtension';
+import { Smile, MoreHorizontal, Star, Plus, ChevronDown, ChevronRight, Lock, Link2, Maximize2 } from 'lucide-react';
 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -130,6 +130,9 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const importInputRef = useRef(null);
     const [importType, setImportType] = useState('markdown');
     const [showInlineEmojiPicker, setShowInlineEmojiPicker] = useState(false);
+    const [activeDatabaseRowItem, setActiveDatabaseRowItem] = useState(null);
+    const [showRowProps, setShowRowProps] = useState(true);
+    const [recentsList, setRecentsList] = useState([]);
 
 
 
@@ -336,6 +339,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
     }, [pages, editor]);
 
+    const touchRecent = useCallback((item) => {
+        setRecentsList(prev => {
+            const filtered = prev.filter(p => (p.id || p._id) !== (item.id || item._id));
+            return [item, ...filtered].slice(0, 20);
+        });
+    }, []);
+
 
 
 
@@ -348,6 +358,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
     const loadPage = useCallback(async (pageId, forceData = null) => {
         if (!pageId || (pageId === currentPageId && !forceData)) return;
+        setActiveDatabaseRowItem(null);
 
         // 1. Flush any pending save for current page before switching
         if (editor && currentPageId && isHydratedRef.current) {
@@ -378,6 +389,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setIsFavorite(Boolean(selectedPage.isFavorite));
             setLastEditedTime(selectedPage.updatedAt ? new Date(selectedPage.updatedAt) : new Date());
 
+            touchRecent({
+                id: selectedPage._id,
+                _id: selectedPage._id,
+                title: displayTitle,
+                icon: selectedPage.icon,
+                isDatabaseRow: false,
+            });
+
             if (titleRef.current) {
                 titleRef.current.innerText = displayTitle;
                 titleRef.current._lastValue = displayTitle;
@@ -404,7 +423,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
         setIsLoading(false);
     }, [currentPageId, editor, userEmail, debouncedSave]);
-    
+
 
 
 
@@ -494,6 +513,42 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             return () => dom.removeEventListener('click', handlePageMentionClick);
         }
     }, [editor, loadPage]);
+
+    useEffect(() => {
+        // When user clicks "Open as full page" from the database drawer
+        const handleOpenRowFullScreen = (e) => {
+            const { row, parentTitle, properties } = e.detail;
+            setActiveDatabaseRowItem({ row, parentTitle, properties });
+            touchRecent({
+                id: row.id,
+                title: row.values?.['prop-title'] || 'Untitled',
+                icon: row.icon,
+                isDatabaseRow: true,
+                parentTitle: parentTitle || 'Database',
+                rowData: row,
+                properties,
+            });
+        };
+        const handleRowCreated = (e) => {
+            const { row, parentTitle, properties } = e.detail;
+            touchRecent({
+                id: row.id,
+                title: row.values?.['prop-title'] || 'Untitled',
+                icon: row.icon,
+                isDatabaseRow: true,
+                parentTitle: parentTitle || 'Database',
+                rowData: row,
+                properties,
+            });
+        };
+
+        window.addEventListener('notion:open-page-fullscreen', handleOpenRowFullScreen);
+        window.addEventListener('notion:row-created', handleRowCreated);
+        return () => {
+            window.removeEventListener('notion:open-page-fullscreen', handleOpenRowFullScreen);
+            window.removeEventListener('notion:row-created', handleRowCreated);
+        };
+    }, [touchRecent])
 
 
     const handleCreatePage = async () => {
@@ -1241,64 +1296,66 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     onClick={handleCreatePage}
                                     className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded transition-all"
                                 >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                    <Plus size={14} />
                                 </button>
                             </div>
 
                             <div className="space-y-0.5">
-                                {pages.map((page) => (
-                                    <div key={page._id} className="group relative flex items-center">
-                                        <button
-                                            onClick={() => loadPage(page._id)}
-                                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors ${
-                                                currentPageId === page._id
-                                                    ? 'bg-gray-200 text-slate-900 font-medium'
-                                                    : 'text-slate-600 hover:bg-gray-200/50'
-                                            }`}
-                                        >
-                                            {page.icon ? (
-                                                <PageIcon icon={page.icon} size={16} />
-                                            ) : (
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                                </svg>
-                                            )}
-                                            <span className="truncate pr-14 text-left">{page.title || "Untitled"}</span>
-                                        </button>
+                                {(recentsList.length > 0 ? recentsList : pages).map((item) => {
+                                    const isRow = item.isDatabaseRow;
+                                    const itemId = item.id || item._id;
+                                    const isSelected = isRow
+                                        ? activeDatabaseRowItem?.row?.id === itemId
+                                        : currentPageId === itemId && !activeDatabaseRowItem;
 
-                                        {/* Hover Action Buttons */}
-                                        <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {/* Add nested page button with tooltip */}
-                                            <div className="relative group/tooltip">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleCreatePage();
-                                                    }}
-                                                    className="p-1 rounded hover:bg-gray-300/80 text-gray-500 hover:text-gray-800 transition-colors"
-                                                >
-                                                    <Plus size={14} strokeWidth={2.5} />
-                                                </button>
-
-                                                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/tooltip:block z-50 whitespace-nowrap rounded bg-stone-900 px-2 py-1 text-[11px] font-medium text-white shadow-md">
-                                                    Add a page inside
-                                                </div>
-                                            </div>
-
-                                            {/* More options / Delete button */}
+                                    return (
+                                        <div key={itemId} className="group relative flex items-center">
                                             <button
-                                                type="button"
-                                                onClick={(e) => handleDeletePage(e, page._id)}
-                                                className="p-1 rounded hover:bg-gray-300/80 text-gray-500 hover:text-red-600 transition-colors"
-                                                title="Delete page"
+                                                onClick={() => {
+                                                    if (isRow) {
+                                                        setActiveDatabaseRowItem({
+                                                            row: item.rowData,
+                                                            parentTitle: item.parentTitle,
+                                                            properties: item.properties,
+                                                        });
+                                                    } else {
+                                                        loadPage(itemId);
+                                                    }
+                                                }}
+                                                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors ${
+                                                    isSelected
+                                                        ? 'bg-gray-200 text-slate-900 font-medium'
+                                                        : 'text-slate-600 hover:bg-gray-200/50'
+                                                }`}
                                             >
-                                                <MoreHorizontal size={14} />
+                                                {item.icon ? (
+                                                    typeof item.icon === 'string' ? (
+                                                        <span>{item.icon}</span>
+                                                    ) : (
+                                                        <PageIcon icon={item.icon} size={16} />
+                                                    )
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">♡</span>
+                                                )}
+                                                <span className="truncate pr-14 text-left">{item.title || "Untitled"}</span>
                                             </button>
+
+                                            {/* Standard page delete button (only for workspace pages) */}
+                                            {!isRow && (
+                                                <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleDeletePage(e, itemId)}
+                                                        className="p-1 rounded hover:bg-gray-300/80 text-gray-500 hover:text-red-600 transition-colors"
+                                                        title="Delete page"
+                                                    >
+                                                        <MoreHorizontal size={14} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                         <button

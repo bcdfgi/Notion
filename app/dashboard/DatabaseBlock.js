@@ -1,5 +1,6 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { NodeViewWrapper } from '@tiptap/react';
 import {
     Table as TableIcon,
@@ -16,6 +17,11 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronRight,
+    ChevronUp,
+    ChevronsRight,
+    Lock,
+    Link2,
+    Star,
     X,
     Trash2,
     Clock,
@@ -23,8 +29,12 @@ import {
     Type,
     SlidersHorizontal,
     Maximize2,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Smile
 } from 'lucide-react';
+import IconPickerModal from './IconPickerModal';
+import PageIcon from './PageIcon';
+import RowEditor from './RawEditor';
 
 const NOTION_COLORS = {
     gray:   { bg: 'bg-[#F1F1EF]', text: 'text-[#5A5A5A]' },
@@ -38,10 +48,17 @@ const NOTION_COLORS = {
     red:    { bg: 'bg-[#FDEBEC]', text: 'text-[#B91C1C]' },
 };
 
-const VIEW_DEFINITIONS = [
-    { type: 'gallery', label: '~~~', icon: LayoutGrid },
+const NOTION_PRESET_COVERS = [
+    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop"
+];
+
+const ALLOWED_VIEW_DEFINITIONS = [
     { type: 'table', label: 'Table', icon: TableIcon },
     { type: 'board', label: 'Board', icon: Kanban },
+    { type: 'gallery', label: 'Gallery', icon: LayoutGrid },
     { type: 'list', label: 'List', icon: ListIcon },
     { type: 'calendar', label: 'Calendar', icon: CalendarIcon },
 ];
@@ -56,22 +73,19 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             { id: 'view-list', name: 'List', type: 'list' },
             { id: 'view-calendar', name: 'Calendar', type: 'calendar' }
         ],
-        activeViewId = 'view-calendar',
+        activeViewId = 'view-table',
         properties = [
             { id: 'prop-title', name: 'Name', type: 'title' },
             { id: 'prop-created', name: 'Created', type: 'date' },
             { id: 'prop-tags', name: 'Tags', type: 'select', options: [] }
         ],
-        rows = [
-            { id: '1', icon: '♡', cover: '', values: { 'prop-title': 'Time Table', 'prop-created': '4 August 2024 13:42', 'prop-tags': '' } },
-            { id: '2', icon: '♡', cover: '', values: { 'prop-title': 'Memories', 'prop-created': '24 February 2024 12:54', 'prop-tags': '' } },
-            { id: '3', icon: '♡', cover: '', values: { 'prop-title': 'Manifestations', 'prop-created': '24 February 2024 12:50', 'prop-tags': '' } },
-            { id: '4', icon: '♡', cover: '', values: { 'prop-title': 'to do list', 'prop-created': '2 January 2024 20:57', 'prop-tags': '' } },
-            { id: '5', icon: '♡', cover: '', values: { 'prop-title': 'my student info', 'prop-created': '2 January 2024 20:57', 'prop-tags': '' } },
-            { id: '6', icon: '♡', cover: '', values: { 'prop-title': 'digital notes', 'prop-created': '2 January 2024 20:57', 'prop-tags': '' } },
-            { id: '7', icon: '♡', cover: '', values: { 'prop-title': 'classes', 'prop-created': '2 January 2024 20:57', 'prop-tags': '' } },
-        ]
+        rows = []
     } = node.attrs;
+
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearch, setShowSearch] = useState(false);
@@ -83,32 +97,103 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const [showNewGroupInput, setShowNewGroupInput] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
 
-    // Calendar state
+    const [iconPickerTargetRowId, setIconPickerTargetRowId] = useState(null);
+    const [showDrawerCoverPicker, setShowDrawerCoverPicker] = useState(false);
+    const drawerFileInputRef = useRef(null);
+
+    const [showViewPicker, setShowViewPicker] = useState(false);
+    const [viewPickerMode, setViewPickerMode] = useState('add');
+    const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
+    const plusBtnRef = useRef(null);
+    const modalRef = useRef(null);
+
+    const [showTabMenuId, setShowTabMenuId] = useState(null);
     const [calendarDate, setCalendarDate] = useState(new Date());
 
     const currentActiveView = views.find(v => v.id === activeViewId) || views[0];
     const tagsProperty = properties.find(p => p.id === 'prop-tags' || p.type === 'select') || properties[2];
 
-    const formatCurrentDateTime = () => {
-        const d = new Date();
-        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const isolateEvents = {
+        onKeyDown: (e) => e.stopPropagation(),
+        onKeyUp: (e) => e.stopPropagation(),
+        onKeyPress: (e) => e.stopPropagation(),
+        onMouseDown: (e) => e.stopPropagation(),
     };
+
+    const filteredRows = useMemo(() => {
+        return rows.filter(r => (r.values?.['prop-title'] || '').toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [rows, searchQuery]);
+
+    const currentRowIndex = filteredRows.findIndex(r => r.id === activeRow?.id);
+    const hasPrevRow = currentRowIndex > 0;
+    const hasNextRow = currentRowIndex >= 0 && currentRowIndex < filteredRows.length - 1;
+
+    const handlePrevRow = () => {
+        if (hasPrevRow) setActiveRow(filteredRows[currentRowIndex - 1]);
+    };
+
+    const handleNextRow = () => {
+        if (hasNextRow) setActiveRow(filteredRows[currentRowIndex + 1]);
+    };
+
+    const handleCopyPageLink = () => {
+        if (!activeRow) return;
+        navigator.clipboard.writeText(`${window.location.origin}#${activeRow.id}`);
+    };
+
+    const handleToggleRowFavorite = () => {
+        if (!activeRow) return;
+        const nextFav = !activeRow.isFavorite;
+        const updated = rows.map(r => r.id === activeRow.id ? { ...r, isFavorite: nextFav } : r);
+        updateAttributes({ rows: updated });
+        setActiveRow(prev => ({ ...prev, isFavorite: nextFav }));
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (modalRef.current && !modalRef.current.contains(e.target)) {
+                setShowViewPicker(false);
+            }
+            if (!e.target.closest('[data-tab-menu]')) {
+                setShowTabMenuId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleAddRow = (dateStr = null, tagValue = '') => {
         const newRow = {
             id: `row-${Date.now()}`,
-            icon: '♡',
+            icon: { type: 'emoji', value: '♡' },
             cover: '',
             date: dateStr || new Date().toISOString().split('T')[0],
+            isFavorite: false,
             values: {
                 'prop-title': '',
                 'prop-created': formatCurrentDateTime(),
-                'prop-tags': tagValue
-            }
+                'prop-tags': tagValue,
+            },
+            content: { type: 'doc', content: [{ type: 'paragraph' }] },
         };
-        updateAttributes({ rows: [...rows, newRow] });
+        const nextRows = [...rows, newRow];
+        updateAttributes({ rows: nextRows });
         setActiveRow(newRow);
+
+        // Broadcast to sidebar recents
+        window.dispatchEvent(new CustomEvent('notion:row-created', {
+            detail: {
+                row: newRow,
+                parentTitle: title || 'Untitled database',
+                properties,
+            }
+        }));
+    };
+
+    const formatCurrentDateTime = () => {
+        const d = new Date();
+        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     };
 
     const handleUpdateCell = (rowId, propId, val) => {
@@ -127,10 +212,73 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         }
     };
 
+    const handleUpdateIcon = (rowId, selectedIcon) => {
+        const updated = rows.map(r => r.id === rowId ? { ...r, icon: selectedIcon } : r);
+        updateAttributes({ rows: updated });
+        if (activeRow?.id === rowId) {
+            setActiveRow(prev => ({ ...prev, icon: selectedIcon }));
+        }
+        setIconPickerTargetRowId(null);
+    };
+
     const handleDeleteRow = (e, rowId) => {
-        e.stopPropagation();
-        updateAttributes({ rows: rows.filter(r => r.id !== rowId) });
+        e?.stopPropagation?.();
+        const updated = rows.filter(r => r.id !== rowId);
+        updateAttributes({ rows: updated });
         if (activeRow?.id === rowId) setActiveRow(null);
+    };
+
+    const handleSelectViewType = (viewDef) => {
+        if (viewPickerMode === 'convert') {
+            const updatedViews = views.map(v =>
+                v.id === currentActiveView.id
+                    ? { ...v, type: viewDef.type, name: v.name === '~~~' ? '~~~' : viewDef.label }
+                    : v
+            );
+            updateAttributes({ views: updatedViews });
+        } else {
+            const count = views.filter(v => v.type === viewDef.type).length;
+            const newName = count === 0 ? viewDef.label : `${viewDef.label} ${count + 1}`;
+            const newView = {
+                id: `view-${Date.now()}`,
+                name: newName,
+                type: viewDef.type
+            };
+            updateAttributes({
+                views: [...views, newView],
+                activeViewId: newView.id
+            });
+        }
+        setShowViewPicker(false);
+    };
+
+    const handleDeleteView = (viewId) => {
+        if (views.length <= 1) return;
+        const remaining = views.filter(v => v.id !== viewId);
+        updateAttributes({
+            views: remaining,
+            activeViewId: activeViewId === viewId ? remaining[0].id : activeViewId
+        });
+        setShowTabMenuId(null);
+    };
+
+    const handleOpenConvertMenu = (e) => {
+        e.stopPropagation();
+        const rect = e.currentTarget.getBoundingClientRect();
+        setPickerPos({ top: rect.bottom + 8, left: Math.max(16, rect.left - 40) });
+        setViewPickerMode('convert');
+        setShowViewPicker(true);
+        setShowTabMenuId(null);
+    };
+
+    const handleOpenAddViewMenu = (e) => {
+        e.stopPropagation();
+        const rect = plusBtnRef.current?.getBoundingClientRect();
+        if (rect) {
+            setPickerPos({ top: rect.bottom + 8, left: Math.max(16, rect.left - 20) });
+        }
+        setViewPickerMode('add');
+        setShowViewPicker(true);
     };
 
     const handleAddProperty = () => {
@@ -179,10 +327,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         }
     };
 
-    const filteredRows = useMemo(() => {
-        return rows.filter(r => (r.values?.['prop-title'] || '').toLowerCase().includes(searchQuery.toLowerCase()));
-    }, [rows, searchQuery]);
-
     const boardGroups = useMemo(() => {
         const groups = [];
         const unassigned = filteredRows.filter(r => !r.values?.[tagsProperty?.id]);
@@ -208,15 +352,32 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         return groups;
     }, [filteredRows, tagsProperty]);
 
-    // Calendar Generation (Monday to Sunday)
+    const handleUpdateRowContent = (rowId, contentJson) => {
+        const updated = rows.map((r) =>
+            r.id === rowId ? { ...r, content: contentJson } : r
+        );
+        updateAttributes({ rows: updated });
+        if (activeRow?.id === rowId) {
+            setActiveRow((prev) => ({ ...prev, content: contentJson }));
+        }
+    };
+    useEffect(() => {
+        const handleRemoteRowUpdate = (e) => {
+            const { rowId, content } = e.detail;
+            const updated = rows.map(r => r.id === rowId ? { ...r, content } : r);
+            updateAttributes({ rows: updated });
+        };
+
+        window.addEventListener('notion:update-row-content', handleRemoteRowUpdate);
+        return () => window.removeEventListener('notion:update-row-content', handleRemoteRowUpdate);
+    }, [rows]);
+
     const calendarGrid = useMemo(() => {
         const year = calendarDate.getFullYear();
         const month = calendarDate.getMonth();
-
         const firstDayOfMonth = new Date(year, month, 1);
         const lastDayOfMonth = new Date(year, month + 1, 0);
 
-        // Convert Sunday (0) to 7, so Monday is 1
         let startDayIndex = firstDayOfMonth.getDay();
         startDayIndex = startDayIndex === 0 ? 7 : startDayIndex;
 
@@ -226,7 +387,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         const days = [];
         const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-        // 1. Previous Month Spillover Days
         for (let i = startDayIndex - 1; i > 0; i--) {
             const dayNum = prevMonthLastDay - i + 1;
             const dateStr = `${month === 0 ? year - 1 : year}-${String(month === 0 ? 12 : month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
@@ -239,7 +399,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             });
         }
 
-        // 2. Current Month Days
         const today = new Date();
         for (let d = 1; d <= totalDaysInMonth; d++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -249,7 +408,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 today.getDate() === d;
 
             const label = d === 1 ? `1 ${shortMonths[month]}` : `${d}`;
-
             days.push({
                 day: d,
                 isOtherMonth: false,
@@ -260,7 +418,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             });
         }
 
-        // 3. Next Month Spillover Days to fill out complete 5 or 6 rows (35 or 42 cells)
         const targetTotal = days.length <= 35 ? 35 : 42;
         const remaining = targetTotal - days.length;
         const nextMonthIndex = (month + 1) % 12;
@@ -281,14 +438,25 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         return days;
     }, [calendarDate, filteredRows]);
 
+    const renderRowIcon = (row, size = 16) => {
+        if (!row.icon) {
+            return <span className="text-gray-400 text-sm">♡</span>;
+        }
+        if (typeof row.icon === 'string') {
+            return <span className="text-sm">{row.icon}</span>;
+        }
+        return <PageIcon icon={row.icon} size={size} />;
+    };
+
     return (
-        <NodeViewWrapper className="my-6 not-prose select-none font-sans group/db w-full">
+        <NodeViewWrapper className="my-6 not-prose font-sans group/db w-full">
             {/* Title */}
             <div className="flex items-center justify-between group/title mb-4">
                 <input
                     type="text"
                     value={title}
                     placeholder="Untitled database"
+                    {...isolateEvents}
                     onChange={(e) => updateAttributes({ title: e.target.value })}
                     className="text-3xl font-bold text-slate-800 bg-transparent focus:outline-none placeholder:text-gray-300 tracking-tight w-full"
                 />
@@ -303,40 +471,75 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             </div>
 
             {/* View Tabs & Action Bar */}
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
-                <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4 select-none">
+                <div className="flex items-center gap-1 relative">
                     {views.map((view) => {
-                        const def = VIEW_DEFINITIONS.find(d => d.type === view.type) || VIEW_DEFINITIONS[0];
+                        const def = ALLOWED_VIEW_DEFINITIONS.find(d => d.type === view.type) || ALLOWED_VIEW_DEFINITIONS[0];
                         const Icon = def.icon;
                         const isActive = view.id === currentActiveView?.id;
                         return (
-                            <button
-                                key={view.id}
-                                type="button"
-                                onClick={() => updateAttributes({ activeViewId: view.id })}
-                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium transition-colors ${
-                                    isActive
-                                        ? 'bg-gray-100 text-slate-800 shadow-2xs'
-                                        : 'text-gray-500 hover:bg-gray-100/60 hover:text-slate-700'
-                                }`}
-                            >
-                                <Icon size={14} className={isActive ? 'text-slate-800' : 'text-gray-400'} />
-                                <span>{view.name}</span>
-                            </button>
+                            <div key={view.id} className="relative group/tab flex items-center" data-tab-menu>
+                                <button
+                                    type="button"
+                                    onClick={() => updateAttributes({ activeViewId: view.id })}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium transition-colors ${
+                                        isActive
+                                            ? 'bg-gray-100 text-slate-800 shadow-2xs'
+                                            : 'text-gray-500 hover:bg-gray-100/60 hover:text-slate-700'
+                                    }`}
+                                >
+                                    <Icon size={14} className={isActive ? 'text-slate-800' : 'text-gray-400'} />
+                                    <span>{view.name}</span>
+                                </button>
+
+                                {isActive && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowTabMenuId(showTabMenuId === view.id ? null : view.id);
+                                        }}
+                                        className="p-1 hover:bg-gray-200/70 text-gray-400 hover:text-slate-700 rounded-md ml-0.5"
+                                        title="View options"
+                                    >
+                                        <ChevronDown size={11} />
+                                    </button>
+                                )}
+
+                                {showTabMenuId === view.id && (
+                                    <div className="absolute top-full left-0 mt-1.5 z-40 bg-white border border-gray-200/90 shadow-xl rounded-xl p-1.5 min-w-[170px] animate-in fade-in zoom-in-95 duration-100">
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenConvertMenu}
+                                            className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100 rounded-lg text-xs font-medium text-slate-700 text-left"
+                                        >
+                                            <span>Layout</span>
+                                            <span className="text-[11px] text-gray-400 capitalize">{view.type} →</span>
+                                        </button>
+                                        <div className="h-px bg-gray-100 my-1" />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeleteView(view.id)}
+                                            disabled={views.length <= 1}
+                                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left ${
+                                                views.length <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-red-500 hover:bg-red-50'
+                                            }`}
+                                        >
+                                            <Trash2 size={13} />
+                                            <span>Delete view</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         );
                     })}
 
                     <button
+                        ref={plusBtnRef}
                         type="button"
-                        onClick={() => {
-                            const newView = {
-                                id: `view-${Date.now()}`,
-                                name: 'New view',
-                                type: 'calendar'
-                            };
-                            updateAttributes({ views: [...views, newView], activeViewId: newView.id });
-                        }}
+                        onClick={handleOpenAddViewMenu}
                         className="p-1 hover:bg-gray-100 text-gray-400 hover:text-slate-700 rounded-md transition-colors ml-0.5"
+                        title="Add a view"
                     >
                         <Plus size={14} />
                     </button>
@@ -359,6 +562,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             <input
                                 type="text"
                                 value={searchQuery}
+                                {...isolateEvents}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search..."
                                 className="bg-transparent focus:outline-none w-24 text-xs"
@@ -406,349 +610,16 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 </div>
             </div>
 
-            {/* --- 1. NOTION AUTHENTIC CALENDAR VIEW --- */}
-            {currentActiveView?.type === 'calendar' && (
-                <div className="w-full flex flex-col select-none">
-                    {/* Calendar Sub-header: Month Year & Controls */}
-                    <div className="flex items-center justify-between mb-3 px-1">
-                        <h2 className="text-base font-bold text-slate-800">
-                            {calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                        </h2>
-
-                        <div className="flex items-center gap-2">
-                            {/* Manage in Calendar pill */}
-                            <button
-                                type="button"
-                                className="flex items-center gap-1.5 px-2.5 py-1 border border-gray-200/80 hover:bg-gray-50 rounded-md text-xs font-medium text-slate-700 transition-colors shadow-2xs"
-                            >
-                                <CalendarIcon size={13} className="text-gray-500" />
-                                <span>Manage in Calendar</span>
-                            </button>
-
-                            {/* Month Navigator: < Today > */}
-                            <div className="flex items-center text-gray-500 text-xs font-medium">
-                                <button
-                                    type="button"
-                                    onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}
-                                    className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-slate-700"
-                                >
-                                    <ChevronLeft size={16} />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setCalendarDate(new Date())}
-                                    className="px-2 py-0.5 hover:bg-gray-100 rounded text-slate-700 text-xs font-medium"
-                                >
-                                    Today
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))}
-                                    className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-slate-700"
-                                >
-                                    <ChevronRight size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Day Headers (Mon - Sun) */}
-                    <div className="grid grid-cols-7 text-center text-xs text-gray-400 font-normal py-1 border-b border-gray-100">
-                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                            <div key={day} className="py-0.5">{day}</div>
-                        ))}
-                    </div>
-
-                    {/* Calendar Grid Cells */}
-                    <div className="grid grid-cols-7 border-t border-l border-gray-200/70">
-                        {calendarGrid.map((cell, idx) => (
-                            <div
-                                key={idx}
-                                onClick={() => handleAddRow(cell.dateStr)}
-                                className={`h-28 p-2 border-r border-b border-gray-200/70 hover:bg-gray-50/50 transition-colors flex flex-col justify-between group/cell relative cursor-pointer ${
-                                    cell.isOtherMonth ? 'bg-transparent' : 'bg-white'
-                                }`}
-                            >
-                                {/* Date Number and Add Button */}
-                                <div className="flex items-center justify-between text-xs">
-                                    {/* Hover '+' button */}
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleAddRow(cell.dateStr);
-                                        }}
-                                        className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-gray-400 hover:text-slate-800 transition-opacity"
-                                    >
-                                        <Plus size={12} />
-                                    </button>
-
-                                    {/* Date indicator with red pill for Today */}
-                                    {cell.isToday ? (
-                                        <div className="w-5 h-5 rounded-full bg-[#E5484D] text-white flex items-center justify-center text-[11px] font-semibold leading-none shadow-xs">
-                                            {cell.day}
-                                        </div>
-                                    ) : (
-                                        <span className={`text-[12px] font-normal ${cell.isOtherMonth ? 'text-gray-300' : 'text-slate-800'}`}>
-                                            {cell.label}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Items Container */}
-                                <div className="space-y-1 overflow-y-auto max-h-16 mt-1">
-                                    {cell.items.map(item => (
-                                        <div
-                                            key={item.id}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setActiveRow(item);
-                                            }}
-                                            className="bg-white border border-gray-200 rounded px-1.5 py-0.5 text-[11px] font-medium text-slate-800 truncate shadow-2xs hover:bg-gray-50 flex items-center gap-1.5"
-                                        >
-                                            <span className="text-[10px] text-gray-400">{item.icon || '♡'}</span>
-                                            <span className="truncate">{item.values?.['prop-title'] || 'Untitled'}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* --- 2. LIST VIEW --- */}
-            {currentActiveView?.type === 'list' && (
-                <div className="flex flex-col select-none py-1">
-                    {filteredRows.map((row) => (
-                        <div
-                            key={row.id}
-                            className="group/item flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-gray-100/60 cursor-pointer transition-colors"
-                            onClick={() => setActiveRow(row)}
-                        >
-                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                <span className="text-[#845ec2] text-[15px] select-none shrink-0 font-light">
-                                    {row.icon || '♡'}
-                                </span>
-                                <input
-                                    type="text"
-                                    value={row.values?.['prop-title'] || ''}
-                                    placeholder="Untitled"
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => handleUpdateCell(row.id, 'prop-title', e.target.value)}
-                                    className="bg-transparent focus:outline-none text-[14px] font-normal text-slate-800 placeholder:text-gray-300 w-full"
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setActiveRow(row);
-                                    }}
-                                    className="px-1.5 py-0.5 text-[11px] font-medium text-gray-500 hover:text-slate-800 bg-white border border-gray-200 rounded shadow-2xs"
-                                >
-                                    Open
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={(e) => handleDeleteRow(e, row.id)}
-                                    className="p-1 text-gray-300 hover:text-red-500 rounded"
-                                >
-                                    <X size={13} />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-
-                    <button
-                        type="button"
-                        onClick={() => handleAddRow()}
-                        className="flex items-center gap-2 px-2 py-2 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-100/50 rounded-lg transition-colors mt-0.5 text-left font-normal"
-                    >
-                        <Plus size={14} className="text-gray-400" />
-                        <span>New page</span>
-                    </button>
-                </div>
-            )}
-
-            {/* --- 3. GALLERY VIEW --- */}
-            {currentActiveView?.type === 'gallery' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 select-none">
-                    {filteredRows.map((row) => (
-                        <div
-                            key={row.id}
-                            onClick={() => setActiveRow(row)}
-                            className="group/card border border-gray-200/90 rounded-2xl overflow-hidden hover:shadow-md transition-all bg-white cursor-pointer flex flex-col justify-between"
-                        >
-                            <div className="h-44 w-full overflow-hidden bg-[#F7F6F3] relative flex items-center justify-center">
-                                {row.cover ? (
-                                    <img
-                                        src={row.cover}
-                                        alt="Cover"
-                                        className="w-full h-full object-cover group-hover/card:scale-102 transition-transform duration-300"
-                                    />
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center gap-1.5 text-gray-300">
-                                        <ImageIcon size={26} strokeWidth={1.5} />
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                const url = window.prompt("Enter image URL for this card's cover:");
-                                                if (url) handleUpdateCover(row.id, url);
-                                            }}
-                                            className="opacity-0 group-hover/card:opacity-100 text-[11px] font-medium text-gray-500 hover:text-slate-800 bg-white/90 px-2 py-0.5 rounded shadow-xs transition-opacity"
-                                        >
-                                            Add cover
-                                        </button>
-                                    </div>
-                                )}
-
-                                <button
-                                    type="button"
-                                    onClick={(e) => handleDeleteRow(e, row.id)}
-                                    className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 p-1 bg-white/90 text-gray-400 hover:text-red-500 rounded-md shadow-xs transition-all"
-                                >
-                                    <X size={12} />
-                                </button>
-                            </div>
-
-                            <div className="p-3 bg-white flex items-center gap-2">
-                                <span className="text-slate-400 text-sm">{row.icon || '♡'}</span>
-                                <input
-                                    type="text"
-                                    value={row.values?.['prop-title'] || ''}
-                                    placeholder="Untitled"
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => handleUpdateCell(row.id, 'prop-title', e.target.value)}
-                                    className="w-full text-xs font-semibold text-slate-800 bg-transparent focus:outline-none placeholder:text-gray-300 truncate"
-                                />
-                            </div>
-                        </div>
-                    ))}
-
-                    <button
-                        type="button"
-                        onClick={() => handleAddRow()}
-                        className="h-56 border border-dashed border-gray-200/80 hover:border-gray-400/80 rounded-2xl flex items-center justify-center text-xs text-gray-400 hover:text-slate-700 transition-all hover:bg-gray-50/40"
-                    >
-                        <span className="flex items-center gap-1.5">
-                            <Plus size={14} /> New page
-                        </span>
-                    </button>
-                </div>
-            )}
-
-            {/* --- 4. BOARD VIEW --- */}
-            {currentActiveView?.type === 'board' && (
-                <div className="flex items-start gap-4 overflow-x-auto pb-4 select-none">
-                    {boardGroups.map((group) => (
-                        <div
-                            key={group.id}
-                            className="w-[260px] shrink-0 bg-[#F7F6F3] rounded-2xl p-2.5 flex flex-col gap-2 border border-gray-100/60"
-                        >
-                            <div className="flex items-center gap-2 px-1.5 py-1 text-xs font-medium text-slate-700">
-                                <span>{group.label}</span>
-                                <span className="text-gray-400 font-normal text-[11px]">{group.items.length}</span>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                {group.items.map((row) => (
-                                    <div
-                                        key={row.id}
-                                        onClick={() => setActiveRow(row)}
-                                        className="bg-white border border-gray-200/80 rounded-xl p-3 shadow-2xs hover:shadow-sm cursor-pointer transition-all flex items-center justify-between group/card"
-                                    >
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <span className="text-slate-400 text-sm select-none shrink-0">
-                                                {row.icon || '♡'}
-                                            </span>
-                                            <input
-                                                type="text"
-                                                value={row.values?.['prop-title'] || ''}
-                                                placeholder="Untitled"
-                                                onClick={(e) => e.stopPropagation()}
-                                                onChange={(e) => handleUpdateCell(row.id, 'prop-title', e.target.value)}
-                                                className="w-full bg-transparent focus:outline-none text-[13px] font-medium text-slate-800 placeholder:text-gray-300 truncate"
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={(e) => handleDeleteRow(e, row.id)}
-                                            className="opacity-0 group-hover/card:opacity-100 text-gray-300 hover:text-red-500 p-0.5 ml-1 transition-opacity shrink-0"
-                                        >
-                                            <X size={12} />
-                                        </button>
-                                    </div>
-                                ))}
-
-                                <button
-                                    type="button"
-                                    onClick={() => handleAddRow(null, group.tagValue)}
-                                    className="w-full py-2 px-2.5 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-200/50 rounded-xl flex items-center gap-2 transition-colors text-left font-normal"
-                                >
-                                    <Plus size={13} className="text-gray-400" />
-                                    <span>New page</span>
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-
-                    <div className="shrink-0 pt-1">
-                        {showNewGroupInput ? (
-                            <div className="w-56 bg-white border border-gray-200 rounded-xl p-2.5 shadow-md">
-                                <input
-                                    type="text"
-                                    value={newGroupName}
-                                    placeholder="Group name..."
-                                    onChange={(e) => setNewGroupName(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateNewGroup()}
-                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none mb-2"
-                                    autoFocus
-                                />
-                                <div className="flex items-center gap-1.5 justify-end">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowNewGroupInput(false)}
-                                        className="text-[11px] px-2 py-0.5 text-gray-500 hover:bg-gray-100 rounded"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleCreateNewGroup}
-                                        className="text-[11px] px-2 py-0.5 bg-blue-500 text-white rounded font-medium"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={() => setShowNewGroupInput(true)}
-                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 px-2 py-1.5 rounded-lg hover:bg-gray-100/60 transition-colors font-medium whitespace-nowrap"
-                            >
-                                <Plus size={14} />
-                                <span>New group</span>
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* --- 5. TABLE VIEW --- */}
+            {/* --- 1. TABLE VIEW --- */}
             {currentActiveView?.type === 'table' && (
                 <div className="w-full overflow-x-auto text-[13px]">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                        <tr className="border-b border-gray-200/70 text-gray-400 text-xs">
+                        <tr className="border-b border-gray-200/70 text-gray-400 text-xs select-none">
                             {properties.map((prop, idx) => (
                                 <th
                                     key={prop.id}
-                                    className={`py-2 px-2.5 font-normal text-gray-500 select-none ${
+                                    className={`py-2 px-2.5 font-normal text-gray-500 ${
                                         idx === 0 ? 'w-[38%] min-w-[200px]' : 'w-[28%] min-w-[170px]'
                                     }`}
                                 >
@@ -785,20 +656,29 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         return (
                                             <td key={prop.id} className="py-1.5 px-2.5">
                                                 <div className="flex items-center gap-2">
-                                                        <span className="text-gray-400 text-sm select-none cursor-pointer hover:opacity-80">
-                                                            {row.icon || '♡'}
-                                                        </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setIconPickerTargetRowId(row.id);
+                                                        }}
+                                                        className="p-0.5 hover:bg-gray-200/50 rounded flex items-center justify-center shrink-0 cursor-pointer"
+                                                        title="Change icon"
+                                                    >
+                                                        {renderRowIcon(row, 15)}
+                                                    </button>
                                                     <input
                                                         type="text"
                                                         value={cellVal || ''}
                                                         placeholder="Untitled"
+                                                        {...isolateEvents}
                                                         onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
                                                         className="w-full bg-transparent focus:outline-none font-medium text-slate-800 placeholder:text-gray-300"
                                                     />
                                                     <button
                                                         type="button"
                                                         onClick={() => setActiveRow(row)}
-                                                        className="opacity-0 group-hover/row:opacity-100 uppercase tracking-wider text-[10px] font-semibold text-gray-400 hover:text-slate-800 bg-white border border-gray-200 px-1.5 py-0.5 rounded shadow-2xs transition-all shrink-0 ml-1"
+                                                        className="opacity-0 group-hover/row:opacity-100 uppercase tracking-wider text-[10px] font-semibold text-gray-400 hover:text-slate-800 bg-white border border-gray-200 px-1.5 py-0.5 rounded shadow-2xs transition-all shrink-0 ml-1 select-none"
                                                     >
                                                         Open
                                                     </button>
@@ -813,6 +693,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                 <input
                                                     type="text"
                                                     value={cellVal || ''}
+                                                    {...isolateEvents}
                                                     onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
                                                     placeholder="Empty"
                                                     className="w-full bg-transparent focus:outline-none text-gray-600 placeholder:text-gray-300 text-xs"
@@ -826,14 +707,14 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         const theme = currentOpt ? NOTION_COLORS[currentOpt.color || 'gray'] : null;
 
                                         return (
-                                            <td key={prop.id} className="py-1.5 px-2.5 relative">
+                                            <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
                                                 {currentOpt ? (
                                                     <span
                                                         onClick={() => setActiveSelectMenu({ rowId: row.id, propId: prop.id })}
                                                         className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer ${theme.bg} ${theme.text}`}
                                                     >
-                                                            {currentOpt.label}
-                                                        </span>
+                                                        {currentOpt.label}
+                                                    </span>
                                                 ) : (
                                                     <button
                                                         type="button"
@@ -858,9 +739,9 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                                     }}
                                                                     className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded text-left text-xs"
                                                                 >
-                                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${colorTheme.bg} ${colorTheme.text}`}>
-                                                                            {opt.label}
-                                                                        </span>
+                                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${colorTheme.bg} ${colorTheme.text}`}>
+                                                                        {opt.label}
+                                                                    </span>
                                                                 </button>
                                                             );
                                                         })}
@@ -876,6 +757,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                 type="text"
                                                 value={cellVal || ''}
                                                 placeholder="Empty"
+                                                {...isolateEvents}
                                                 onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
                                                 className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300"
                                             />
@@ -883,7 +765,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     );
                                 })}
 
-                                <td className="py-1.5 px-2 text-right">
+                                <td className="py-1.5 px-2 text-right select-none">
                                     <button
                                         type="button"
                                         onClick={(e) => handleDeleteRow(e, row.id)}
@@ -900,7 +782,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                     <button
                         type="button"
                         onClick={() => handleAddRow()}
-                        className="w-full text-left py-2 px-2.5 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-50/80 flex items-center gap-2 transition-colors rounded-b-md"
+                        className="w-full text-left py-2 px-2.5 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-50/80 flex items-center gap-2 transition-colors rounded-b-md select-none"
                     >
                         <Plus size={13} className="text-gray-400" />
                         <span>New page</span>
@@ -908,108 +790,755 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 </div>
             )}
 
-            {/* Add Property Modal */}
-            {showAddProperty && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]">
-                    <div className="bg-white border border-gray-200 shadow-2xl rounded-2xl p-4 w-72">
-                        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                            <span className="text-xs font-semibold text-gray-700">Add Column</span>
-                            <button onClick={() => setShowAddProperty(false)} className="text-gray-400 hover:text-gray-600">
-                                <X size={14} />
-                            </button>
+            {/* --- 2. BOARD VIEW --- */}
+            {currentActiveView?.type === 'board' && (
+                <div className="flex items-start gap-4 overflow-x-auto pb-4">
+                    {boardGroups.map((group) => (
+                        <div
+                            key={group.id}
+                            className="w-[260px] shrink-0 bg-[#F7F6F3] rounded-2xl p-2.5 flex flex-col gap-2 border border-gray-100/60"
+                        >
+                            <div className="flex items-center gap-2 px-1.5 py-1 text-xs font-medium text-slate-700 select-none">
+                                <span>{group.label}</span>
+                                <span className="text-gray-400 font-normal text-[11px]">{group.items.length}</span>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                {group.items.map((row) => (
+                                    <div
+                                        key={row.id}
+                                        onClick={() => setActiveRow(row)}
+                                        className="bg-white border border-gray-200/80 rounded-xl p-3 shadow-2xs hover:shadow-sm cursor-pointer transition-all flex items-center justify-between group/card"
+                                    >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIconPickerTargetRowId(row.id);
+                                                }}
+                                                className="shrink-0 p-0.5 hover:bg-gray-100 rounded"
+                                                title="Change icon"
+                                            >
+                                                {renderRowIcon(row, 15)}
+                                            </button>
+                                            <input
+                                                type="text"
+                                                value={row.values?.['prop-title'] || ''}
+                                                placeholder="Untitled"
+                                                onClick={(e) => e.stopPropagation()}
+                                                {...isolateEvents}
+                                                onChange={(e) => handleUpdateCell(row.id, 'prop-title', e.target.value)}
+                                                className="w-full bg-transparent focus:outline-none text-[13px] font-medium text-slate-800 placeholder:text-gray-300 truncate"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => handleDeleteRow(e, row.id)}
+                                            className="opacity-0 group-hover/card:opacity-100 text-gray-300 hover:text-red-500 p-0.5 ml-1 transition-opacity shrink-0"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                <button
+                                    type="button"
+                                    onClick={() => handleAddRow(null, group.tagValue)}
+                                    className="w-full py-2 px-2.5 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-200/50 rounded-xl flex items-center gap-2 transition-colors text-left font-normal select-none"
+                                >
+                                    <Plus size={13} className="text-gray-400" />
+                                    <span>New page</span>
+                                </button>
+                            </div>
                         </div>
-                        <div className="space-y-3 pt-3 text-xs">
-                            <div>
-                                <label className="text-gray-400 block mb-1">Column Name</label>
+                    ))}
+
+                    <div className="shrink-0 pt-1">
+                        {showNewGroupInput ? (
+                            <div className="w-56 bg-white border border-gray-200 rounded-xl p-2.5 shadow-md">
                                 <input
                                     type="text"
-                                    value={newPropName}
-                                    onChange={(e) => setNewPropName(e.target.value)}
-                                    placeholder="e.g. Category"
-                                    className="w-full border border-gray-200 rounded px-2 py-1 focus:outline-none"
+                                    value={newGroupName}
+                                    placeholder="Group name..."
+                                    {...isolateEvents}
+                                    onKeyDown={(e) => {
+                                        e.stopPropagation();
+                                        if (e.key === 'Enter') handleCreateNewGroup();
+                                    }}
+                                    onChange={(e) => setNewGroupName(e.target.value)}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none mb-2"
                                     autoFocus
                                 />
+                                <div className="flex items-center gap-1.5 justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewGroupInput(false)}
+                                        className="text-[11px] px-2 py-0.5 text-gray-500 hover:bg-gray-100 rounded"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleCreateNewGroup}
+                                        className="text-[11px] px-2 py-0.5 bg-blue-500 text-white rounded font-medium"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-gray-400 block mb-1">Property Type</label>
-                                <select
-                                    value={newPropType}
-                                    onChange={(e) => setNewPropType(e.target.value)}
-                                    className="w-full border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none"
-                                >
-                                    <option value="text">Text</option>
-                                    <option value="select">Tags</option>
-                                    <option value="date">Date</option>
-                                </select>
-                            </div>
+                        ) : (
                             <button
                                 type="button"
-                                onClick={handleAddProperty}
-                                className="w-full py-1.5 bg-[#2383E2] hover:bg-blue-600 text-white rounded font-medium mt-2"
+                                onClick={() => setShowNewGroupInput(true)}
+                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 px-2 py-1.5 rounded-lg hover:bg-gray-100/60 transition-colors font-medium whitespace-nowrap select-none"
                             >
-                                Add Property
+                                <Plus size={14} />
+                                <span>New group</span>
                             </button>
-                        </div>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* Side Peek Drawer */}
-            {activeRow && (
-                <div className="fixed inset-0 z-50 flex justify-end bg-black/20 backdrop-blur-[1px]">
-                    <div className="fixed inset-0" onClick={() => setActiveRow(null)} />
-                    <div className="relative z-10 w-full max-w-xl bg-white h-full shadow-2xl flex flex-col p-8 overflow-y-auto animate-in slide-in-from-right duration-200">
-                        <div className="flex items-center justify-between pb-6 text-gray-400">
-                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Page Inspector</span>
-                            <button onClick={() => setActiveRow(null)} className="p-1 hover:bg-gray-100 rounded text-gray-500">
-                                <X size={16} />
-                            </button>
-                        </div>
+            {/* --- 3. GALLERY VIEW --- */}
+            {currentActiveView?.type === 'gallery' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                    {filteredRows.map((row) => (
+                        <div
+                            key={row.id}
+                            onClick={() => setActiveRow(row)}
+                            className="group/card border border-gray-200/90 rounded-2xl overflow-hidden hover:shadow-md transition-all bg-white cursor-pointer flex flex-col justify-between"
+                        >
+                            <div className="h-44 w-full overflow-hidden bg-[#F7F6F3] relative flex items-center justify-center">
+                                {row.cover ? (
+                                    <img
+                                        src={row.cover}
+                                        alt="Cover"
+                                        className="w-full h-full object-cover group-hover/card:scale-102 transition-transform duration-300"
+                                    />
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center gap-1.5 text-gray-300 select-none">
+                                        <ImageIcon size={26} strokeWidth={1.5} />
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const url = window.prompt("Enter image URL for this card's cover:");
+                                                if (url) handleUpdateCover(row.id, url);
+                                            }}
+                                            className="opacity-0 group-hover/card:opacity-100 text-[11px] font-medium text-gray-500 hover:text-slate-800 bg-white/90 px-2 py-0.5 rounded shadow-xs transition-opacity"
+                                        >
+                                            Add cover
+                                        </button>
+                                    </div>
+                                )}
 
-                        <div className="flex items-center gap-3 mb-6">
-                            <span className="text-3xl">{activeRow.icon || '♡'}</span>
-                            <input
-                                type="text"
-                                value={activeRow.values?.['prop-title'] || ''}
-                                placeholder="Untitled"
-                                onChange={(e) => handleUpdateCell(activeRow.id, 'prop-title', e.target.value)}
-                                className="text-3xl font-bold text-slate-800 focus:outline-none w-full"
-                            />
-                        </div>
+                                <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteRow(e, row.id)}
+                                    className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 p-1 bg-white/90 text-gray-400 hover:text-red-500 rounded-md shadow-xs transition-all"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
 
-                        <div className="space-y-3 pb-8 border-b border-gray-100 text-xs">
-                            <div className="flex items-center">
-                                <div className="w-32 flex items-center gap-1.5 text-gray-400">
-                                    <ImageIcon size={13} />
-                                    <span>Card Cover</span>
-                                </div>
+                            <div className="p-3 bg-white flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIconPickerTargetRowId(row.id);
+                                    }}
+                                    className="shrink-0 p-0.5 hover:bg-gray-100 rounded"
+                                    title="Change icon"
+                                >
+                                    {renderRowIcon(row, 15)}
+                                </button>
                                 <input
                                     type="text"
-                                    value={activeRow.cover || ''}
-                                    placeholder="Paste image URL..."
-                                    onChange={(e) => handleUpdateCover(activeRow.id, e.target.value)}
-                                    className="border border-gray-200 px-2 py-1 rounded focus:outline-none w-full text-slate-800 placeholder:text-gray-300"
+                                    value={row.values?.['prop-title'] || ''}
+                                    placeholder="Untitled"
+                                    onClick={(e) => e.stopPropagation()}
+                                    {...isolateEvents}
+                                    onChange={(e) => handleUpdateCell(row.id, 'prop-title', e.target.value)}
+                                    className="w-full text-xs font-semibold text-slate-800 bg-transparent focus:outline-none placeholder:text-gray-300 truncate"
+                                />
+                            </div>
+                        </div>
+                    ))}
+
+                    <button
+                        type="button"
+                        onClick={() => handleAddRow()}
+                        className="h-56 border border-dashed border-gray-200/80 hover:border-gray-400/80 rounded-2xl flex items-center justify-center text-xs text-gray-400 hover:text-slate-700 transition-all hover:bg-gray-50/40 select-none"
+                    >
+                        <span className="flex items-center gap-1.5">
+                            <Plus size={14} /> New page
+                        </span>
+                    </button>
+                </div>
+            )}
+
+            {/* --- 4. LIST VIEW --- */}
+            {currentActiveView?.type === 'list' && (
+                <div className="flex flex-col py-1">
+                    {filteredRows.map((row) => (
+                        <div
+                            key={row.id}
+                            className="group/item flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-gray-100/60 cursor-pointer transition-colors"
+                            onClick={() => setActiveRow(row)}
+                        >
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIconPickerTargetRowId(row.id);
+                                    }}
+                                    className="shrink-0 p-0.5 hover:bg-gray-200/50 rounded flex items-center justify-center"
+                                    title="Change icon"
+                                >
+                                    {renderRowIcon(row, 15)}
+                                </button>
+                                <input
+                                    type="text"
+                                    value={row.values?.['prop-title'] || ''}
+                                    placeholder="Untitled"
+                                    onClick={(e) => e.stopPropagation()}
+                                    {...isolateEvents}
+                                    onChange={(e) => handleUpdateCell(row.id, 'prop-title', e.target.value)}
+                                    className="bg-transparent focus:outline-none text-[14px] font-normal text-slate-800 placeholder:text-gray-300 w-full"
                                 />
                             </div>
 
-                            {properties.filter(p => p.type !== 'title').map((prop) => (
-                                <div key={prop.id} className="flex items-center">
-                                    <div className="w-32 flex items-center gap-1.5 text-gray-400">
-                                        {getPropIcon(prop.type)}
-                                        <span>{prop.name}</span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={activeRow.values?.[prop.id] || ''}
-                                        placeholder="Empty"
-                                        onChange={(e) => handleUpdateCell(activeRow.id, prop.id, e.target.value)}
-                                        className="border border-gray-200 px-2 py-1 rounded focus:outline-none w-full text-slate-800 placeholder:text-gray-300"
-                                    />
-                                </div>
-                            ))}
+                            <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity select-none">
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveRow(row);
+                                    }}
+                                    className="px-1.5 py-0.5 text-[11px] font-medium text-gray-500 hover:text-slate-800 bg-white border border-gray-200 rounded shadow-2xs"
+                                >
+                                    Open
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteRow(e, row.id)}
+                                    className="p-1 text-gray-300 hover:text-red-500 rounded"
+                                >
+                                    <X size={13} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+
+                    <button
+                        type="button"
+                        onClick={() => handleAddRow()}
+                        className="flex items-center gap-2 px-2 py-2 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-100/50 rounded-lg transition-colors mt-0.5 text-left font-normal select-none"
+                    >
+                        <Plus size={14} className="text-gray-400" />
+                        <span>New page</span>
+                    </button>
+                </div>
+            )}
+
+            {/* --- 5. CALENDAR VIEW --- */}
+            {currentActiveView?.type === 'calendar' && (
+                <div className="w-full flex flex-col select-none">
+                    <div className="flex items-center justify-between mb-3 px-1">
+                        <h2 className="text-base font-bold text-slate-800">
+                            {calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                        </h2>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                className="flex items-center gap-1.5 px-2.5 py-1 border border-gray-200/80 hover:bg-gray-50 rounded-md text-xs font-medium text-slate-700 transition-colors shadow-2xs"
+                            >
+                                <CalendarIcon size={13} className="text-gray-500" />
+                                <span>Manage in Calendar</span>
+                            </button>
+
+                            <div className="flex items-center text-gray-500 text-xs font-medium">
+                                <button
+                                    type="button"
+                                    onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}
+                                    className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-slate-700"
+                                >
+                                    <ChevronLeft size={16} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCalendarDate(new Date())}
+                                    className="px-2 py-0.5 hover:bg-gray-100 rounded text-slate-700 text-xs font-medium"
+                                >
+                                    Today
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))}
+                                    className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-slate-700"
+                                >
+                                    <ChevronRight size={16} />
+                                </button>
+                            </div>
                         </div>
                     </div>
+
+                    <div className="grid grid-cols-7 text-center text-xs text-gray-400 font-normal py-1 border-b border-gray-100">
+                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                            <div key={day} className="py-0.5">{day}</div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 border-t border-l border-gray-200/70">
+                        {calendarGrid.map((cell, idx) => (
+                            <div
+                                key={idx}
+                                onClick={() => handleAddRow(cell.dateStr)}
+                                className={`h-28 p-2 border-r border-b border-gray-200/70 hover:bg-gray-50/50 transition-colors flex flex-col justify-between group/cell relative cursor-pointer ${
+                                    cell.isOtherMonth ? 'bg-transparent' : 'bg-white'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between text-xs">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAddRow(cell.dateStr);
+                                        }}
+                                        className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-gray-400 hover:text-slate-800 transition-opacity"
+                                    >
+                                        <Plus size={12} />
+                                    </button>
+
+                                    {cell.isToday ? (
+                                        <div className="w-5 h-5 rounded-full bg-[#E5484D] text-white flex items-center justify-center text-[11px] font-semibold leading-none shadow-xs">
+                                            {cell.day}
+                                        </div>
+                                    ) : (
+                                        <span className={`text-[12px] font-normal ${cell.isOtherMonth ? 'text-gray-300' : 'text-slate-800'}`}>
+                                            {cell.label}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1 overflow-y-auto max-h-16 mt-1">
+                                    {cell.items.map(item => (
+                                        <div
+                                            key={item.id}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveRow(item);
+                                            }}
+                                            className="bg-white border border-gray-200 rounded px-1.5 py-0.5 text-[11px] font-medium text-slate-800 truncate shadow-2xs hover:bg-gray-50 flex items-center gap-1.5"
+                                        >
+                                            <span className="shrink-0">{renderRowIcon(item, 11)}</span>
+                                            <span className="truncate">{item.values?.['prop-title'] || 'Untitled'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
+            )}
+
+            {/* --- PORTALIZED MODALS OUTSIDE PROSEMIRROR --- */}
+            {mounted && createPortal(
+                <>
+                    {/* View Picker Modal */}
+                    {showViewPicker && (
+                        <div
+                            ref={modalRef}
+                            style={{ top: `${pickerPos.top}px`, left: `${pickerPos.left}px` }}
+                            className="fixed z-50 w-[290px] bg-white border border-gray-200/90 shadow-[0_16px_36px_rgba(0,0,0,0.14)] rounded-2xl p-3 animate-in fade-in zoom-in-95 duration-100"
+                        >
+                            <div className="text-[11px] font-semibold text-gray-400 mb-2.5 px-1 tracking-wide select-none">
+                                {viewPickerMode === 'convert' ? 'Select layout' : 'Add a new view'}
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-2">
+                                {ALLOWED_VIEW_DEFINITIONS.map((def) => {
+                                    const Icon = def.icon;
+                                    const isCurrent = currentActiveView.type === def.type;
+                                    return (
+                                        <button
+                                            key={def.type}
+                                            type="button"
+                                            onClick={() => handleSelectViewType(def)}
+                                            className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all group ${
+                                                isCurrent ? 'bg-gray-100' : 'hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-2xs mb-1.5 transition-colors ${
+                                                isCurrent
+                                                    ? 'bg-white border-gray-300 text-slate-900 font-bold'
+                                                    : 'bg-gray-50 border-gray-200/70 text-gray-500 group-hover:bg-white group-hover:text-slate-900'
+                                            }`}>
+                                                <Icon size={18} strokeWidth={1.8} />
+                                            </div>
+                                            <span className="text-[11px] font-normal leading-tight text-center truncate w-full text-slate-700">
+                                                {def.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Add Property Modal */}
+                    {showAddProperty && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]">
+                            <div className="bg-white border border-gray-200 shadow-2xl rounded-2xl p-4 w-72">
+                                <div className="flex items-center justify-between pb-3 border-b border-gray-100 select-none">
+                                    <span className="text-xs font-semibold text-gray-700">Add Column</span>
+                                    <button onClick={() => setShowAddProperty(false)} className="text-gray-400 hover:text-gray-600">
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                                <div className="space-y-3 pt-3 text-xs">
+                                    <div>
+                                        <label className="text-gray-400 block mb-1">Column Name</label>
+                                        <input
+                                            type="text"
+                                            value={newPropName}
+                                            {...isolateEvents}
+                                            onChange={(e) => setNewPropName(e.target.value)}
+                                            placeholder="e.g. Category"
+                                            className="w-full border border-gray-200 rounded px-2 py-1 focus:outline-none"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-gray-400 block mb-1">Property Type</label>
+                                        <select
+                                            value={newPropType}
+                                            onChange={(e) => setNewPropType(e.target.value)}
+                                            className="w-full border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none"
+                                        >
+                                            <option value="text">Text</option>
+                                            <option value="select">Tags</option>
+                                            <option value="date">Date</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddProperty}
+                                        className="w-full py-1.5 bg-[#2383E2] hover:bg-blue-600 text-white rounded font-medium mt-2"
+                                    >
+                                        Add Property
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Global Icon Picker Modal */}
+                    {iconPickerTargetRowId && (
+                        <div
+                            className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]"
+                            onClick={() => setIconPickerTargetRowId(null)}
+                        >
+                            <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                <IconPickerModal
+                                    initialTab="icons"
+                                    onSelect={(selected) => handleUpdateIcon(iconPickerTargetRowId, selected)}
+                                    onClose={() => setIconPickerTargetRowId(null)}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Side Peek Drawer */}
+                    {activeRow && (
+                        <div className="fixed inset-0 z-50 flex justify-end bg-black/20 backdrop-blur-[1px]">
+                            <div className="fixed inset-0" onClick={() => setActiveRow(null)} />
+                            <div
+                                className="relative z-10 w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col overflow-y-auto animate-in slide-in-from-right duration-200"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {/* Side Peek Drawer Header (Refined Notion Toolbar) */}
+                                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-white/95 backdrop-blur-md sticky top-0 z-30 select-none text-gray-500">
+                                    {/* Left actions: Close, Full page expansion, Up/Down navigation */}
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveRow(null)}
+                                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-slate-800 transition-colors"
+                                            title="Close"
+                                        >
+                                            <ChevronsRight size={17} strokeWidth={2} />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                // Close side drawer and open full screen in main canvas
+                                                const rowToOpen = activeRow;
+                                                setActiveRow(null);
+                                                window.dispatchEvent(
+                                                    new CustomEvent('notion:open-page-fullscreen', {
+                                                        detail: {
+                                                            row: rowToOpen,
+                                                            parentTitle: title || 'Untitled database',
+                                                            properties,
+                                                        }
+                                                    })
+                                                );
+                                            }}
+                                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-slate-800 transition-colors"
+                                            title="Open as full page"
+                                        >
+                                            <Maximize2 size={15} strokeWidth={2} />
+                                        </button>
+
+                                        <div className="w-[1px] h-4 bg-gray-200 mx-1" />
+
+                                        <button
+                                            type="button"
+                                            onClick={handlePrevRow}
+                                            disabled={!hasPrevRow}
+                                            className={`p-1.5 rounded-md transition-colors ${
+                                                hasPrevRow
+                                                    ? 'hover:bg-gray-100 text-gray-500 hover:text-slate-800 cursor-pointer'
+                                                    : 'text-gray-300 cursor-not-allowed'
+                                            }`}
+                                            title="Previous page"
+                                        >
+                                            <ChevronUp size={16} strokeWidth={2.2} />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleNextRow}
+                                            disabled={!hasNextRow}
+                                            className={`p-1.5 rounded-md transition-colors ${
+                                                hasNextRow
+                                                    ? 'hover:bg-gray-100 text-gray-500 hover:text-slate-800 cursor-pointer'
+                                                    : 'text-gray-300 cursor-not-allowed'
+                                            }`}
+                                            title="Next page"
+                                        >
+                                            <ChevronDown size={16} strokeWidth={2.2} />
+                                        </button>
+                                    </div>
+
+                                    {/* Right actions: Share, Copy link, Favorite, More options */}
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => alert('Share settings')}
+                                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer"
+                                        >
+                                            <Lock size={13} className="text-gray-500" />
+                                            <span>Share</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyPageLink}
+                                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                            title="Copy link"
+                                        >
+                                            <Link2 size={16} strokeWidth={2} />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleToggleRowFavorite}
+                                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                            title={activeRow.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                                        >
+                                            <Star
+                                                size={16}
+                                                className={activeRow.isFavorite ? 'fill-amber-400 text-amber-400' : 'text-gray-500'}
+                                            />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={(e) => handleDeleteRow(e, activeRow.id)}
+                                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                            title="More options"
+                                        >
+                                            <MoreHorizontal size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {activeRow.cover ? (
+                                    <div className="relative w-full h-48 bg-gray-100 group/drawerCover overflow-hidden shrink-0">
+                                        <img
+                                            src={activeRow.cover}
+                                            alt="Cover"
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute bottom-2 right-4 flex items-center gap-2 opacity-0 group-hover/drawerCover:opacity-100 transition-opacity select-none">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowDrawerCoverPicker(true)}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-xs"
+                                            >
+                                                Change cover
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleUpdateCover(activeRow.id, '')}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-500 rounded shadow-xs"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                <div className="p-8 flex-1 flex flex-col">
+                                    <div className="flex items-center gap-3 mb-2 select-none">
+                                        {!activeRow.icon && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setIconPickerTargetRowId(activeRow.id)}
+                                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 py-1 rounded transition-colors"
+                                            >
+                                                <Smile size={14} /> Add icon
+                                            </button>
+                                        )}
+                                        {!activeRow.cover && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowDrawerCoverPicker(true)}
+                                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 py-1 rounded transition-colors"
+                                            >
+                                                <ImageIcon size={14} /> Add cover
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {showDrawerCoverPicker && (
+                                        <div className="mb-4 p-4 border border-gray-200 rounded-xl bg-white shadow-xl z-20">
+                                            <div className="flex items-center justify-between mb-3 select-none">
+                                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Choose Cover</span>
+                                                <button onClick={() => setShowDrawerCoverPicker(false)} className="text-gray-400 hover:text-gray-600">
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-2 mb-3">
+                                                {NOTION_PRESET_COVERS.map((cUrl, i) => (
+                                                    <div
+                                                        key={i}
+                                                        onClick={() => {
+                                                            handleUpdateCover(activeRow.id, cUrl);
+                                                            setShowDrawerCoverPicker(false);
+                                                        }}
+                                                        className="h-16 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                                                    >
+                                                        <img src={cUrl} alt="preset" className="w-full h-full object-cover" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Paste image URL and press enter..."
+                                                    className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg focus:outline-none"
+                                                    {...isolateEvents}
+                                                    onKeyDown={(e) => {
+                                                        e.stopPropagation();
+                                                        if (e.key === 'Enter' && e.currentTarget.value) {
+                                                            handleUpdateCover(activeRow.id, e.currentTarget.value);
+                                                            setShowDrawerCoverPicker(false);
+                                                        }
+                                                    }}
+                                                />
+                                                <input
+                                                    type="file"
+                                                    ref={drawerFileInputRef}
+                                                    className="hidden"
+                                                    accept="image/*"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (!file) return;
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => {
+                                                            if (typeof reader.result === 'string') {
+                                                                handleUpdateCover(activeRow.id, reader.result);
+                                                                setShowDrawerCoverPicker(false);
+                                                            }
+                                                        };
+                                                        reader.readAsDataURL(file);
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => drawerFileInputRef.current?.click()}
+                                                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-slate-700 text-xs font-medium rounded-lg shrink-0 select-none"
+                                                >
+                                                    Upload
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Page Title & Icon inside Inspector */}
+                                    <div className="flex items-center gap-3 mb-6">
+                                        {activeRow.icon && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setIconPickerTargetRowId(activeRow.id)}
+                                                className="p-1 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer select-none"
+                                                title="Change icon"
+                                            >
+                                                {renderRowIcon(activeRow, 36)}
+                                            </button>
+                                        )}
+                                        <input
+                                            type="text"
+                                            value={activeRow.values?.['prop-title'] || ''}
+                                            placeholder="Untitled"
+                                            {...isolateEvents}
+                                            onChange={(e) => handleUpdateCell(activeRow.id, 'prop-title', e.target.value)}
+                                            className="text-4xl font-bold text-slate-800 bg-transparent focus:outline-none w-full tracking-tight"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    {/* Properties list */}
+                                    <div className="space-y-3 pb-8 border-b border-gray-100 text-xs">
+                                        {properties.filter(p => p.type !== 'title').map((prop) => (
+                                            <div key={prop.id} className="flex items-center">
+                                                <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">
+                                                    {getPropIcon(prop.type)}
+                                                    <span>{prop.name}</span>
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={activeRow.values?.[prop.id] || ''}
+                                                    placeholder="Empty"
+                                                    {...isolateEvents}
+                                                    onChange={(e) => handleUpdateCell(activeRow.id, prop.id, e.target.value)}
+                                                    className="border border-gray-200 px-2 py-1 rounded focus:outline-none w-full text-slate-800 placeholder:text-gray-300"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex-1 flex flex-col pt-3 pb-20">
+                                        <RowEditor
+                                            key={activeRow.id}
+                                            initialContent={activeRow.content}
+                                            onChange={(newContent) => handleUpdateRowContent(activeRow.id, newContent)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>,
+                document.body
             )}
         </NodeViewWrapper>
     );
