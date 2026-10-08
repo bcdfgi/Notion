@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import IconPickerModal from './IconPickerModal';
 import PageIcon from './PageIcon';
-import RowEditor from './RawEditor';
+import RowEditor from './RowEditor';
 
 const NOTION_COLORS = {
     gray:   { bg: 'bg-[#F1F1EF]', text: 'text-[#5A5A5A]' },
@@ -202,6 +202,16 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         if (activeRow?.id === rowId) {
             setActiveRow(prev => ({ ...prev, values: { ...(prev.values || {}), [propId]: val } }));
         }
+
+        //  ADD THIS: When the title column changes, notify the sidebar recents!
+        if (propId === 'prop-title') {
+            window.dispatchEvent(new CustomEvent('notion:row-updated', {
+                detail: {
+                    rowId,
+                    title: val,
+                }
+            }));
+        }
     };
 
     const handleUpdateCover = (rowId, coverUrl) => {
@@ -219,13 +229,25 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             setActiveRow(prev => ({ ...prev, icon: selectedIcon }));
         }
         setIconPickerTargetRowId(null);
-    };
 
+        //  ADD THIS: When the icon changes, notify the sidebar recents!
+        window.dispatchEvent(new CustomEvent('notion:row-updated', {
+            detail: {
+                rowId,
+                icon: selectedIcon,
+            }
+        }));
+    };
     const handleDeleteRow = (e, rowId) => {
         e?.stopPropagation?.();
         const updated = rows.filter(r => r.id !== rowId);
         updateAttributes({ rows: updated });
         if (activeRow?.id === rowId) setActiveRow(null);
+
+        //  ADD THIS: Notify sidebar to remove deleted row
+        window.dispatchEvent(new CustomEvent('notion:row-deleted', {
+            detail: { rowId }
+        }));
     };
 
     const handleSelectViewType = (viewDef) => {
@@ -362,15 +384,43 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         }
     };
     useEffect(() => {
+        // 1. Sync row content updates
         const handleRemoteRowUpdate = (e) => {
             const { rowId, content } = e.detail;
             const updated = rows.map(r => r.id === rowId ? { ...r, content } : r);
             updateAttributes({ rows: updated });
         };
 
+        // 2. Sync title, icon, cover, or properties updated in full-page mode
+        const handleRemoteRowFieldUpdate = (e) => {
+            const { rowId, field, value } = e.detail;
+            const updated = rows.map(r => {
+                if (r.id !== rowId) return r;
+                if (field === 'title') {
+                    return { ...r, values: { ...(r.values || {}), 'prop-title': value } };
+                }
+                if (field === 'icon') {
+                    return { ...r, icon: value };
+                }
+                if (field === 'cover') {
+                    return { ...r, cover: value };
+                }
+                if (field === 'property') {
+                    const { propId, propValue } = value;
+                    return { ...r, values: { ...(r.values || {}), [propId]: propValue } };
+                }
+                return r;
+            });
+            updateAttributes({ rows: updated });
+        };
+
         window.addEventListener('notion:update-row-content', handleRemoteRowUpdate);
-        return () => window.removeEventListener('notion:update-row-content', handleRemoteRowUpdate);
-    }, [rows]);
+        window.addEventListener('notion:update-row-field', handleRemoteRowFieldUpdate);
+        return () => {
+            window.removeEventListener('notion:update-row-content', handleRemoteRowUpdate);
+            window.removeEventListener('notion:update-row-field', handleRemoteRowFieldUpdate);
+        };
+    }, [rows, updateAttributes]);
 
     const calendarGrid = useMemo(() => {
         const year = calendarDate.getFullYear();

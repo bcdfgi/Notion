@@ -47,7 +47,7 @@ import { BlockEquationExtension } from './AdvancedNodes';
 import { VideoExtension } from './VideoExtension';
 import { BookmarkExtension } from './BookmarkExtension';
 import { Smile, MoreHorizontal, Star, Plus, ChevronDown, ChevronRight, Lock, Link2, Maximize2 } from 'lucide-react';
-
+import RowEditor from './RowEditor'; // (or './RowEditor', matching your filename)
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -441,6 +441,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 if (result.success && result.pages.length > 0) {
                     setPages(result.pages);
                     pagesRef.current = result.pages;
+
+                    setRecentsList(result.pages.map(p => ({
+                        id: p._id,
+                        _id: p._id,
+                        title: p.title || "Untitled",
+                        icon: p.icon,
+                        isDatabaseRow: false,
+                    })));
                     const firstPage = result.pages[0];
 
                     setCurrentPageId(firstPage._id);
@@ -515,7 +523,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     }, [editor, loadPage]);
 
     useEffect(() => {
-        // When user clicks "Open as full page" from the database drawer
         const handleOpenRowFullScreen = (e) => {
             const { row, parentTitle, properties } = e.detail;
             setActiveDatabaseRowItem({ row, parentTitle, properties });
@@ -529,6 +536,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 properties,
             });
         };
+        const handleRowDeleted = (e) => {
+            const { rowId } = e.detail;
+            setRecentsList(prev => prev.filter(item => String(item.id || item._id) !== String(rowId)));
+        };
+
+        window.addEventListener('notion:row-deleted', handleRowDeleted);
+
         const handleRowCreated = (e) => {
             const { row, parentTitle, properties } = e.detail;
             touchRecent({
@@ -542,24 +556,105 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             });
         };
 
+        //  NEW: Listen for title & icon edits from the database
+        const handleRowUpdated = (e) => {
+            const { rowId, title, icon } = e.detail;
+            setRecentsList((prev) =>
+                prev.map((item) => {
+                    const itemId = String(item.id || item._id);
+                    if (itemId === String(rowId)) {
+                        return {
+                            ...item,
+                            ...(title !== undefined ? { title: title || 'Untitled' } : {}),
+                            ...(icon !== undefined ? { icon } : {}),
+                        };
+                    }
+                    return item;
+                })
+            );
+        };
+
         window.addEventListener('notion:open-page-fullscreen', handleOpenRowFullScreen);
         window.addEventListener('notion:row-created', handleRowCreated);
+        window.addEventListener('notion:row-updated', handleRowUpdated);
+
         return () => {
             window.removeEventListener('notion:open-page-fullscreen', handleOpenRowFullScreen);
             window.removeEventListener('notion:row-created', handleRowCreated);
+            window.removeEventListener('notion:row-updated', handleRowUpdated);
         };
-    }, [touchRecent])
+    }, [touchRecent]);
+
+    const handleUpdateActiveRowField = (field, value) => {
+        if (!activeDatabaseRowItem?.row) return;
+        const rowId = activeDatabaseRowItem.row.id;
+
+        // Update local active state
+        setActiveDatabaseRowItem(prev => {
+            if (!prev) return null;
+            let updatedRow = { ...prev.row };
+            if (field === 'title') {
+                updatedRow.values = { ...(updatedRow.values || {}), 'prop-title': value };
+            } else if (field === 'icon') {
+                updatedRow.icon = value;
+            } else if (field === 'cover') {
+                updatedRow.cover = value;
+            } else if (field === 'property') {
+                updatedRow.values = { ...(updatedRow.values || {}), [value.propId]: value.propValue };
+            }
+            return { ...prev, row: updatedRow };
+        });
+
+        // Notify DatabaseBlock to persist into TipTap attributes
+        window.dispatchEvent(new CustomEvent('notion:update-row-field', {
+            detail: { rowId, field, value }
+        }));
+
+        // If title or icon updated, notify sidebar recents
+        if (field === 'title') {
+            window.dispatchEvent(new CustomEvent('notion:row-updated', {
+                detail: { rowId, title: value }
+            }));
+        } else if (field === 'icon') {
+            window.dispatchEvent(new CustomEvent('notion:row-updated', {
+                detail: { rowId, icon: value }
+            }));
+        }
+    };
+
+    const handleUpdateActiveRowContent = (newContent) => {
+        if (!activeDatabaseRowItem?.row) return;
+        const rowId = activeDatabaseRowItem.row.id;
+
+        setActiveDatabaseRowItem(prev => ({
+            ...prev,
+            row: { ...prev.row, content: newContent }
+        }));
+
+        window.dispatchEvent(new CustomEvent('notion:update-row-content', {
+            detail: { rowId, content: newContent }
+        }));
+    };
+
 
 
     const handleCreatePage = async () => {
         const result = await createPage(userEmail);
         if (result.success) {
-
             const sidebarResult = await getPages(userEmail);
             setPages(sidebarResult.pages);
 
-
             const newPage = sidebarResult.pages.find(p => p._id === result.pageId);
+            if (newPage) {
+                // Prepend new page to recents list directly
+                touchRecent({
+                    id: newPage._id,
+                    _id: newPage._id,
+                    title: newPage.title || "Untitled",
+                    icon: newPage.icon,
+                    isDatabaseRow: false,
+                });
+            }
             loadPage(result.pageId, newPage);
         }
     };
@@ -603,6 +698,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
         }
     };
+
 
 
     const handleUpdateCover = async (newCoverUrl) => {
@@ -1301,61 +1397,78 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             </div>
 
                             <div className="space-y-0.5">
-                                {(recentsList.length > 0 ? recentsList : pages).map((item) => {
-                                    const isRow = item.isDatabaseRow;
-                                    const itemId = item.id || item._id;
-                                    const isSelected = isRow
-                                        ? activeDatabaseRowItem?.row?.id === itemId
-                                        : currentPageId === itemId && !activeDatabaseRowItem;
+                                {(() => {
+                                    // Collect IDs already present in recentsList
+                                    const recentIds = new Set(recentsList.map(r => r.id || r._id));
 
-                                    return (
-                                        <div key={itemId} className="group relative flex items-center">
-                                            <button
-                                                onClick={() => {
-                                                    if (isRow) {
-                                                        setActiveDatabaseRowItem({
-                                                            row: item.rowData,
-                                                            parentTitle: item.parentTitle,
-                                                            properties: item.properties,
-                                                        });
-                                                    } else {
-                                                        loadPage(itemId);
-                                                    }
-                                                }}
-                                                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors ${
-                                                    isSelected
-                                                        ? 'bg-gray-200 text-slate-900 font-medium'
-                                                        : 'text-slate-600 hover:bg-gray-200/50'
-                                                }`}
-                                            >
-                                                {item.icon ? (
-                                                    typeof item.icon === 'string' ? (
-                                                        <span>{item.icon}</span>
+                                    // Remaining pages that haven't been visited yet
+                                    const unvisitedPages = pages
+                                        .filter(p => !recentIds.has(p._id))
+                                        .map(p => ({
+                                            id: p._id,
+                                            _id: p._id,
+                                            title: p.title || 'Untitled',
+                                            icon: p.icon,
+                                            isDatabaseRow: false,
+                                        }));
+
+                                    const displayList = [...recentsList, ...unvisitedPages];
+
+                                    return displayList.map((item) => {
+                                        const isRow = item.isDatabaseRow;
+                                        const itemId = item.id || item._id;
+                                        const isSelected = isRow
+                                            ? activeDatabaseRowItem?.row?.id === itemId
+                                            : currentPageId === itemId && !activeDatabaseRowItem;
+
+                                        return (
+                                            <div key={itemId} className="group relative flex items-center">
+                                                <button
+                                                    onClick={() => {
+                                                        if (isRow) {
+                                                            setActiveDatabaseRowItem({
+                                                                row: item.rowData,
+                                                                parentTitle: item.parentTitle,
+                                                                properties: item.properties,
+                                                            });
+                                                        } else {
+                                                            loadPage(itemId);
+                                                        }
+                                                    }}
+                                                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors ${
+                                                        isSelected
+                                                            ? 'bg-gray-200 text-slate-900 font-medium'
+                                                            : 'text-slate-600 hover:bg-gray-200/50'
+                                                    }`}
+                                                >
+                                                    {item.icon ? (
+                                                        typeof item.icon === 'string' ? (
+                                                            <span>{item.icon}</span>
+                                                        ) : (
+                                                            <PageIcon icon={item.icon} size={16} />
+                                                        )
                                                     ) : (
-                                                        <PageIcon icon={item.icon} size={16} />
-                                                    )
-                                                ) : (
-                                                    <span className="text-xs text-gray-400">♡</span>
-                                                )}
-                                                <span className="truncate pr-14 text-left">{item.title || "Untitled"}</span>
-                                            </button>
+                                                        <span className="text-xs text-gray-400">♡</span>
+                                                    )}
+                                                    <span className="truncate pr-14 text-left">{item.title || "Untitled"}</span>
+                                                </button>
 
-                                            {/* Standard page delete button (only for workspace pages) */}
-                                            {!isRow && (
-                                                <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => handleDeletePage(e, itemId)}
-                                                        className="p-1 rounded hover:bg-gray-300/80 text-gray-500 hover:text-red-600 transition-colors"
-                                                        title="Delete page"
-                                                    >
-                                                        <MoreHorizontal size={14} />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                                {!isRow && (
+                                                    <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => handleDeletePage(e, itemId)}
+                                                            className="p-1 rounded hover:bg-gray-300/80 text-gray-500 hover:text-red-600 transition-colors"
+                                                            title="Delete page"
+                                                        >
+                                                            <MoreHorizontal size={14} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    });
+                                })()}
                             </div>
                         </div>
                         <button
@@ -1378,16 +1491,34 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
             <div className="flex-1 flex flex-col min-w-0 bg-white relative">
                 <header className="h-11 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md z-20 border-b border-gray-100">
-                    <button
-                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
-                        </svg>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="3" y1="12" x2="21" y2="12"></line>
+                                <line x1="3" y1="6" x2="21" y2="6"></line>
+                                <line x1="3" y1="18" x2="21" y2="18"></line>
+                            </svg>
+                        </button>
+
+                        {/* Breadcrumb when viewing a database row as full page */}
+                        {activeDatabaseRowItem && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                <button
+                                    onClick={() => setActiveDatabaseRowItem(null)}
+                                    className="hover:underline text-gray-500 font-medium truncate max-w-[140px]"
+                                >
+                                    {activeDatabaseRowItem.parentTitle || 'Database'}
+                                </button>
+                                <span>/</span>
+                                <span className="text-slate-800 font-medium truncate max-w-[160px]">
+                                    {activeDatabaseRowItem.row?.values?.['prop-title'] || 'Untitled'}
+                                </span>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="flex items-center gap-1.5 text-slate-500">
                         {/* Status with dynamic relative time */}
@@ -1454,554 +1585,650 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 </header>
 
                 <div className="flex-1 overflow-y-auto">
-                    {coverImage && (
-                        <div
-                            className={`relative w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
-                                isRepositioning
-                                    ? (isDraggingCover ? 'cursor-grabbing' : 'cursor-grab')
-                                    : 'group/cover'
-                            }`}
-                            onMouseDown={handleMouseDownCover}
-                        >
-                            <img
-                                src={coverImage}
-                                alt="Cover"
-                                className="w-full h-full object-cover pointer-events-none select-none"
-                                style={{ objectPosition: `center ${coverPosition}%` }}
-                            />
-
-                            {isRepositioning ? (
-                                <div className="absolute top-4 w-full flex justify-between px-8 items-center z-10 pointer-events-none">
-                                    <div className="px-3 py-1.5 bg-black/60 text-white text-xs rounded shadow-sm">
-                                        Drag image to reposition
-                                    </div>
-                                    <div className="flex items-center gap-2 pointer-events-auto">
+                    {/* ======================================================== */}
+                    {/* FULL PAGE DATABASE ROW VIEW (When user clicks Maximize)  */}
+                    {/* ======================================================== */}
+                    {activeDatabaseRowItem ? (
+                        <div className="w-full">
+                            {activeDatabaseRowItem.row?.cover && (
+                                <div className="relative w-full h-52 sm:h-64 overflow-hidden bg-gray-100 group/cover">
+                                    <img
+                                        src={activeDatabaseRowItem.row.cover}
+                                        alt="Cover"
+                                        className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); handleCancelReposition(); }}
-                                            className="px-3 py-1.5 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded transition-all"
+                                            onClick={() => {
+                                                const url = window.prompt("Enter image URL:");
+                                                if (url) handleUpdateActiveRowField('cover', url);
+                                            }}
+                                            className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm"
                                         >
-                                            Cancel
+                                            Change cover
                                         </button>
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); handleSavePosition(); }}
-                                            className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded transition-all"
+                                            onClick={() => handleUpdateActiveRowField('cover', '')}
+                                            className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm"
                                         >
-                                            Save position
+                                            Remove
                                         </button>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={() => setShowCoverPicker(prev => !prev)}
-                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
-                                    >
-                                        Change cover
-                                    </button>
-                                    <button
-                                        onClick={() => setIsRepositioning(true)}
-                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
-                                    >
-                                        Reposition
-                                    </button>
-                                    <button
-                                        onClick={handleRemoveCover}
-                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm backdrop-blur-sm transition-all"
-                                    >
-                                        Remove
-                                    </button>
                                 </div>
                             )}
-                        </div>
-                    )}
-                    <main
-                        ref={containerRef}
-                        onMouseMove={handleMouseMove}
-                        className={`mx-auto relative group pb-40 transition-all duration-150 ${
-                            
-                            isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'
 
-                            
-                        } ${
-                            coverImage ? 'mt-8' : 'mt-16'
-                        } ${
-                            fontStyle === 'serif' ? 'font-serif' : fontStyle === 'mono' ? 'font-mono' : 'font-sans'
-                        } ${
-                            isSmallText ? 'text-xs' : 'text-base'
-                        }`}
-                    >
-                        <div
-                            ref={plusMenuRef}
-                            className="absolute flex items-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100"
-                            style={{
-                                transform: `translate3d(calc(-100% - 180px), ${handlePos.top}px, 0)`,
-                                transition: 'transform 100ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms',
-                            }}
-                        >
-                            <div className="relative">
-                                <button
-                                    type="button"
-                                    className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 transition-colors"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowPlusMenu((prev) => !prev);
-                                    }}
-                                >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                                    </svg>
-                                </button>
-
-                                {showPlusMenu && (
-                                    <div className="absolute left-0 top-full mt-1 z-50">
-                                        <SlashCommandList
-                                            items={plusMenuItems}
-                                            command={(item) => {
-                                                if (item.command && editor) {
-                                                    const { from, to } = editor.state.selection;
-                                                    item.command({ editor, range: { from, to } });
-                                                }
-                                                setShowPlusMenu(false);
-                                            }}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Six-dots handle with action menu */}
-                            <div ref={blockMenuRef} className="relative">
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowBlockMenu((prev) => !prev);
-                                        setShowPlusMenu(false);
-                                    }}
-                                    className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 cursor-pointer transition-colors"
-                                >
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" />
-                                        <circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" />
-                                    </svg>
-                                </button>
-
-                                {showBlockMenu && (
-                                    <div className="absolute left-0 top-full mt-1 z-50">
-                                        <BlockActionMenu
-                                            editor={editor}
-                                            userEmail={userEmail}
-                                            onClose={() => setShowBlockMenu(false)}
-                                            onOpenMoveTo={handleOpenMoveTo}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-
-
-                        {showCoverPicker && (
-                            <div className="absolute top-0 right-16 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
-                                    <button
-                                        onClick={() => setShowCoverPicker(false) }
-                                        className="text-gray-400 hover:text-gray-600 text-xs"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 mb-3">
-                                    {NOTION_COVERS.map((url, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => handleUpdateCover(url)}
-                                            className="h-16 rounded overflow-hidden border border-gray-100 hover:scale-[1.02] transition-transform"
-                                        >
-                                            <img src={url} alt="preset" className="w-full h-full object-cover" />
-                                        </button>
-                                    ))}
-                                </div>
-                                <div>
-                                    <div className="space-y-2 pt-2 border-t border-gray-100">
-
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            onChange={handleFileUpload}
-                                            accept="image/png, image/jpeg, image/webp, image/gif"
-                                            className="hidden"
-                                        />
-
+                            <main className={`mx-auto pb-40 transition-all duration-150 ${isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'} ${activeDatabaseRowItem.row?.cover ? 'mt-8' : 'mt-16'}`}>
+                                {/* Icon & Cover Action Buttons */}
+                                <div className="flex items-center gap-2 mb-2">
+                                    {activeDatabaseRowItem.row?.icon ? (
                                         <button
                                             type="button"
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-medium rounded border border-gray-200 transition-colors"
+                                            onClick={() => setShowIconPicker(true)}
+                                            className={`p-1 rounded-lg hover:bg-gray-200/50 transition-colors flex items-center justify-center ${activeDatabaseRowItem.row?.cover ? '-mt-16' : ''}`}
                                         >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                                <polyline points="17 8 12 3 7 8" />
-                                                <line x1="12" y1="3" x2="12" y2="15" />
-                                            </svg>
-                                            Upload custom image
+                                            <PageIcon icon={activeDatabaseRowItem.row.icon} size={activeDatabaseRowItem.row?.cover ? 56 : 44} />
                                         </button>
-                                        <div className="text-[10px] text-gray-400 text-center">Max file size: 1MB</div>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowIconPicker(true)}
+                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                        >
+                                            <Smile size={14} /> Add icon
+                                        </button>
+                                    )}
 
-
-                                        {uploadError && (
-                                            <p className="text-[11px] text-red-500 font-medium text-center">{uploadError}</p>
-                                        )}
-
-
-                                        <input
-                                            type="text"
-                                            placeholder="Or paste image link & press Enter..."
-                                            className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500"
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && e.currentTarget.value) {
-                                                    handleUpdateCover(e.currentTarget.value);
-                                                }
+                                    {!activeDatabaseRowItem.row?.cover && (
+                                        <button
+                                            onClick={() => {
+                                                const url = window.prompt("Enter image URL:");
+                                                if (url) handleUpdateActiveRowField('cover', url);
                                             }}
-                                        />
+                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                        >
+                                            Add cover
+                                        </button>
+                                    )}
+                                </div>
+
+                                {showIconPicker && (
+                                    <div className="relative z-50">
+                                        <div className="absolute top-0 left-0">
+                                            <IconPickerModal
+                                                onSelect={(selected) => {
+                                                    handleUpdateActiveRowField('icon', selected);
+                                                    setShowIconPicker(false);
+                                                }}
+                                                onClose={() => setShowIconPicker(false)}
+                                            />
+                                        </div>
                                     </div>
+                                )}
 
+                                {/* Row Page Title */}
+                                <input
+                                    type="text"
+                                    value={activeDatabaseRowItem.row?.values?.['prop-title'] || ''}
+                                    placeholder="Untitled"
+                                    onChange={(e) => handleUpdateActiveRowField('title', e.target.value)}
+                                    className="text-5xl font-bold mb-6 outline-none text-slate-800 tracking-tight leading-tight w-full bg-transparent placeholder:text-gray-300"
+                                />
+
+                                {/* Row Properties list */}
+                                <div className="space-y-3 pb-8 mb-6 border-b border-gray-100 text-xs">
+                                    {(activeDatabaseRowItem.properties || [])
+                                        .filter(p => p.type !== 'title')
+                                        .map((prop) => (
+                                            <div key={prop.id} className="flex items-center">
+                                                <div className="w-36 flex items-center gap-1.5 text-gray-400 select-none font-medium">
+                                                    <span>{prop.name}</span>
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={activeDatabaseRowItem.row?.values?.[prop.id] || ''}
+                                                    placeholder="Empty"
+                                                    onChange={(e) => handleUpdateActiveRowField('property', { propId: prop.id, propValue: e.target.value })}
+                                                    className="border border-gray-200/80 px-2 py-1 rounded-md focus:outline-none w-full max-w-sm text-slate-800 placeholder:text-gray-300"
+                                                />
+                                            </div>
+                                        ))}
                                 </div>
-                            </div>
-                        )}
 
-
-                        {!coverImage && (
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity mb-2 flex items-center gap-2">
-                                <button
-                                    onClick={() => setShowCoverPicker(true)}
-                                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                                    Add cover
-                                </button>
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2 mb-2 -ml-45">
-                            {pageIcon ? (
-                                <div className="relative inline-block">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowIconPicker(prev => !prev)}
-                                        className={`p-1 rounded-lg hover:bg-gray-200/50 transition-colors flex items-center justify-center border-none bg-transparent shadow-none outline-none ${
-                                            coverImage ? '-mt-16' : ''
-                                        }`}
-                                    >
-                                        <PageIcon icon={pageIcon} size={coverImage ? 56 : 44} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowIconPicker(true)}
-                                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                    >
-                                        <Smile size={14} />
-                                        Add icon
-                                    </button>
-                                </div>
-                            )}
-
-                            {!coverImage && (
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={() => setShowCoverPicker(true)}
-                                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                                        Add cover
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-
-                        {showIconPicker && (
-                            <div className="relative z-50">
-                                <div className="absolute top-0 left-0">
-                                    <IconPickerModal
-                                        onSelect={(selected) => handleUpdateIcon(selected)}
-                                        onClose={() => setShowIconPicker(false)}
+                                {/* Row Inner TipTap Content */}
+                                <div className="min-h-[400px]">
+                                    <RowEditor
+                                        key={activeDatabaseRowItem.row.id}
+                                        initialContent={activeDatabaseRowItem.row.content}
+                                        onChange={handleUpdateActiveRowContent}
                                     />
                                 </div>
-                            </div>
-                        )}
+                            </main>
+                        </div>
+                    ) : (
+                        /* ======================================================== */
+                        /* STANDARD MAIN WORKSPACE PAGE                             */
+                        /* ======================================================== */
+                        <>
+                            {coverImage && (
+                                <div
+                                    className={`relative w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
+                                        isRepositioning
+                                            ? (isDraggingCover ? 'cursor-grabbing' : 'cursor-grab')
+                                            : 'group/cover'
+                                    }`}
+                                    onMouseDown={handleMouseDownCover}
+                                >
+                                    <img
+                                        src={coverImage}
+                                        alt="Cover"
+                                        className="w-full h-full object-cover pointer-events-none select-none"
+                                        style={{ objectPosition: `center ${coverPosition}%` }}
+                                    />
 
-
-                        <h1
-                            ref={titleRef}
-                            contentEditable
-                            suppressContentEditableWarning={true}
-                            data-placeholder="Untitled"
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    editor?.chain().focus().run();
-                                }
-                            }}
-                            onInput={(e) => {
-                                const text = e.currentTarget.innerText;
-                                saveContent(editor?.getJSON(), text);
-
-                            }}
-                            onBlur={(e) => {
-                                const text = e.currentTarget.innerText.trim();
-                                if (text === "") {
-                                    const fallback = "Untitled";
-                                    e.currentTarget.innerText = fallback;
-                                    saveContent(editor?.getJSON(), fallback);
-                                }
-                            }}
-                            className="-ml-45 text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300">
-
-
-
-                        </h1>
-
-                        {editor && (
-                            <BubbleMenu
-                                editor={editor}
-                                tippyOptions={{
-                                    duration: 150,
-                                    placement: 'top-start',
-                                    offset: [0, 10],
-                                }}
-                                className="w-64 bg-white border border-gray-200/80 shadow-2xl rounded-2xl p-2.5 flex flex-col gap-2 z-50 text-slate-700 select-none animate-in fade-in zoom-in-95 duration-100"
-                            >
-                                {/* Block Type Dropdown Selector */}
-                                <div className="relative group/type">
-                                    <button
-                                        type="button"
-                                        className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100/80 rounded-lg text-[13px] font-medium transition-colors"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-serif text-[15px] font-semibold text-slate-600 leading-none">T</span>
-                                            <span className="text-slate-700">
-                        {editor.isActive('heading', { level: 1 })
-                            ? 'Heading 1'
-                            : editor.isActive('heading', { level: 2 })
-                                ? 'Heading 2'
-                                : editor.isActive('heading', { level: 3 })
-                                    ? 'Heading 3'
-                                    : 'Normal text'}
-                    </span>
+                                    {isRepositioning ? (
+                                        <div className="absolute top-4 w-full flex justify-between px-8 items-center z-10 pointer-events-none">
+                                            <div className="px-3 py-1.5 bg-black/60 text-white text-xs rounded shadow-sm">
+                                                Drag image to reposition
+                                            </div>
+                                            <div className="flex items-center gap-2 pointer-events-auto">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleCancelReposition(); }}
+                                                    className="px-3 py-1.5 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded transition-all"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleSavePosition(); }}
+                                                    className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded transition-all"
+                                                >
+                                                    Save position
+                                                </button>
+                                            </div>
                                         </div>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-400">
-                                            <polyline points="9 18 15 12 9 6" />
-                                        </svg>
-                                    </button>
+                                    ) : (
+                                        <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => setShowCoverPicker(prev => !prev)}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
+                                            >
+                                                Change cover
+                                            </button>
+                                            <button
+                                                onClick={() => setIsRepositioning(true)}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
+                                            >
+                                                Reposition
+                                            </button>
+                                            <button
+                                                onClick={handleRemoveCover}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm backdrop-blur-sm transition-all"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
-                                    {/* Hover/Click Submenu for Text Types */}
-                                    <div className="hidden group-hover/type:flex flex-col absolute left-0 top-full mt-1 w-44 bg-white border border-gray-200 shadow-xl rounded-xl p-1 z-50">
+                            <main
+                                ref={containerRef}
+                                onMouseMove={handleMouseMove}
+                                className={`mx-auto relative group pb-40 transition-all duration-150 ${
+                                    isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'
+                                } ${
+                                    coverImage ? 'mt-8' : 'mt-16'
+                                } ${
+                                    fontStyle === 'serif' ? 'font-serif' : fontStyle === 'mono' ? 'font-mono' : 'font-sans'
+                                } ${
+                                    isSmallText ? 'text-xs' : 'text-base'
+                                }`}
+                            >
+                                <div
+                                    ref={plusMenuRef}
+                                    className="absolute flex items-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100"
+                                    style={{
+                                        transform: `translate3d(calc(-100% - 180px), ${handlePos.top}px, 0)`,
+                                        transition: 'transform 100ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms',
+                                    }}
+                                >
+                                    <div className="relative">
                                         <button
                                             type="button"
-                                            onClick={() => editor.chain().focus().setParagraph().run()}
-                                            className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                            className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 transition-colors"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowPlusMenu((prev) => !prev);
+                                            }}
                                         >
-                                            Normal text
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
                                         </button>
+
+                                        {showPlusMenu && (
+                                            <div className="absolute left-0 top-full mt-1 z-50">
+                                                <SlashCommandList
+                                                    items={plusMenuItems}
+                                                    command={(item) => {
+                                                        if (item.command && editor) {
+                                                            const { from, to } = editor.state.selection;
+                                                            item.command({ editor, range: { from, to } });
+                                                        }
+                                                        setShowPlusMenu(false);
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Six-dots handle with action menu */}
+                                    <div ref={blockMenuRef} className="relative">
                                         <button
                                             type="button"
-                                            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                                            className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowBlockMenu((prev) => !prev);
+                                                setShowPlusMenu(false);
+                                            }}
+                                            className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 cursor-pointer transition-colors"
                                         >
-                                            Heading 1
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                <circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" />
+                                                <circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" />
+                                            </svg>
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                                            className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
-                                        >
-                                            Heading 2
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                                            className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
-                                        >
-                                            Heading 3
-                                        </button>
+
+                                        {showBlockMenu && (
+                                            <div className="absolute left-0 top-full mt-1 z-50">
+                                                <BlockActionMenu
+                                                    editor={editor}
+                                                    userEmail={userEmail}
+                                                    onClose={() => setShowBlockMenu(false)}
+                                                    onOpenMoveTo={handleOpenMoveTo}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
-                                <div className="h-px bg-gray-100 mx-1" />
-
-                                {/* Row 1: Text Styling (A color, Bold, Italic, Underline, Clear Formatting) */}
-                                <div className="flex items-center justify-between px-0.5">
-                                    {/* Text Color / Highlight */}
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const color = window.prompt('Enter hex color or leave empty to clear:', '#2563eb');
-                                            if (color) editor.chain().focus().setColor(color).run();
-                                            else editor.chain().focus().unsetColor().run();
-                                        }}
-                                        className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
-                                        title="Text Color"
-                                    >
-                                        <div className="flex flex-col items-center justify-center leading-none">
-                                            <span className="font-semibold text-xs text-slate-700">A</span>
-                                            <span className="w-3 h-0.5 bg-blue-500 rounded-full mt-0.5" />
+                                {showCoverPicker && (
+                                    <div className="absolute top-0 right-16 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
+                                            <button
+                                                onClick={() => setShowCoverPicker(false)}
+                                                className="text-gray-400 hover:text-gray-600 text-xs"
+                                            >
+                                                ✕
+                                            </button>
                                         </div>
-                                    </button>
+                                        <div className="grid grid-cols-2 gap-2 mb-3">
+                                            {NOTION_COVERS.map((url, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => handleUpdateCover(url)}
+                                                    className="h-16 rounded overflow-hidden border border-gray-100 hover:scale-[1.02] transition-transform"
+                                                >
+                                                    <img src={url} alt="preset" className="w-full h-full object-cover" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div>
+                                            <div className="space-y-2 pt-2 border-t border-gray-100">
+                                                <input
+                                                    type="file"
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileUpload}
+                                                    accept="image/png, image/jpeg, image/webp, image/gif"
+                                                    className="hidden"
+                                                />
 
-                                    {/* Bold */}
-                                    <button
-                                        type="button"
-                                        onClick={() => editor.chain().focus().toggleBold().run()}
-                                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-colors ${
-                                            editor.isActive('bold') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
-                                        }`}
-                                        title="Bold"
-                                    >
-                                        B
-                                    </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-medium rounded border border-gray-200 transition-colors"
+                                                >
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                        <polyline points="17 8 12 3 7 8" />
+                                                        <line x1="12" y1="3" x2="12" y2="15" />
+                                                    </svg>
+                                                    Upload custom image
+                                                </button>
+                                                <div className="text-[10px] text-gray-400 text-center">Max file size: 1MB</div>
 
-                                    {/* Italic */}
-                                    <button
-                                        type="button"
-                                        onClick={() => editor.chain().focus().toggleItalic().run()}
-                                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-serif italic transition-colors ${
-                                            editor.isActive('italic') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
-                                        }`}
-                                        title="Italic"
-                                    >
-                                        I
-                                    </button>
+                                                {uploadError && (
+                                                    <p className="text-[11px] text-red-500 font-medium text-center">{uploadError}</p>
+                                                )}
 
-                                    {/* Underline */}
-                                    <button
-                                        type="button"
-                                        onClick={() => editor.chain().focus().toggleUnderline().run()}
-                                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs underline underline-offset-2 transition-colors ${
-                                            editor.isActive('underline') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
-                                        }`}
-                                        title="Underline"
-                                    >
-                                        U
-                                    </button>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Or paste image link & press Enter..."
+                                                    className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && e.currentTarget.value) {
+                                                            handleUpdateCover(e.currentTarget.value);
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
-                                    {/* Clear Formatting */}
-                                    <button
-                                        type="button"
-                                        onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
-                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-slate-800 transition-colors"
-                                        title="Clear formatting"
-                                    >
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                            <path d="M4 7V4h16v3" />
-                                            <path d="M9 20h6" />
-                                            <path d="M12 4v16" />
-                                            <line x1="18" y1="18" x2="22" y2="22" />
-                                        </svg>
-                                    </button>
+                                {!coverImage && (
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity mb-2 flex items-center gap-2">
+                                        <button
+                                            onClick={() => setShowCoverPicker(true)}
+                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                                            Add cover
+                                        </button>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-2 mb-2 -ml-45">
+                                    {pageIcon ? (
+                                        <div className="relative inline-block">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowIconPicker(prev => !prev)}
+                                                className={`p-1 rounded-lg hover:bg-gray-200/50 transition-colors flex items-center justify-center border-none bg-transparent shadow-none outline-none ${
+                                                    coverImage ? '-mt-16' : ''
+                                                }`}
+                                            >
+                                                <PageIcon icon={pageIcon} size={coverImage ? 56 : 44} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowIconPicker(true)}
+                                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                            >
+                                                <Smile size={14} />
+                                                Add icon
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {!coverImage && (
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => setShowCoverPicker(true)}
+                                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                                                Add cover
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* Row 2: Inserts & Formatting (Link, Strike, Code, Math/Equation, More) */}
-                                <div className="flex items-center justify-between px-0.5">
-                                    {/* Link */}
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const prevUrl = editor.getAttributes('link').href;
-                                            const url = window.prompt('Enter URL:', prevUrl || '');
-                                            if (url === null) return;
-                                            if (url === '') {
-                                                editor.chain().focus().extendMarkRange('link').unsetLink().run();
-                                                return;
-                                            }
-                                            editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+                                {showIconPicker && (
+                                    <div className="relative z-50">
+                                        <div className="absolute top-0 left-0">
+                                            <IconPickerModal
+                                                onSelect={(selected) => handleUpdateIcon(selected)}
+                                                onClose={() => setShowIconPicker(false)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <h1
+                                    ref={titleRef}
+                                    contentEditable
+                                    suppressContentEditableWarning={true}
+                                    data-placeholder="Untitled"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            editor?.chain().focus().run();
+                                        }
+                                    }}
+                                    onInput={(e) => {
+                                        const text = e.currentTarget.innerText;
+                                        saveContent(editor?.getJSON(), text);
+                                    }}
+                                    onBlur={(e) => {
+                                        const text = e.currentTarget.innerText.trim();
+                                        if (text === "") {
+                                            const fallback = "Untitled";
+                                            e.currentTarget.innerText = fallback;
+                                            saveContent(editor?.getJSON(), fallback);
+                                        }
+                                    }}
+                                    className="-ml-45 text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300"
+                                />
+
+                                {editor && (
+                                    <BubbleMenu
+                                        editor={editor}
+                                        tippyOptions={{
+                                            duration: 150,
+                                            placement: 'top-start',
+                                            offset: [0, 10],
                                         }}
-                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                                            editor.isActive('link') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
-                                        }`}
-                                        title="Link"
+                                        className="w-64 bg-white border border-gray-200/80 shadow-2xl rounded-2xl p-2.5 flex flex-col gap-2 z-50 text-slate-700 select-none animate-in fade-in zoom-in-95 duration-100"
                                     >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                        </svg>
-                                    </button>
+                                        <div className="relative group/type">
+                                            <button
+                                                type="button"
+                                                className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100/80 rounded-lg text-[13px] font-medium transition-colors"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-serif text-[15px] font-semibold text-slate-600 leading-none">T</span>
+                                                    <span className="text-slate-700">
+                                                        {editor.isActive('heading', { level: 1 })
+                                                            ? 'Heading 1'
+                                                            : editor.isActive('heading', { level: 2 })
+                                                                ? 'Heading 2'
+                                                                : editor.isActive('heading', { level: 3 })
+                                                                    ? 'Heading 3'
+                                                                    : 'Normal text'}
+                                                    </span>
+                                                </div>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-400">
+                                                    <polyline points="9 18 15 12 9 6" />
+                                                </svg>
+                                            </button>
 
-                                    {/* Strikethrough */}
-                                    <button
-                                        type="button"
-                                        onClick={() => editor.chain().focus().toggleStrike().run()}
-                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                                            editor.isActive('strike') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
-                                        }`}
-                                        title="Strikethrough"
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                            <path d="M16 4H9a3 3 0 0 0-2.83 4" />
-                                            <path d="M14 12a4 4 0 0 1 0 8H6" />
-                                            <line x1="4" y1="12" x2="20" y2="12" />
-                                        </svg>
-                                    </button>
+                                            <div className="hidden group-hover/type:flex flex-col absolute left-0 top-full mt-1 w-44 bg-white border border-gray-200 shadow-xl rounded-xl p-1 z-50">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => editor.chain().focus().setParagraph().run()}
+                                                    className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                                >
+                                                    Normal text
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                                                    className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                                >
+                                                    Heading 1
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                                                    className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                                >
+                                                    Heading 2
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                                                    className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
+                                                >
+                                                    Heading 3
+                                                </button>
+                                            </div>
+                                        </div>
 
-                                    {/* Inline Code */}
-                                    <button
-                                        type="button"
-                                        onClick={() => editor.chain().focus().toggleCode().run()}
-                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                                            editor.isActive('code') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
-                                        }`}
-                                        title="Inline Code"
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                            <polyline points="16 18 22 12 16 6" />
-                                            <polyline points="8 6 2 12 8 18" />
-                                        </svg>
-                                    </button>
+                                        <div className="h-px bg-gray-100 mx-1" />
 
-                                    {/* Code Block / Equation symbol */}
-                                    <button
-                                        type="button"
-                                        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                                            editor.isActive('codeBlock') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
-                                        }`}
-                                        title="Code Block"
-                                    >
-                                        <span className="font-serif italic text-xs font-semibold text-slate-700">√x</span>
-                                    </button>
+                                        <div className="flex items-center justify-between px-0.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const color = window.prompt('Enter hex color or leave empty to clear:', '#2563eb');
+                                                    if (color) editor.chain().focus().setColor(color).run();
+                                                    else editor.chain().focus().unsetColor().run();
+                                                }}
+                                                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
+                                                title="Text Color"
+                                            >
+                                                <div className="flex flex-col items-center justify-center leading-none">
+                                                    <span className="font-semibold text-xs text-slate-700">A</span>
+                                                    <span className="w-3 h-0.5 bg-blue-500 rounded-full mt-0.5" />
+                                                </div>
+                                            </button>
 
-                                    {/* More / Additional Options */}
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const currentText = editor.state.doc.textBetween(
-                                                editor.state.selection.from,
-                                                editor.state.selection.to
-                                            );
-                                            navigator.clipboard.writeText(currentText);
-                                        }}
-                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-slate-700 transition-colors"
-                                        title="Copy selection"
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="19" cy="12" r="1" />
-                                            <circle cx="5" cy="12" r="1" />
-                                        </svg>
-                                    </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleBold().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-colors ${
+                                                    editor.isActive('bold') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Bold"
+                                            >
+                                                B
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleItalic().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-serif italic transition-colors ${
+                                                    editor.isActive('italic') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Italic"
+                                            >
+                                                I
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs underline underline-offset-2 transition-colors ${
+                                                    editor.isActive('underline') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Underline"
+                                            >
+                                                U
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
+                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-slate-800 transition-colors"
+                                                title="Clear formatting"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                                    <path d="M4 7V4h16v3" />
+                                                    <path d="M9 20h6" />
+                                                    <path d="M12 4v16" />
+                                                    <line x1="18" y1="18" x2="22" y2="22" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-0.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const prevUrl = editor.getAttributes('link').href;
+                                                    const url = window.prompt('Enter URL:', prevUrl || '');
+                                                    if (url === null) return;
+                                                    if (url === '') {
+                                                        editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                                                        return;
+                                                    }
+                                                    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+                                                }}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                    editor.isActive('link') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Link"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                                </svg>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleStrike().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                    editor.isActive('strike') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Strikethrough"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                                    <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+                                                    <path d="M14 12a4 4 0 0 1 0 8H6" />
+                                                    <line x1="4" y1="12" x2="20" y2="12" />
+                                                </svg>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleCode().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                    editor.isActive('code') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Inline Code"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                                    <polyline points="16 18 22 12 16 6" />
+                                                    <polyline points="8 6 2 12 8 18" />
+                                                </svg>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                    editor.isActive('codeBlock') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Code Block"
+                                            >
+                                                <span className="font-serif italic text-xs font-semibold text-slate-700">√x</span>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const currentText = editor.state.doc.textBetween(
+                                                        editor.state.selection.from,
+                                                        editor.state.selection.to
+                                                    );
+                                                    navigator.clipboard.writeText(currentText);
+                                                }}
+                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-slate-700 transition-colors"
+                                                title="Copy selection"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                    <circle cx="12" cy="12" r="1" />
+                                                    <circle cx="19" cy="12" r="1" />
+                                                    <circle cx="5" cy="12" r="1" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </BubbleMenu>
+                                )}
+
+                                <div className="relative w-full">
+                                    <EditorContent editor={editor} />
+                                    <TableControlsOverlay editor={editor} />
                                 </div>
-                            </BubbleMenu>
-                        )}
-
-
-                        <div className="relative w-full">
-                            <EditorContent editor={editor} />
-                            <TableControlsOverlay editor={editor} />
-                        </div>
-                    </main>
-
+                            </main>
+                        </>
+                    )}
                 </div>
             </div>
             <SettingsModal

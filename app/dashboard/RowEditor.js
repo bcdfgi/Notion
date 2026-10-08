@@ -1,4 +1,3 @@
-// RowEditor.jsx
 'use client';
 import React, { useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
