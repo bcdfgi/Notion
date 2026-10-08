@@ -30,7 +30,32 @@ import {
     SlidersHorizontal,
     Maximize2,
     Image as ImageIcon,
-    Smile
+    Smile,
+    RotateCw,
+    Sigma,
+    ArrowLeftToLine,
+    ArrowRightToLine,
+    Copy,
+    Check,
+    AlignLeft,
+    Hash,
+    ChevronDownCircle,
+    ListFilter,
+    Loader2,
+    Calendar,
+    Users,
+    Paperclip,
+    CheckSquare,
+    Link,
+    AtSign,
+    Phone,
+    ArrowUpRight,
+    User,
+    History,
+    UserCheck,
+    MousePointerClick,
+    MapPin,
+    Binary,
 } from 'lucide-react';
 import IconPickerModal from './IconPickerModal';
 import PageIcon from './PageIcon';
@@ -61,6 +86,51 @@ const ALLOWED_VIEW_DEFINITIONS = [
     { type: 'gallery', label: 'Gallery', icon: LayoutGrid },
     { type: 'list', label: 'List', icon: ListIcon },
     { type: 'calendar', label: 'Calendar', icon: CalendarIcon },
+];
+
+const PROPERTY_TYPES = [
+    { type: 'text', label: 'Text', icon: AlignLeft },
+    { type: 'number', label: 'Number', icon: Hash },
+    { type: 'select', label: 'Select', icon: ChevronDownCircle },
+    { type: 'multi-select', label: 'Multi-select', icon: ListFilter },
+    { type: 'status', label: 'Status', icon: Loader2 },
+    { type: 'date', label: 'Date', icon: Calendar },
+    { type: 'person', label: 'Person', icon: Users },
+    { type: 'files', label: 'Files & media', icon: Paperclip },
+    { type: 'checkbox', label: 'Tickbox', icon: CheckSquare },
+    { type: 'url', label: 'URL', icon: Link },
+    { type: 'email', label: 'Email', icon: AtSign },
+    { type: 'phone', label: 'Phone', icon: Phone },
+    { type: 'formula', label: 'Formula', icon: Sigma },
+    { type: 'relation', label: 'Relation', icon: ArrowUpRight },
+    { type: 'rollup', label: 'Rollup', icon: Search },
+    { type: 'created_time', label: 'Created time', icon: Clock },
+    { type: 'created_by', label: 'Created by', icon: User },
+    { type: 'last_edited_time', label: 'Last edited time', icon: History },
+    { type: 'last_edited_by', label: 'Last edited by', icon: UserCheck },
+    { type: 'button', label: 'Button', icon: MousePointerClick },
+    { type: 'place', label: 'Place', icon: MapPin },
+    { type: 'id', label: 'ID', icon: Binary },
+];
+
+const CALCULATE_GROUPS = [
+    {
+        key: 'count',
+        label: 'Count',
+        options: [
+            { key: 'count_all', label: 'Count all' },
+            { key: 'count_checked', label: 'Checked' },
+            { key: 'count_unchecked', label: 'Unchecked' },
+        ],
+    },
+    {
+        key: 'percent',
+        label: 'Percent',
+        options: [
+            { key: 'percent_checked', label: 'Percent checked' },
+            { key: 'percent_unchecked', label: 'Percent unchecked' },
+        ],
+    },
 ];
 
 export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
@@ -112,6 +182,17 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
 
     const currentActiveView = views.find(v => v.id === activeViewId) || views[0];
     const tagsProperty = properties.find(p => p.id === 'prop-tags' || p.type === 'select') || properties[2];
+    // Tracks which property header was clicked: { prop, rect }
+    const [activeColumnMenu, setActiveColumnMenu] = useState(null);
+    const [showTypeSubmenu, setShowTypeSubmenu] = useState(false);
+    const columnMenuRef = useRef(null);
+    // Active sort configuration: { propId: string, direction: 'asc' | 'desc' } | null
+    const [sortConfig, setSortConfig] = useState(null);
+    const [showSortSubmenu, setShowSortSubmenu] = useState(false);
+    // Active calculate states
+    const [calculations, setCalculations] = useState({});
+    const [showCalculateSubmenu, setShowCalculateSubmenu] = useState(false);
+    const [activeCalculateCategory, setActiveCalculateCategory] = useState(null);
 
     const isolateEvents = {
         onKeyDown: (e) => e.stopPropagation(),
@@ -121,8 +202,48 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     };
 
     const filteredRows = useMemo(() => {
-        return rows.filter(r => (r.values?.['prop-title'] || '').toLowerCase().includes(searchQuery.toLowerCase()));
-    }, [rows, searchQuery]);
+        let result = rows.filter(r =>
+            (r.values?.['prop-title'] || '').toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
+        if (sortConfig) {
+            const { propId, direction } = sortConfig;
+            const targetProp = properties.find(p => p.id === propId);
+            const propType = targetProp?.type || 'text';
+
+            result = [...result].sort((a, b) => {
+                const valA = a.values?.[propId];
+                const valB = b.values?.[propId];
+
+                if (propType === 'checkbox') {
+                    const boolA = valA === true || valA === 'true' ? 1 : 0;
+                    const boolB = valB === true || valB === 'true' ? 1 : 0;
+                    return direction === 'asc' ? boolA - boolB : boolB - boolA;
+                }
+
+                if (propType === 'number') {
+                    const numA = parseFloat(valA) || 0;
+                    const numB = parseFloat(valB) || 0;
+                    return direction === 'asc' ? numA - numB : numB - numA;
+                }
+
+                if (propType === 'date' || propType === 'created_time') {
+                    const timeA = new Date(valA || 0).getTime();
+                    const timeB = new Date(valB || 0).getTime();
+                    return direction === 'asc' ? timeA - timeB : timeB - timeA;
+                }
+
+                // String fallback (A -> Z)
+                const strA = String(valA || '').toLowerCase();
+                const strB = String(valB || '').toLowerCase();
+                return direction === 'asc'
+                    ? strA.localeCompare(strB)
+                    : strB.localeCompare(strA);
+            });
+        }
+
+        return result;
+    }, [rows, searchQuery, sortConfig, properties]);
 
     const currentRowIndex = filteredRows.findIndex(r => r.id === activeRow?.id);
     const hasPrevRow = currentRowIndex > 0;
@@ -213,6 +334,96 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             }));
         }
     };
+    useEffect(() => {
+        const handleCloseColMenu = (e) => {
+            if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
+                setActiveColumnMenu(null);
+                setShowTypeSubmenu(false);
+            }
+        };
+        if (activeColumnMenu) {
+            document.addEventListener('mousedown', handleCloseColMenu);
+        }
+        return () => document.removeEventListener('mousedown', handleCloseColMenu);
+    }, [activeColumnMenu]);
+
+    // 1. Rename Property
+    const handleRenameProperty = (propId, newName) => {
+        const updated = properties.map(p => p.id === propId ? { ...p, name: newName } : p);
+        updateAttributes({ properties: updated });
+    };
+
+// 2. Change Type
+    const handleChangePropertyType = (propId, newType) => {
+        const updated = properties.map(p => {
+            if (p.id !== propId) return p;
+            return {
+                ...p,
+                type: newType,
+                options: newType === 'select' ? (p.options || [
+                    { id: 'opt-1', label: 'Option 1', color: 'blue' }
+                ]) : undefined,
+            };
+        });
+        updateAttributes({ properties: updated });
+        setShowTypeSubmenu(false);
+        setActiveColumnMenu(null);
+    };
+
+// 3. Insert Left / Insert Right
+    const handleInsertPropertyAdjacent = (targetPropId, direction = 'right') => {
+        const index = properties.findIndex(p => p.id === targetPropId);
+        if (index === -1) return;
+
+        const newProp = {
+            id: `prop-${Date.now()}`,
+            name: 'New Column',
+            type: 'text',
+        };
+
+        const nextProperties = [...properties];
+        const insertIdx = direction === 'left' ? index : index + 1;
+        nextProperties.splice(insertIdx, 0, newProp);
+
+        updateAttributes({ properties: nextProperties });
+        setActiveColumnMenu(null);
+    };
+
+// 4. Duplicate Property
+    const handleDuplicateProperty = (prop) => {
+        const index = properties.findIndex(p => p.id === prop.id);
+        if (index === -1) return;
+
+        const dupPropId = `prop-${Date.now()}`;
+        const duplicatedProp = {
+            ...prop,
+            id: dupPropId,
+            name: `${prop.name} (Copy)`,
+        };
+
+        const nextProperties = [...properties];
+        nextProperties.splice(index + 1, 0, duplicatedProp);
+
+        // Duplicate existing row values for this column
+        const nextRows = rows.map(r => ({
+            ...r,
+            values: {
+                ...(r.values || {}),
+                [dupPropId]: r.values?.[prop.id] || '',
+            },
+        }));
+
+        updateAttributes({ properties: nextProperties, rows: nextRows });
+        setActiveColumnMenu(null);
+    };
+
+// 5. Delete Property
+    const handleDeleteProperty = (propId) => {
+        if (properties.length <= 1) return;
+        const nextProperties = properties.filter(p => p.id !== propId);
+        updateAttributes({ properties: nextProperties });
+        setActiveColumnMenu(null);
+    };
 
     const handleUpdateCover = (rowId, coverUrl) => {
         const updated = rows.map(r => r.id === rowId ? { ...r, cover: coverUrl } : r);
@@ -249,6 +460,8 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             detail: { rowId }
         }));
     };
+
+
 
     const handleSelectViewType = (viewDef) => {
         if (viewPickerMode === 'convert') {
@@ -337,16 +550,12 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     };
 
     const getPropIcon = (type) => {
-        switch (type) {
-            case 'title':
-                return <span className="font-serif font-bold text-[13px] leading-none text-gray-500">Aa</span>;
-            case 'date':
-                return <Clock size={13} className="text-gray-400" />;
-            case 'select':
-                return <Tag size={13} className="text-gray-400" />;
-            default:
-                return <Type size={13} className="text-gray-400" />;
+        const item = PROPERTY_TYPES.find((t) => t.type === type);
+        if (item) {
+            const Icon = item.icon;
+            return <Icon size={13} className="text-gray-400" strokeWidth={1.8} />;
         }
+        return <AlignLeft size={13} className="text-gray-400" strokeWidth={1.8} />;
     };
 
     const boardGroups = useMemo(() => {
@@ -421,6 +630,33 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             window.removeEventListener('notion:update-row-field', handleRemoteRowFieldUpdate);
         };
     }, [rows, updateAttributes]);
+
+    const getSortOptions = (type) => {
+        switch (type) {
+            case 'checkbox':
+                return [
+                    { label: 'Sort unchecked → checked', direction: 'asc' },
+                    { label: 'Sort checked → unchecked', direction: 'desc' },
+                ];
+            case 'number':
+                return [
+                    { label: 'Sort 1 → 9', direction: 'asc' },
+                    { label: 'Sort 9 → 1', direction: 'desc' },
+                ];
+            case 'date':
+            case 'created_time':
+            case 'last_edited_time':
+                return [
+                    { label: 'Sort oldest first', direction: 'asc' },
+                    { label: 'Sort newest first', direction: 'desc' },
+                ];
+            default:
+                return [
+                    { label: 'Sort ascending', direction: 'asc' },
+                    { label: 'Sort descending', direction: 'desc' },
+                ];
+        }
+    };
 
     const calendarGrid = useMemo(() => {
         const year = calendarDate.getFullYear();
@@ -669,13 +905,25 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             {properties.map((prop, idx) => (
                                 <th
                                     key={prop.id}
-                                    className={`py-2 px-2.5 font-normal text-gray-500 ${
+                                    onClick={(e) => {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setActiveColumnMenu({
+                                            prop,
+                                            rect: {
+                                                top: rect.bottom + 4,
+                                                left: Math.max(16, rect.left),
+                                            },
+                                        });
+                                        setShowTypeSubmenu(false);
+                                        setShowSortSubmenu(false); // <-- Reset sort flyout
+                                    }}
+                                    className={`py-2 px-2.5 font-normal text-gray-500 hover:bg-gray-100/70 rounded cursor-pointer transition-colors ${
                                         idx === 0 ? 'w-[38%] min-w-[200px]' : 'w-[28%] min-w-[170px]'
                                     }`}
                                 >
                                     <div className="flex items-center gap-1.5">
                                         {getPropIcon(prop.type)}
-                                        <span className="text-gray-600 font-normal">{prop.name}</span>
+                                        <span className="text-slate-700 font-medium">{prop.name}</span>
                                     </div>
                                 </th>
                             ))}
@@ -1200,6 +1448,311 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             {/* --- PORTALIZED MODALS OUTSIDE PROSEMIRROR --- */}
             {mounted && createPortal(
                 <>
+                    {activeColumnMenu && (
+                        <div
+                            ref={columnMenuRef}
+                            style={{
+                                top: `${activeColumnMenu.rect.top}px`,
+                                left: `${activeColumnMenu.rect.left}px`,
+                            }}
+                            className="fixed z-50 w-60 bg-white border border-gray-200 shadow-2xl rounded-xl p-1.5 text-xs text-slate-700 select-none animate-in fade-in zoom-in-95 duration-100"
+                        >
+                            {/* Property Name Input Header */}
+                            <div className="flex items-center gap-2 p-1.5 bg-gray-50/80 border border-gray-200/70 rounded-lg mb-1">
+                                <div className="text-gray-400 shrink-0">
+                                    {getPropIcon(activeColumnMenu.prop.type)}
+                                </div>
+                                <input
+                                    type="text"
+                                    defaultValue={activeColumnMenu.prop.name}
+                                    onBlur={(e) => handleRenameProperty(activeColumnMenu.prop.id, e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleRenameProperty(activeColumnMenu.prop.id, e.currentTarget.value);
+                                            e.currentTarget.blur();
+                                        }
+                                    }}
+                                    className="w-full bg-transparent font-medium text-slate-800 focus:outline-none"
+                                />
+                            </div>
+
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowTypeSubmenu((prev) => !prev)}
+                                    className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <RotateCw size={14} className="text-gray-500" />
+                                        <span>Change type</span>
+                                    </div>
+                                    <span className="text-[11px] text-gray-400 capitalize flex items-center gap-1">
+            {PROPERTY_TYPES.find(t => t.type === activeColumnMenu.prop.type)?.label || activeColumnMenu.prop.type} →
+        </span>
+                                </button>
+
+                                {showTypeSubmenu && (
+                                    <div className="absolute left-full top-0 ml-1.5 w-52 max-h-[380px] overflow-y-auto bg-white border border-gray-200/90 shadow-2xl rounded-xl p-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                                        {PROPERTY_TYPES.map((item) => {
+                                            const Icon = item.icon;
+                                            const isSelected = activeColumnMenu.prop.type === item.type;
+                                            return (
+                                                <button
+                                                    key={item.type}
+                                                    type="button"
+                                                    onClick={() => handleChangePropertyType(activeColumnMenu.prop.id, item.type)}
+                                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left group ${
+                                                        isSelected ? 'bg-gray-100/80 font-medium text-slate-900' : 'text-slate-700 hover:bg-gray-100/70'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-2.5 min-w-0">
+                                                        <Icon size={14} className="text-gray-500 shrink-0" strokeWidth={1.8} />
+                                                        <span className="truncate">{item.label}</span>
+                                                    </div>
+                                                    {isSelected && <Check size={13} className="text-slate-700 shrink-0" strokeWidth={2.2} />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setActiveColumnMenu(null)}
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                            >
+                                <Filter size={14} className="text-gray-500" />
+                                <span>Filter</span>
+                            </button>
+                            {/* Sort with flyout submenu */}
+                            <div
+                                className="relative group/sort"
+                                onMouseEnter={() => setShowSortSubmenu(true)}
+                                onMouseLeave={() => setShowSortSubmenu(false)}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSortSubmenu(prev => !prev)}
+                                    className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <ArrowUpDown size={14} className="text-gray-500" />
+                                        <span>Sort</span>
+                                    </div>
+                                    <span className="text-[11px] text-gray-400">›</span>
+                                </button>
+
+                                {showSortSubmenu && (
+                                    <div
+                                        className="absolute left-full top-0 pl-1 z-50"
+                                        onMouseEnter={() => setShowSortSubmenu(true)}
+                                    >
+                                        {/* Invisible bridge to catch diagonal mouse movements */}
+                                        <div className="w-56 bg-white border border-gray-200/90 shadow-2xl rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100">
+                                            {getSortOptions(activeColumnMenu.prop.type).map((opt) => {
+                                                const isSelected =
+                                                    sortConfig?.propId === activeColumnMenu.prop.id &&
+                                                    sortConfig?.direction === opt.direction;
+
+                                                return (
+                                                    <button
+                                                        key={opt.direction}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSortConfig({
+                                                                propId: activeColumnMenu.prop.id,
+                                                                direction: opt.direction,
+                                                            });
+                                                            setShowSortSubmenu(false);
+                                                            setActiveColumnMenu(null);
+                                                        }}
+                                                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                                                            isSelected
+                                                                ? 'bg-gray-100 font-medium text-slate-900'
+                                                                : 'text-slate-700 hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        <span>{opt.label}</span>
+                                                        {isSelected && <Check size={13} className="text-blue-600" />}
+                                                    </button>
+                                                );
+                                            })}
+
+                                            {/* Clear Sort option if this column is sorted */}
+                                            {sortConfig?.propId === activeColumnMenu.prop.id && (
+                                                <>
+                                                    <div className="h-px bg-gray-100 my-1" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSortConfig(null);
+                                                            setShowSortSubmenu(false);
+                                                            setActiveColumnMenu(null);
+                                                        }}
+                                                        className="w-full text-left px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    >
+                                                        Clear sort
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+
+                            {/* Calculate with nested flyout submenus */}
+                            <div
+                                className="relative"
+                                onMouseEnter={() => setShowCalculateSubmenu(true)}
+                                onMouseLeave={() => {
+                                    setShowCalculateSubmenu(false);
+                                    setActiveCalculateCategory(null);
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCalculateSubmenu((prev) => !prev)}
+                                    className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Sigma size={14} className="text-gray-500" />
+                                        <span>Calculate</span>
+                                    </div>
+                                    <span className="text-[11px] text-gray-400">›</span>
+                                </button>
+
+                                {showCalculateSubmenu && (
+                                    <div
+                                        className="absolute left-full top-0 pl-1 z-50"
+                                        onMouseEnter={() => setShowCalculateSubmenu(true)}
+                                    >
+                                        <div className="w-36 bg-white border border-gray-200/90 shadow-2xl rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100">
+                                            {/* None */}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setCalculations((prev) => ({ ...prev, [activeColumnMenu.prop.id]: 'none' }));
+                                                    setShowCalculateSubmenu(false);
+                                                    setActiveCalculateCategory(null);
+                                                    setActiveColumnMenu(null);
+                                                }}
+                                                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition-colors text-left"
+                                            >
+                                                <span className="text-slate-800">None</span>
+                                                {(!calculations[activeColumnMenu.prop.id] || calculations[activeColumnMenu.prop.id] === 'none') && (
+                                                    <Check size={13} className="text-slate-700" strokeWidth={2.2} />
+                                                )}
+                                            </button>
+
+                                            {/* Count and Percent Categories */}
+                                            {CALCULATE_GROUPS.map((groupDef) => (
+                                                <div
+                                                    key={groupDef.key}
+                                                    className="relative"
+                                                    onMouseEnter={() => setActiveCalculateCategory(groupDef.key)}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                                                            activeCalculateCategory === groupDef.key
+                                                                ? 'bg-gray-100 text-slate-900 font-medium'
+                                                                : 'text-slate-700 hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        <span>{groupDef.label}</span>
+                                                        <span className="text-[11px] text-gray-400">›</span>
+                                                    </button>
+
+                                                    {/* Submenu flyout (left-aligned like Notion's UI) */}
+                                                    {activeCalculateCategory === groupDef.key && (
+                                                        <div
+                                                            className="absolute right-full top-0 pr-1 z-50"
+                                                            onMouseEnter={() => setActiveCalculateCategory(groupDef.key)}
+                                                        >
+                                                            <div className="w-44 bg-white border border-gray-200/90 shadow-2xl rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100">
+                                                                {groupDef.options.map((opt) => {
+                                                                    const isSelected = calculations[activeColumnMenu.prop.id] === opt.key;
+                                                                    return (
+                                                                        <button
+                                                                            key={opt.key}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setCalculations((prev) => ({
+                                                                                    ...prev,
+                                                                                    [activeColumnMenu.prop.id]: opt.key,
+                                                                                }));
+                                                                                setShowCalculateSubmenu(false);
+                                                                                setActiveCalculateCategory(null);
+                                                                                setActiveColumnMenu(null);
+                                                                            }}
+                                                                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                                                                                isSelected
+                                                                                    ? 'bg-gray-100 font-medium text-slate-900'
+                                                                                    : 'text-slate-700 hover:bg-gray-50'
+                                                                            }`}
+                                                                        >
+                                                                            <span>{opt.label}</span>
+                                                                            {isSelected && <Check size={13} className="text-slate-700" strokeWidth={2.2} />}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="h-px bg-gray-100 my-1" />
+
+                            <button
+                                type="button"
+                                onClick={() => handleInsertPropertyAdjacent(activeColumnMenu.prop.id, 'left')}
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                            >
+                                <ArrowLeftToLine size={14} className="text-gray-500" />
+                                <span>Insert left</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleInsertPropertyAdjacent(activeColumnMenu.prop.id, 'right')}
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                            >
+                                <ArrowRightToLine size={14} className="text-gray-500" />
+                                <span>Insert right</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleDuplicateProperty(activeColumnMenu.prop)}
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                            >
+                                <Copy size={14} className="text-gray-500" />
+                                <span>Duplicate property</span>
+                            </button>
+
+                            {/* Delete Property - Disabled on Title */}
+                            {activeColumnMenu.prop.id !== 'prop-title' && (
+                                <>
+                                    <div className="h-px bg-gray-100 my-1" />
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteProperty(activeColumnMenu.prop.id)}
+                                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-red-50 text-red-600 rounded-md transition-colors text-left"
+                                    >
+                                        <Trash2 size={14} />
+                                        <span>Delete property</span>
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
                     {/* View Picker Modal */}
                     {showViewPicker && (
                         <div

@@ -133,6 +133,9 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [activeDatabaseRowItem, setActiveDatabaseRowItem] = useState(null);
     const [showRowProps, setShowRowProps] = useState(true);
     const [recentsList, setRecentsList] = useState([]);
+    const [showRowCoverPicker, setShowRowCoverPicker] = useState(false);
+    const rowFileInputRef = useRef(null);
+    const [rowUploadError, setRowUploadError] = useState("");
 
 
 
@@ -634,6 +637,33 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         window.dispatchEvent(new CustomEvent('notion:update-row-content', {
             detail: { rowId, content: newContent }
         }));
+    };
+
+    const handleRowFileUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        e.target.value = '';
+
+        if (!file.type.startsWith('image/')) {
+            setRowUploadError('Please select a valid image file.');
+            return;
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+            setRowUploadError('Image size exceeds 1MB limit.');
+            return;
+        }
+
+        setRowUploadError('');
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                handleUpdateActiveRowField('cover', reader.result);
+                setShowRowCoverPicker(false);
+            }
+        };
+        reader.readAsDataURL(file);
     };
 
 
@@ -1599,10 +1629,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     />
                                     <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
                                         <button
-                                            onClick={() => {
-                                                const url = window.prompt("Enter image URL:");
-                                                if (url) handleUpdateActiveRowField('cover', url);
-                                            }}
+                                            type="button"
+                                            onClick={() => setShowRowCoverPicker(prev => !prev)}
                                             className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm"
                                         >
                                             Change cover
@@ -1619,15 +1647,23 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                             <main className={`mx-auto pb-40 transition-all duration-150 ${isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'} ${activeDatabaseRowItem.row?.cover ? 'mt-8' : 'mt-16'}`}>
                                 {/* Icon & Cover Action Buttons */}
+                                {/* Icon & Cover Action Buttons */}
                                 <div className="flex items-center gap-2 mb-2">
                                     {activeDatabaseRowItem.row?.icon ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowIconPicker(true)}
-                                            className={`p-1 rounded-lg hover:bg-gray-200/50 transition-colors flex items-center justify-center ${activeDatabaseRowItem.row?.cover ? '-mt-16' : ''}`}
-                                        >
-                                            <PageIcon icon={activeDatabaseRowItem.row.icon} size={activeDatabaseRowItem.row?.cover ? 56 : 44} />
-                                        </button>
+                                        <div className="relative inline-block z-10">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowIconPicker(true)}
+                                                className={`p-1 rounded-lg hover:bg-black/10 transition-colors flex items-center justify-center border-none bg-transparent shadow-none outline-none ${
+                                                    activeDatabaseRowItem.row?.cover ? '-mt-20' : ''
+                                                }`}
+                                            >
+                                                <PageIcon
+                                                    icon={activeDatabaseRowItem.row.icon}
+                                                    size={activeDatabaseRowItem.row?.cover ? 64 : 44}
+                                                />
+                                            </button>
+                                        </div>
                                     ) : (
                                         <button
                                             type="button"
@@ -1640,16 +1676,89 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                                     {!activeDatabaseRowItem.row?.cover && (
                                         <button
-                                            onClick={() => {
-                                                const url = window.prompt("Enter image URL:");
-                                                if (url) handleUpdateActiveRowField('cover', url);
-                                            }}
+                                            type="button"
+                                            onClick={() => setShowRowCoverPicker(prev => !prev)}
                                             className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
                                         >
                                             Add cover
                                         </button>
                                     )}
                                 </div>
+                                {/* Row Cover Picker Popover */}
+                                {showRowCoverPicker && (
+                                    <div className="relative z-50 mb-4">
+                                        <div className="absolute top-0 left-0 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowRowCoverPicker(false)}
+                                                    className="text-gray-400 hover:text-gray-600 text-xs"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+
+                                            {/* Presets */}
+                                            <div className="grid grid-cols-2 gap-2 mb-3">
+                                                {NOTION_COVERS.map((url, i) => (
+                                                    <button
+                                                        key={i}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            handleUpdateActiveRowField('cover', url);
+                                                            setShowRowCoverPicker(false);
+                                                        }}
+                                                        className="h-16 rounded overflow-hidden border border-gray-100 hover:scale-[1.02] transition-transform"
+                                                    >
+                                                        <img src={url} alt="preset" className="w-full h-full object-cover" />
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            {/* Upload or Link */}
+                                            <div className="space-y-2 pt-2 border-t border-gray-100">
+                                                <input
+                                                    type="file"
+                                                    ref={rowFileInputRef}
+                                                    onChange={handleRowFileUpload}
+                                                    accept="image/png, image/jpeg, image/webp, image/gif"
+                                                    className="hidden"
+                                                />
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => rowFileInputRef.current?.click()}
+                                                    className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-medium rounded border border-gray-200 transition-colors"
+                                                >
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                        <polyline points="17 8 12 3 7 8" />
+                                                        <line x1="12" y1="3" x2="12" y2="15" />
+                                                    </svg>
+                                                    Upload custom image
+                                                </button>
+                                                <div className="text-[10px] text-gray-400 text-center">Max file size: 1MB</div>
+
+                                                {rowUploadError && (
+                                                    <p className="text-[11px] text-red-500 font-medium text-center">{rowUploadError}</p>
+                                                )}
+
+                                                <input
+                                                    type="text"
+                                                    placeholder="Or paste image link & press Enter..."
+                                                    className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500 text-slate-800"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && e.currentTarget.value) {
+                                                            handleUpdateActiveRowField('cover', e.currentTarget.value);
+                                                            setShowRowCoverPicker(false);
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {showIconPicker && (
                                     <div className="relative z-50">
