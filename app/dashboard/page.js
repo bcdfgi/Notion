@@ -642,7 +642,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         if (!activeDatabaseRowItem?.row) return;
         const rowId = activeDatabaseRowItem.row.id;
 
-        // Update local active state
         setActiveDatabaseRowItem(prev => {
             if (!prev) return null;
             let updatedRow = { ...prev.row };
@@ -652,23 +651,21 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 updatedRow.icon = value;
             } else if (field === 'cover') {
                 updatedRow.cover = value;
-            }
-            else if(field === 'coverPosition'){
+            } else if (field === 'coverPosition') {
                 updatedRow.coverPosition = value;
-
-            }
-            else if (field === 'property') {
+            } else if (field === 'isFavorite') {
+                updatedRow.isFavorite = value;
+            } else if (field === 'property') {
                 updatedRow.values = { ...(updatedRow.values || {}), [value.propId]: value.propValue };
             }
             return { ...prev, row: updatedRow };
         });
 
-        // Notify DatabaseBlock to persist into TipTap attributes
+        // Notify DatabaseBlock to sync into TipTap doc attributes
         window.dispatchEvent(new CustomEvent('notion:update-row-field', {
             detail: { rowId, field, value }
         }));
 
-        // If title or icon updated, notify sidebar recents
         if (field === 'title') {
             window.dispatchEvent(new CustomEvent('notion:row-updated', {
                 detail: { rowId, title: value }
@@ -679,6 +676,47 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }));
         }
     };
+    const allFavorites = useMemo(() => {
+        const list = [];
+
+        // 1. Regular pages that are favorited
+        pages.filter(p => p.isFavorite).forEach(page => {
+            list.push({
+                id: page._id,
+                _id: page._id,
+                title: page.title || "Untitled",
+                icon: page.icon,
+                isDatabaseRow: false,
+            });
+        });
+
+        // 2. Collect favorited rows from any database blocks in open pages
+        pages.forEach(p => {
+            const doc = typeof p.content === 'string' ? JSON.parse(p.content || '{}') : p.content;
+            const findDatabaseRows = (node) => {
+                if (!node) return;
+                if (node.type === 'databaseBlock' && Array.isArray(node.attrs?.rows)) {
+                    node.attrs.rows.filter(r => r.isFavorite).forEach(r => {
+                        list.push({
+                            id: r.id,
+                            title: r.values?.['prop-title'] || 'Untitled',
+                            icon: r.icon,
+                            isDatabaseRow: true,
+                            parentTitle: node.attrs.title || p.title || 'Database',
+                            rowData: r,
+                            properties: node.attrs.properties || [],
+                        });
+                    });
+                }
+                if (Array.isArray(node.content)) {
+                    node.content.forEach(findDatabaseRows);
+                }
+            };
+            findDatabaseRows(doc);
+        });
+
+        return list;
+    }, [pages]);
 
     const handleUpdateActiveRowContent = (newContent) => {
         if (!activeDatabaseRowItem?.row) return;
@@ -781,6 +819,23 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     }
                 }
             }
+        }
+    };
+    const handleDeleteActiveRow = () => {
+        if (!activeDatabaseRowItem?.row) return;
+        const rowId = activeDatabaseRowItem.row.id;
+
+        if (confirm("Are you sure you want to delete this page?")) {
+            // 1. Close full-screen view
+            setActiveDatabaseRowItem(null);
+
+            // 2. Remove from sidebar recents
+            setRecentsList(prev => prev.filter(item => String(item.id || item._id) !== String(rowId)));
+
+            // 3. Notify DatabaseBlock to remove row from document attributes
+            window.dispatchEvent(new CustomEvent('notion:row-deleted', {
+                detail: { rowId }
+            }));
         }
     };
 
@@ -1085,17 +1140,22 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         setBlockToMove(null);
     };
     const handleToggleFavorite = async () => {
-        if (!currentPageId) return;
+        // 1. If viewing a database row full-page, toggle favorite on the row
+        if (activeDatabaseRowItem?.row) {
+            const nextFav = !activeDatabaseRowItem.row.isFavorite;
+            handleUpdateActiveRowField('isFavorite', nextFav);
+            return;
+        }
 
+        // 2. Standard page favorite toggle
+        if (!currentPageId) return;
         const newFavoriteStatus = !isFavorite;
         setIsFavorite(newFavoriteStatus);
 
-        // Update in-memory pages list
         setPages(prev =>
             prev.map(p => (p._id === currentPageId ? { ...p, isFavorite: newFavoriteStatus } : p))
         );
 
-        // Persist to database
         try {
             await updatePageContent(currentPageId, {
                 title: titleRef.current?.innerText?.trim() || "Untitled",
@@ -1437,35 +1497,58 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         </button>
 
                         {/* FAVORITES SECTION (Shows only when pages are favorited) */}
-                        {pages.some((p) => p.isFavorite) && (
+                        {/* FAVORITES SECTION */}
+                        {allFavorites.length > 0 && (
                             <div className="mt-6">
                                 <div className="px-3 mb-1">
                                     <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Favorites</span>
                                 </div>
                                 <div className="space-y-0.5">
-                                    {pages
-                                        .filter((page) => page.isFavorite)
-                                        .map((page) => (
+                                    {allFavorites.map((item) => {
+                                        const isRow = item.isDatabaseRow;
+                                        const itemId = item.id || item._id;
+                                        // Only highlight if it matches the current row or current page
+                                        const isSelected = isRow
+                                            ? activeDatabaseRowItem?.row?.id === itemId
+                                            : currentPageId === itemId && !activeDatabaseRowItem;
+
+                                        return (
                                             <button
-                                                key={`fav-${page._id}`}
-                                                onClick={() => loadPage(page._id)}
+                                                key={`fav-${itemId}`}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (isRow) {
+                                                        setActiveDatabaseRowItem({
+                                                            row: item.rowData,
+                                                            parentTitle: item.parentTitle,
+                                                            properties: item.properties,
+                                                        });
+                                                    } else {
+                                                        loadPage(itemId);
+                                                    }
+                                                }}
                                                 className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors text-left ${
-                                                    currentPageId === page._id
+                                                    isSelected
                                                         ? 'bg-gray-200 text-slate-900 font-medium'
                                                         : 'text-slate-600 hover:bg-gray-200/50'
                                                 }`}
                                             >
-                                                {page.icon ? (
-                                                    <PageIcon icon={page.icon} size={16} />
+                                                {item.icon ? (
+                                                    typeof item.icon === 'string' ? (
+                                                        <span>{item.icon}</span>
+                                                    ) : (
+                                                        <PageIcon icon={item.icon} size={16} />
+                                                    )
                                                 ) : (
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                                         <polyline points="14 2 14 8 20 8"></polyline>
                                                     </svg>
                                                 )}
-                                                <span className="truncate">{page.title || "Untitled"}</span>
+                                                <span className="truncate">{item.title || "Untitled"}</span>
                                             </button>
-                                        ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -1631,11 +1714,19 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             type="button"
                             onClick={handleToggleFavorite}
                             className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
-                            title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                            title={
+                                (activeDatabaseRowItem ? activeDatabaseRowItem.row?.isFavorite : isFavorite)
+                                    ? "Remove from Favorites"
+                                    : "Add to Favorites"
+                            }
                         >
                             <Star
                                 size={16}
-                                className={isFavorite ? "fill-amber-400 text-amber-400" : "text-gray-400 hover:text-gray-600"}
+                                className={
+                                    (activeDatabaseRowItem ? activeDatabaseRowItem.row?.isFavorite : isFavorite)
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-gray-400 hover:text-gray-600"
+                                }
                             />
                         </button>
 
@@ -1654,7 +1745,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     <PageMoreMenu
                                         editor={editor}
                                         onClose={() => setShowMoreMenu(false)}
-                                        onDeletePage={() => currentPageId && handleDeletePage({ stopPropagation: () => {} }, currentPageId)}
+                                        onDeletePage={() => {
+                                            setShowMoreMenu(false);
+                                            if (activeDatabaseRowItem) {
+                                                handleDeleteActiveRow();
+                                            } else if (currentPageId) {
+                                                handleDeletePage({ stopPropagation: () => {} }, currentPageId);
+                                            }
+                                        }}
                                         fontStyle={fontStyle}
                                         setFontStyle={setFontStyle}
                                         isSmallText={isSmallText}
@@ -1671,9 +1769,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 <div className="flex-1 overflow-y-auto">
                     {activeDatabaseRowItem ? (
                         <div className="w-full">
+                            {/* Row Cover Banner */}
                             {activeDatabaseRowItem.row?.cover && (
                                 <div
-                                    className={`relative w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
+                                    className={`relative z-0 w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
                                         isRowRepositioning
                                             ? (isDraggingRowCover ? 'cursor-grabbing' : 'cursor-grab')
                                             : 'group/cover'
@@ -1737,13 +1836,65 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 </div>
                             )}
 
-                            <main className={`mx-auto pb-40 transition-all duration-150 ${isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'} ${activeDatabaseRowItem.row?.cover ? 'mt-8' : 'mt-16'}`}>
+                            <main
+                                className={`mx-auto pb-40 transition-all duration-150 group/rowpage ${
+                                    isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'
+                                } ${
+                                    activeDatabaseRowItem.row?.cover ? 'mt-4' : 'mt-16'
+                                } ${
+                                    fontStyle === 'serif' ? 'font-serif' : fontStyle === 'mono' ? 'font-mono' : 'font-sans'
+                                } ${
+                                    isSmallText ? 'text-xs' : 'text-base'
+                                }`}
+                            >
 
+                                {/* Hover Actions: Add Icon & Add Cover (shown when missing) */}
+                                <div className={`flex items-center gap-2 mb-3 select-none transition-opacity ${
+                                    !activeDatabaseRowItem.row?.icon || !activeDatabaseRowItem.row?.cover
+                                        ? 'opacity-0 group-hover/rowpage:opacity-100'
+                                        : ''
+                                }`}>
+                                    {!activeDatabaseRowItem.row?.icon && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowIconPicker(true)}
+                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                        >
+                                            <Smile size={14} /> Add icon
+                                        </button>
+                                    )}
+                                    {!activeDatabaseRowItem.row?.cover && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowRowCoverPicker(true)}
+                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                                            Add cover
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Icon Picker Popover */}
+                                {showIconPicker && (
+                                    <div className="relative z-50">
+                                        <div className="absolute top-0 left-0">
+                                            <IconPickerModal
+                                                initialTab="icons"
+                                                onSelect={(selected) => {
+                                                    handleUpdateActiveRowField('icon', selected);
+                                                    setShowIconPicker(false);
+                                                }}
+                                                onClose={() => setShowIconPicker(false)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Row Cover Picker Popover */}
                                 {showRowCoverPicker && (
                                     <div className="relative z-50 mb-4">
-                                        <div className="absolute top-0 left-0 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72">
+                                        <div className="absolute top-0 left-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-72 z-50">
                                             <div className="flex items-center justify-between mb-3">
                                                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
                                                 <button
@@ -1772,16 +1923,15 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                 ))}
                                             </div>
 
-                                            {/* Upload or Link */}
+                                            {/* Upload / Link */}
                                             <div className="space-y-2 pt-2 border-t border-gray-100">
                                                 <input
                                                     type="file"
                                                     ref={rowFileInputRef}
                                                     onChange={handleRowFileUpload}
-                                                    accept="image/png, image/jpeg, image/webp, image/gif"
+                                                    accept="image/*"
                                                     className="hidden"
                                                 />
-
                                                 <button
                                                     type="button"
                                                     onClick={() => rowFileInputRef.current?.click()}
@@ -1802,7 +1952,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                                                 <input
                                                     type="text"
-                                                    placeholder="Or paste image link & press Enter..."
+                                                    placeholder="Paste image link & press Enter..."
                                                     className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500 text-slate-800"
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter' && e.currentTarget.value) {
@@ -1816,17 +1966,31 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     </div>
                                 )}
 
-                                {showIconPicker && (
-                                    <div className="relative z-50">
-                                        <div className="absolute top-0 left-0">
-                                            <IconPickerModal
-                                                onSelect={(selected) => {
-                                                    handleUpdateActiveRowField('icon', selected);
-                                                    setShowIconPicker(false);
-                                                }}
-                                                onClose={() => setShowIconPicker(false)}
-                                            />
-                                        </div>
+                                {/* Row Icon (Notion style with cover overlap support) */}
+                                {/* Row Icon (Notion-style: transparent, overlaying the cover seam cleanly) */}
+                                {activeDatabaseRowItem.row?.icon && (
+                                    <div className={`relative z-10 inline-block mb-3 ${
+                                        activeDatabaseRowItem.row?.cover ? '-mt-16 sm:-mt-20' : ''
+                                    }`}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowIconPicker(true)}
+                                            className="group/iconbtn p-1 rounded-xl hover:bg-black/5 transition-all flex items-center justify-center cursor-pointer select-none"
+                                            title="Change icon"
+                                        >
+                                            {typeof activeDatabaseRowItem.row.icon === 'string' ? (
+                                                <span className="text-6xl sm:text-7xl leading-none drop-shadow-xs">
+                    {activeDatabaseRowItem.row.icon}
+                </span>
+                                            ) : (
+                                                <div className="flex items-center justify-center">
+                                                    <PageIcon
+                                                        icon={activeDatabaseRowItem.row.icon}
+                                                        size={activeDatabaseRowItem.row?.cover ? 72 : 56}
+                                                    />
+                                                </div>
+                                            )}
+                                        </button>
                                     </div>
                                 )}
 
@@ -1836,7 +2000,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     value={activeDatabaseRowItem.row?.values?.['prop-title'] || ''}
                                     placeholder="Untitled"
                                     onChange={(e) => handleUpdateActiveRowField('title', e.target.value)}
-                                    className="text-5xl font-bold mb-6 outline-none text-slate-800 tracking-tight leading-tight w-full bg-transparent placeholder:text-gray-300"
+                                    className="text-4xl sm:text-5xl font-bold mb-6 outline-none text-slate-800 tracking-tight leading-tight w-full bg-transparent placeholder:text-gray-300"
                                 />
 
                                 {/* Row Properties list */}
@@ -1870,9 +2034,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             </main>
                         </div>
                     ) : (
-                        /* ======================================================== */
-                        /* STANDARD MAIN WORKSPACE PAGE                             */
-                        /* ======================================================== */
+
                         <>
                             {coverImage && (
                                 <div
@@ -2094,7 +2256,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     </div>
                                 )}
 
-                                <div className="flex items-center gap-2 mb-2 -ml-45">
+                                <div className="flex items-center gap-2 mb-2">
                                     {pageIcon ? (
                                         <div className="relative inline-block">
                                             <button
