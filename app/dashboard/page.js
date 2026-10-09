@@ -136,6 +136,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [showRowCoverPicker, setShowRowCoverPicker] = useState(false);
     const rowFileInputRef = useRef(null);
     const [rowUploadError, setRowUploadError] = useState("");
+    const [isRowRepositioning, setIsRowRepositioning] = useState(false);
+    const [rowCoverPosition, setRowCoverPosition] = useState(50);
+    const [isDraggingRowCover, setIsDraggingRowCover] = useState(false);
+    const rowDragRef = useRef({ startY: 0, startPos: 50 });
 
 
 
@@ -588,6 +592,52 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         };
     }, [touchRecent]);
 
+    useEffect(() => {
+        if (activeDatabaseRowItem?.row) {
+            setRowCoverPosition(activeDatabaseRowItem.row.coverPosition ?? 50);
+            setIsRowRepositioning(false);
+        }
+    }, [activeDatabaseRowItem?.row?.id]);
+
+    const handleMouseDownRowCover = (e) => {
+        if (!isRowRepositioning) return;
+        setIsDraggingRowCover(true);
+        rowDragRef.current = { startY: e.clientY, startPos: rowCoverPosition };
+    };
+
+    const handleMouseMoveRowCover = useCallback((e) => {
+        if (!isDraggingRowCover) return;
+        const deltaY = e.clientY - rowDragRef.current.startY;
+        const newPos = Math.max(0, Math.min(100, rowDragRef.current.startPos - (deltaY * 0.3)));
+        setRowCoverPosition(newPos);
+    }, [isDraggingRowCover]);
+
+    const handleMouseUpRowCover = useCallback(() => {
+        setIsDraggingRowCover(false);
+    }, []);
+
+    useEffect(() => {
+        if (isDraggingRowCover) {
+            window.addEventListener('mousemove', handleMouseMoveRowCover);
+            window.addEventListener('mouseup', handleMouseUpRowCover);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMoveRowCover);
+            window.removeEventListener('mouseup', handleMouseUpRowCover);
+        };
+    }, [isDraggingRowCover, handleMouseMoveRowCover, handleMouseUpRowCover]);
+
+    const handleSaveRowPosition = () => {
+        setIsRowRepositioning(false);
+        handleUpdateActiveRowField('coverPosition', rowCoverPosition);
+    };
+
+    const handleCancelRowReposition = () => {
+        setIsRowRepositioning(false);
+        setRowCoverPosition(activeDatabaseRowItem?.row?.coverPosition ?? 50);
+    };
+
+
     const handleUpdateActiveRowField = (field, value) => {
         if (!activeDatabaseRowItem?.row) return;
         const rowId = activeDatabaseRowItem.row.id;
@@ -602,7 +652,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 updatedRow.icon = value;
             } else if (field === 'cover') {
                 updatedRow.cover = value;
-            } else if (field === 'property') {
+            }
+            else if(field === 'coverPosition'){
+                updatedRow.coverPosition = value;
+
+            }
+            else if (field === 'property') {
                 updatedRow.values = { ...(updatedRow.values || {}), [value.propId]: value.propValue };
             }
             return { ...prev, row: updatedRow };
@@ -1342,7 +1397,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 titleRef.current._lastValue = syncTitle;
             }
         }
-    }, [currentPageId]);
+    }, [currentPageId,pages]);
 
 
     if (!isMounted) return null;
@@ -1613,77 +1668,78 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         </div>
                     </div>
                 </header>
-
                 <div className="flex-1 overflow-y-auto">
-                    {/* ======================================================== */}
-                    {/* FULL PAGE DATABASE ROW VIEW (When user clicks Maximize)  */}
-                    {/* ======================================================== */}
                     {activeDatabaseRowItem ? (
                         <div className="w-full">
                             {activeDatabaseRowItem.row?.cover && (
-                                <div className="relative w-full h-52 sm:h-64 overflow-hidden bg-gray-100 group/cover">
+                                <div
+                                    className={`relative w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
+                                        isRowRepositioning
+                                            ? (isDraggingRowCover ? 'cursor-grabbing' : 'cursor-grab')
+                                            : 'group/cover'
+                                    }`}
+                                    onMouseDown={handleMouseDownRowCover}
+                                >
                                     <img
                                         src={activeDatabaseRowItem.row.cover}
                                         alt="Cover"
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover pointer-events-none select-none"
+                                        style={{ objectPosition: `center ${rowCoverPosition}%` }}
                                     />
-                                    <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowRowCoverPicker(prev => !prev)}
-                                            className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm"
-                                        >
-                                            Change cover
-                                        </button>
-                                        <button
-                                            onClick={() => handleUpdateActiveRowField('cover', '')}
-                                            className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
+
+                                    {isRowRepositioning ? (
+                                        <div className="absolute top-4 w-full flex justify-between px-8 items-center z-10 pointer-events-none select-none">
+                                            <div className="px-3 py-1.5 bg-black/60 text-white text-xs rounded shadow-sm">
+                                                Drag image to reposition
+                                            </div>
+                                            <div className="flex items-center gap-2 pointer-events-auto">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleCancelRowReposition(); }}
+                                                    className="px-3 py-1.5 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded transition-all"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleSaveRowPosition(); }}
+                                                    className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded transition-all"
+                                                >
+                                                    Save position
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity select-none">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowRowCoverPicker(prev => !prev)}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm"
+                                            >
+                                                Change cover
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsRowRepositioning(true)}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm"
+                                            >
+                                                Reposition
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleUpdateActiveRowField('cover', '')}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
                             <main className={`mx-auto pb-40 transition-all duration-150 ${isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'} ${activeDatabaseRowItem.row?.cover ? 'mt-8' : 'mt-16'}`}>
-                                {/* Icon & Cover Action Buttons */}
-                                {/* Icon & Cover Action Buttons */}
-                                <div className="flex items-center gap-2 mb-2">
-                                    {activeDatabaseRowItem.row?.icon ? (
-                                        <div className="relative inline-block z-10">
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowIconPicker(true)}
-                                                className={`p-1 rounded-lg hover:bg-black/10 transition-colors flex items-center justify-center border-none bg-transparent shadow-none outline-none ${
-                                                    activeDatabaseRowItem.row?.cover ? '-mt-20' : ''
-                                                }`}
-                                            >
-                                                <PageIcon
-                                                    icon={activeDatabaseRowItem.row.icon}
-                                                    size={activeDatabaseRowItem.row?.cover ? 64 : 44}
-                                                />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowIconPicker(true)}
-                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                        >
-                                            <Smile size={14} /> Add icon
-                                        </button>
-                                    )}
 
-                                    {!activeDatabaseRowItem.row?.cover && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowRowCoverPicker(prev => !prev)}
-                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                        >
-                                            Add cover
-                                        </button>
-                                    )}
-                                </div>
+
                                 {/* Row Cover Picker Popover */}
                                 {showRowCoverPicker && (
                                     <div className="relative z-50 mb-4">

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { NodeViewWrapper } from '@tiptap/react';
 import {
@@ -89,28 +89,33 @@ const ALLOWED_VIEW_DEFINITIONS = [
 ];
 
 const PROPERTY_TYPES = [
-    { type: 'text', label: 'Text', icon: AlignLeft },
-    { type: 'number', label: 'Number', icon: Hash },
-    { type: 'select', label: 'Select', icon: ChevronDownCircle },
-    { type: 'multi-select', label: 'Multi-select', icon: ListFilter },
-    { type: 'status', label: 'Status', icon: Loader2 },
-    { type: 'date', label: 'Date', icon: Calendar },
-    { type: 'person', label: 'Person', icon: Users },
-    { type: 'files', label: 'Files & media', icon: Paperclip },
-    { type: 'checkbox', label: 'Tickbox', icon: CheckSquare },
-    { type: 'url', label: 'URL', icon: Link },
-    { type: 'email', label: 'Email', icon: AtSign },
-    { type: 'phone', label: 'Phone', icon: Phone },
-    { type: 'formula', label: 'Formula', icon: Sigma },
-    { type: 'relation', label: 'Relation', icon: ArrowUpRight },
-    { type: 'rollup', label: 'Rollup', icon: Search },
-    { type: 'created_time', label: 'Created time', icon: Clock },
-    { type: 'created_by', label: 'Created by', icon: User },
-    { type: 'last_edited_time', label: 'Last edited time', icon: History },
-    { type: 'last_edited_by', label: 'Last edited by', icon: UserCheck },
-    { type: 'button', label: 'Button', icon: MousePointerClick },
-    { type: 'place', label: 'Place', icon: MapPin },
-    { type: 'id', label: 'ID', icon: Binary },
+    // Section 1
+    { type: 'text', label: 'Text', icon: AlignLeft, section: 1 },
+    { type: 'number', label: 'Number', icon: Hash, section: 1 },
+    { type: 'select', label: 'Select', icon: ChevronDownCircle, section: 1 },
+    { type: 'multi-select', label: 'Multi-select', icon: ListFilter, section: 1 },
+    { type: 'status', label: 'Status', icon: Loader2, section: 1 },
+    { type: 'date', label: 'Date', icon: Calendar, section: 1 },
+    { type: 'person', label: 'Person', icon: Users, section: 1 },
+    { type: 'files', label: 'Files & media', icon: Paperclip, section: 1 },
+    { type: 'checkbox', label: 'Tickbox', icon: CheckSquare, section: 1 },
+    { type: 'url', label: 'URL', icon: Link, section: 1 },
+    { type: 'phone', label: 'Phone', icon: Phone, section: 1 },
+    { type: 'email', label: 'Email', icon: AtSign, section: 1 },
+
+    // Section 2
+    { type: 'relation', label: 'Relation', icon: ArrowUpRight, section: 2 },
+    { type: 'rollup', label: 'Rollup', icon: Search, section: 2 },
+    { type: 'formula', label: 'Formula', icon: Sigma, section: 2 },
+    { type: 'button', label: 'Button', icon: MousePointerClick, section: 2 },
+    { type: 'id', label: 'ID', icon: Binary, section: 2 },
+    { type: 'place', label: 'Place', icon: MapPin, section: 2 },
+
+    // Section 3
+    { type: 'created_time', label: 'Created time', icon: Clock, section: 3 },
+    { type: 'last_edited_time', label: 'Last edited time', icon: History, section: 3 },
+    { type: 'created_by', label: 'Created by', icon: User, section: 3 },
+    { type: 'last_edited_by', label: 'Last edited by', icon: UserCheck, section: 3 },
 ];
 
 const CALCULATE_GROUPS = [
@@ -193,6 +198,63 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const [calculations, setCalculations] = useState({});
     const [showCalculateSubmenu, setShowCalculateSubmenu] = useState(false);
     const [activeCalculateCategory, setActiveCalculateCategory] = useState(null);
+    const [addPropPos, setAddPropPos] = useState({ top: 0, left: 0 });
+    const [propTypeSearch, setPropTypeSearch] = useState('');
+    const addPropRef = useRef(null);
+    // Drawer cover repositioning state
+    const [isDrawerRepositioning, setIsDrawerRepositioning] = useState(false);
+    const [isDrawerDraggingCover, setIsDrawerDraggingCover] = useState(false);
+    const [drawerCoverPos, setDrawerCoverPos] = useState(50);
+    const drawerDragRef = useRef({ startY: 0, startPos: 50 });
+
+// Keep local drawerCoverPos synced when switching active rows
+    useEffect(() => {
+        if (activeRow) {
+            setDrawerCoverPos(activeRow.coverPosition ?? 50);
+            setIsDrawerRepositioning(false);
+        }
+    }, [activeRow?.id]);
+
+    const handleMouseDownDrawerCover = (e) => {
+        if (!isDrawerRepositioning) return;
+        setIsDrawerDraggingCover(true);
+        drawerDragRef.current = { startY: e.clientY, startPos: drawerCoverPos };
+    };
+    const handleMouseMoveDrawerCover = useCallback((e) => {
+        if (!isDrawerDraggingCover) return;
+        const deltaY = e.clientY - drawerDragRef.current.startY;
+        const newPos = Math.max(0, Math.min(100, drawerDragRef.current.startPos - (deltaY * 0.3)));
+        setDrawerCoverPos(newPos);
+    }, [isDrawerDraggingCover]);
+
+
+    const handleMouseUpDrawerCover = useCallback(() => {
+        setIsDrawerDraggingCover(false);
+    }, []);
+
+    useEffect(() => {
+        if (isDrawerDraggingCover) {
+            window.addEventListener('mousemove', handleMouseMoveDrawerCover);
+            window.addEventListener('mouseup', handleMouseUpDrawerCover);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMoveDrawerCover);
+            window.removeEventListener('mouseup', handleMouseUpDrawerCover);
+        };
+    }, [isDrawerDraggingCover, handleMouseMoveDrawerCover, handleMouseUpDrawerCover]);
+
+    const handleSaveDrawerCoverPosition = () => {
+        setIsDrawerRepositioning(false);
+        if (!activeRow) return;
+        const updated = rows.map(r => r.id === activeRow.id ? { ...r, coverPosition: drawerCoverPos } : r);
+        updateAttributes({ rows: updated });
+        setActiveRow(prev => ({ ...prev, coverPosition: drawerCoverPos }));
+    };
+
+    const handleCancelDrawerCoverPosition = () => {
+        setIsDrawerRepositioning(false);
+        setDrawerCoverPos(activeRow?.coverPosition ?? 50);
+    };
 
     const isolateEvents = {
         onKeyDown: (e) => e.stopPropagation(),
@@ -278,6 +340,10 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             if (!e.target.closest('[data-tab-menu]')) {
                 setShowTabMenuId(null);
             }
+            if (addPropRef.current && !addPropRef.current.contains(e.target) && !e.target.closest('[data-add-prop-trigger]')) {
+                setShowAddProperty(false);
+                setPropTypeSearch('');
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -288,6 +354,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             id: `row-${Date.now()}`,
             icon: { type: 'emoji', value: '♡' },
             cover: '',
+            coverPosition: 50, // <-- Add this
             date: dateStr || new Date().toISOString().split('T')[0],
             isFavorite: false,
             values: {
@@ -461,6 +528,23 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         }));
     };
 
+    const handleSelectNewPropertyType = (type) => {
+        const finalName = newPropName.trim() || PROPERTY_TYPES.find(p => p.type === type)?.label || 'Column';
+        const newProp = {
+            id: `prop-${Date.now()}`,
+            name: finalName,
+            type,
+            options: type === 'select' || type === 'multi-select' ? [
+                { id: 'opt-1', label: 'Option 1', color: 'blue' },
+                { id: 'opt-2', label: 'Option 2', color: 'green' }
+            ] : undefined
+        };
+        updateAttributes({ properties: [...properties, newProp] });
+        setNewPropName('');
+        setPropTypeSearch('');
+        setShowAddProperty(false);
+    };
+
 
 
     const handleSelectViewType = (viewDef) => {
@@ -613,6 +697,9 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 }
                 if (field === 'cover') {
                     return { ...r, cover: value };
+                }
+                if (field === 'coverPosition') {
+                    return { ...r, coverPosition: value };
                 }
                 if (field === 'property') {
                     const { propId, propValue } = value;
@@ -929,9 +1016,18 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             ))}
                             <th className="py-2 px-2 font-normal text-gray-400 w-16">
                                 <div className="flex items-center gap-1">
+                                    {/* THIS IS THE BUTTON: */}
                                     <button
                                         type="button"
-                                        onClick={() => setShowAddProperty(true)}
+                                        data-add-prop-trigger
+                                        onClick={(e) => {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            setAddPropPos({
+                                                top: rect.bottom + 4,
+                                                left: Math.max(16, rect.right - 300),
+                                            });
+                                            setShowAddProperty(true);
+                                        }}
                                         className="p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
                                     >
                                         <Plus size={13} />
@@ -1794,50 +1890,91 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                         </div>
                     )}
 
-                    {/* Add Property Modal */}
+                    {/* Add Property Popover */}
                     {showAddProperty && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]">
-                            <div className="bg-white border border-gray-200 shadow-2xl rounded-2xl p-4 w-72">
-                                <div className="flex items-center justify-between pb-3 border-b border-gray-100 select-none">
-                                    <span className="text-xs font-semibold text-gray-700">Add Column</span>
-                                    <button onClick={() => setShowAddProperty(false)} className="text-gray-400 hover:text-gray-600">
-                                        <X size={14} />
-                                    </button>
-                                </div>
-                                <div className="space-y-3 pt-3 text-xs">
-                                    <div>
-                                        <label className="text-gray-400 block mb-1">Column Name</label>
-                                        <input
-                                            type="text"
-                                            value={newPropName}
-                                            {...isolateEvents}
-                                            onChange={(e) => setNewPropName(e.target.value)}
-                                            placeholder="e.g. Category"
-                                            className="w-full border border-gray-200 rounded px-2 py-1 focus:outline-none"
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-gray-400 block mb-1">Property Type</label>
-                                        <select
-                                            value={newPropType}
-                                            onChange={(e) => setNewPropType(e.target.value)}
-                                            className="w-full border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none"
-                                        >
-                                            <option value="text">Text</option>
-                                            <option value="select">Tags</option>
-                                            <option value="date">Date</option>
-                                        </select>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleAddProperty}
-                                        className="w-full py-1.5 bg-[#2383E2] hover:bg-blue-600 text-white rounded font-medium mt-2"
-                                    >
-                                        Add Property
-                                    </button>
-                                </div>
+                        <div
+                            ref={addPropRef}
+                            style={{ top: `${addPropPos.top}px`, left: `${addPropPos.left}px` }}
+                            className="fixed z-50 w-[300px] max-h-[460px] bg-white border border-gray-200/90 shadow-2xl rounded-xl p-2 flex flex-col animate-in fade-in zoom-in-95 duration-100 select-none"
+                        >
+                            {/* Name input */}
+                            <div className="flex items-center gap-2 px-2 py-1.5 border-b border-gray-100 mb-1.5">
+            <span className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <Smile size={16} />
+            </span>
+                                <input
+                                    type="text"
+                                    value={newPropName}
+                                    {...isolateEvents}
+                                    onChange={(e) => setNewPropName(e.target.value)}
+                                    placeholder="Type property name..."
+                                    className="w-full text-xs font-medium text-slate-800 bg-transparent focus:outline-none placeholder:text-gray-400"
+                                    autoFocus
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowAddProperty(false);
+                                        setPropTypeSearch('');
+                                    }}
+                                    className="text-gray-400 hover:text-gray-600 p-0.5"
+                                >
+                                    <X size={13} />
+                                </button>
                             </div>
+
+                            {/* Search Input */}
+                            <div className="flex items-center gap-1.5 px-2 py-1 text-gray-400 mb-1">
+                                <span className="text-[11px] font-medium text-gray-400">Select type</span>
+                                <Search size={12} className="text-gray-400" />
+                                <input
+                                    type="text"
+                                    value={propTypeSearch}
+                                    {...isolateEvents}
+                                    onChange={(e) => setPropTypeSearch(e.target.value)}
+                                    className="w-full text-xs bg-transparent focus:outline-none text-slate-700 ml-1"
+                                />
+                            </div>
+
+                            {/* --- PUT YOUR CODE HERE --- */}
+                            <div className="overflow-y-auto max-h-[340px] pr-0.5 space-y-2">
+                                {[1, 2, 3].map((sectionId, idx) => {
+                                    const items = PROPERTY_TYPES.filter(
+                                        (item) =>
+                                            item.section === sectionId &&
+                                            item.label.toLowerCase().includes(propTypeSearch.toLowerCase())
+                                    );
+
+                                    if (items.length === 0) return null;
+
+                                    return (
+                                        <React.Fragment key={sectionId}>
+                                            {idx > 0 && <div className="h-px bg-gray-100 my-1" />}
+                                            <div className="grid grid-cols-2 gap-x-1 gap-y-0.5">
+                                                {items.map((item) => {
+                                                    const Icon = item.icon;
+                                                    return (
+                                                        <button
+                                                            key={item.type}
+                                                            type="button"
+                                                            onClick={() => handleSelectNewPropertyType(item.type)}
+                                                            className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100/80 rounded-md text-xs text-slate-700 text-left transition-colors group"
+                                                        >
+                                                            <Icon
+                                                                size={14}
+                                                                className="text-gray-500 shrink-0 group-hover:text-slate-900"
+                                                                strokeWidth={1.8}
+                                                            />
+                                                            <span className="truncate">{item.label}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </div>
+                            {/* --- END OF YOUR CODE --- */}
                         </div>
                     )}
 
@@ -1933,23 +2070,8 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
 
                                     {/* Right actions: Share, Copy link, Favorite, More options */}
                                     <div className="flex items-center gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => alert('Share settings')}
-                                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer"
-                                        >
-                                            <Lock size={13} className="text-gray-500" />
-                                            <span>Share</span>
-                                        </button>
 
-                                        <button
-                                            type="button"
-                                            onClick={handleCopyPageLink}
-                                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-slate-800 transition-colors cursor-pointer"
-                                            title="Copy link"
-                                        >
-                                            <Link2 size={16} strokeWidth={2} />
-                                        </button>
+
 
                                         <button
                                             type="button"
@@ -1975,28 +2097,68 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 </div>
 
                                 {activeRow.cover ? (
-                                    <div className="relative w-full h-48 bg-gray-100 group/drawerCover overflow-hidden shrink-0">
+                                    <div
+                                        className={`relative w-full h-48 bg-gray-100 overflow-hidden shrink-0 ${
+                                            isDrawerRepositioning
+                                                ? (isDrawerDraggingCover ? 'cursor-grabbing' : 'cursor-grab')
+                                                : 'group/drawerCover'
+                                        }`}
+                                        onMouseDown={handleMouseDownDrawerCover}
+                                    >
                                         <img
                                             src={activeRow.cover}
                                             alt="Cover"
-                                            className="w-full h-full object-cover"
+                                            className="w-full h-full object-cover pointer-events-none select-none"
+                                            style={{ objectPosition: `center ${drawerCoverPos}%` }}
                                         />
-                                        <div className="absolute bottom-2 right-4 flex items-center gap-2 opacity-0 group-hover/drawerCover:opacity-100 transition-opacity select-none">
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowDrawerCoverPicker(true)}
-                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-xs"
-                                            >
-                                                Change cover
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleUpdateCover(activeRow.id, '')}
-                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-500 rounded shadow-xs"
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
+
+                                        {isDrawerRepositioning ? (
+                                            <div className="absolute top-3 w-full flex justify-between px-4 items-center z-10 pointer-events-none select-none">
+                                                <div className="px-2.5 py-1 bg-black/60 text-white text-[11px] rounded shadow-xs">
+                                                    Drag image to reposition
+                                                </div>
+                                                <div className="flex items-center gap-1.5 pointer-events-auto">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); handleCancelDrawerCoverPosition(); }}
+                                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-xs"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); handleSaveDrawerCoverPosition(); }}
+                                                        className="px-2.5 py-1 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded shadow-xs"
+                                                    >
+                                                        Save position
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="absolute bottom-2 right-4 flex items-center gap-2 opacity-0 group-hover/drawerCover:opacity-100 transition-opacity select-none">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowDrawerCoverPicker(true)}
+                                                    className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-xs"
+                                                >
+                                                    Change cover
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsDrawerRepositioning(true)}
+                                                    className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-xs"
+                                                >
+                                                    Reposition
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleUpdateCover(activeRow.id, '')}
+                                                    className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-500 rounded shadow-xs"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : null}
 
