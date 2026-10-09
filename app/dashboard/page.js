@@ -2029,6 +2029,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                         key={activeDatabaseRowItem.row.id}
                                         initialContent={activeDatabaseRowItem.row.content}
                                         onChange={handleUpdateActiveRowContent}
+                                        userEmail={userEmail} // <-- Add this prop
                                     />
                                 </div>
                             </main>
