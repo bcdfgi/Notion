@@ -104,7 +104,7 @@ export default function IconPickerModal({ onSelect, onClose, initialTab = 'icons
     };
 
     return (
-        <div className="absolute z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-96 p-3 text-slate-800 animate-in fade-in zoom-in-95">
+        <div className="relative z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-96 p-3 text-slate-800 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
                 <div className="flex gap-2">
                     {['emoji', 'icons', 'upload'].map((tab) => (

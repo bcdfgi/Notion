@@ -60,6 +60,7 @@ import {
 import IconPickerModal from './IconPickerModal';
 import PageIcon from './PageIcon';
 import RowEditor from './RowEditor';
+import PageMoreMenu from './PageMoreMenu';
 
 const NOTION_COLORS = {
     gray:   { bg: 'bg-[#F1F1EF]', text: 'text-[#5A5A5A]' },
@@ -206,6 +207,12 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const [isDrawerDraggingCover, setIsDrawerDraggingCover] = useState(false);
     const [drawerCoverPos, setDrawerCoverPos] = useState(50);
     const drawerDragRef = useRef({ startY: 0, startPos: 50 });
+    const [showDrawerMoreMenu, setShowDrawerMoreMenu] = useState(false);
+    const drawerMoreMenuRef = useRef(null);
+    const [drawerFontStyle, setDrawerFontStyle] = useState('default');
+    const [drawerIsSmallText, setDrawerIsSmallText] = useState(false);
+    const [drawerIsFullWidth, setDrawerIsFullWidth] = useState(false);
+
 
 // Keep local drawerCoverPos synced when switching active rows
     useEffect(() => {
@@ -344,10 +351,20 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 setShowAddProperty(false);
                 setPropTypeSearch('');
             }
+            // Add this check:
+            if (drawerMoreMenuRef.current && !drawerMoreMenuRef.current.contains(e.target)) {
+                setShowDrawerMoreMenu(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+    // When closing drawer, reset menu state
+    const closeDrawer = () => {
+        setActiveRow(null);
+        setShowDrawerMoreMenu(false);
+    };
+
 
     const handleAddRow = (dateStr = null, tagValue = '') => {
         const newRow = {
@@ -1981,10 +1998,10 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                     {/* Global Icon Picker Modal */}
                     {iconPickerTargetRowId && (
                         <div
-                            className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]"
+                            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]"
                             onClick={() => setIconPickerTargetRowId(null)}
                         >
-                            <div className="relative" onClick={(e) => e.stopPropagation()}>
+                            <div onClick={(e) => e.stopPropagation()}>
                                 <IconPickerModal
                                     initialTab="icons"
                                     onSelect={(selected) => handleUpdateIcon(iconPickerTargetRowId, selected)}
@@ -2069,9 +2086,16 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     </div>
 
                                     {/* Right actions: Share, Copy link, Favorite, More options */}
+                                    {/* Right actions: Share, Copy link, Favorite, More options */}
                                     <div className="flex items-center gap-1">
-
-
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyPageLink}
+                                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                            title="Copy link"
+                                        >
+                                            <Link2 size={16} />
+                                        </button>
 
                                         <button
                                             type="button"
@@ -2085,16 +2109,44 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             />
                                         </button>
 
-                                        <button
-                                            type="button"
-                                            onClick={(e) => handleDeleteRow(e, activeRow.id)}
-                                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-slate-800 transition-colors cursor-pointer"
-                                            title="More options"
-                                        >
-                                            <MoreHorizontal size={16} />
-                                        </button>
+                                        {/* Notion-style PageMoreMenu */}
+                                        <div ref={drawerMoreMenuRef} className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowDrawerMoreMenu(prev => !prev);
+                                                }}
+                                                className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                                title="More options"
+                                            >
+                                                <MoreHorizontal size={16} />
+                                            </button>
+
+                                            {showDrawerMoreMenu && (
+                                                <div
+                                                    className="absolute right-0 top-full mt-1 z-50 select-text"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <PageMoreMenu
+                                                        editor={null}
+                                                        onClose={() => setShowDrawerMoreMenu(false)}
+                                                        onDeletePage={() => {
+                                                            setShowDrawerMoreMenu(false);
+                                                            handleDeleteRow(null, activeRow.id);
+                                                        }}
+                                                        fontStyle={drawerFontStyle}
+                                                        setFontStyle={setDrawerFontStyle}
+                                                        isSmallText={drawerIsSmallText}
+                                                        setIsSmallText={setDrawerIsSmallText}
+                                                        isFullWidth={drawerIsFullWidth}
+                                                        setIsFullWidth={setDrawerIsFullWidth}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                </div> {/* <--- Crucial: keep the closing </div> for the sticky header */}
 
                                 {activeRow.cover ? (
                                     <div
