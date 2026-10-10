@@ -295,12 +295,20 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                     const numB = parseFloat(valB) || 0;
                     return direction === 'asc' ? numA - numB : numB - numA;
                 }
+                if (propType === 'date' || propType === 'created_time' || propId === 'prop-created') {
+                    const timeA = valA ? new Date(valA).getTime() : 0;
+                    const timeB = valB ? new Date(valB).getTime() : 0;
 
-                if (propType === 'date' || propType === 'created_time') {
-                    const timeA = new Date(valA || 0).getTime();
-                    const timeB = new Date(valB || 0).getTime();
+                    // If both timestamps are identical down to the minute, break the tie using row.id
+                    if (timeA === timeB) {
+                        const idTimeA = parseInt((a.id || '').replace(/\D/g, ''), 10) || 0;
+                        const idTimeB = parseInt((b.id || '').replace(/\D/g, ''), 10) || 0;
+                        return direction === 'asc' ? idTimeA - idTimeB : idTimeB - idTimeA;
+                    }
+
                     return direction === 'asc' ? timeA - timeB : timeB - timeA;
                 }
+
 
                 // String fallback (A -> Z)
                 const strA = String(valA || '').toLowerCase();
@@ -437,22 +445,81 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         updateAttributes({ properties: updated });
     };
 
-// 2. Change Type
     const handleChangePropertyType = (propId, newType) => {
-        const updated = properties.map(p => {
+        // 1. Update the property schema definition
+        const updatedProperties = properties.map((p) => {
             if (p.id !== propId) return p;
+
+            let options = p.options;
+            if (newType === 'select' || newType === 'multi-select') {
+                options = p.options && p.options.length > 0
+                    ? p.options
+                    : [
+                        { id: 'opt-1', label: 'Option 1', color: 'blue' },
+                        { id: 'opt-2', label: 'Option 2', color: 'green' },
+                    ];
+            }
+
             return {
                 ...p,
                 type: newType,
-                options: newType === 'select' ? (p.options || [
-                    { id: 'opt-1', label: 'Option 1', color: 'blue' }
-                ]) : undefined,
+                options,
             };
         });
-        updateAttributes({ properties: updated });
+        const updatedRows = rows.map((row) => {
+            const currentVal = row.values?.[propId];
+            let nextVal = currentVal;
+
+            switch (newType) {
+                case 'checkbox':
+                    nextVal = currentVal === true || currentVal === 'true' || currentVal === '1';
+                    break;
+                case 'number':
+                    if (currentVal !== undefined && currentVal !== null && currentVal !== '') {
+                        const parsed = parseFloat(String(currentVal).replace(/[^0-9.-]+/g, ''));
+                        nextVal = isNaN(parsed) ? '' : parsed;
+                    } else {
+                        nextVal = '';
+                    }
+                    break;
+                case 'multi-select':
+                    if (!Array.isArray(currentVal)) {
+                        nextVal = currentVal ? [currentVal] : [];
+                    }
+                    break;
+                case 'select':
+                    if (Array.isArray(currentVal)) {
+                        nextVal = currentVal[0] || '';
+                    }
+                    break;
+                default:
+                    if (typeof currentVal === 'boolean') {
+                        nextVal = currentVal ? 'Yes' : 'No';
+                    } else if (Array.isArray(currentVal)) {
+                        nextVal = currentVal.join(', ');
+                    }
+                    break;
+            }
+
+            return {
+                ...row,
+                values: {
+                    ...(row.values || {}),
+                    [propId]: nextVal,
+                },
+            };
+        });
+
+        updateAttributes({
+            properties: updatedProperties,
+            rows: updatedRows,
+        });
+
         setShowTypeSubmenu(false);
         setActiveColumnMenu(null);
     };
+
+
 
 // 3. Insert Left / Insert Right
     const handleInsertPropertyAdjacent = (targetPropId, direction = 'right') => {
@@ -735,32 +802,10 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         };
     }, [rows, updateAttributes]);
 
-    const getSortOptions = (type) => {
-        switch (type) {
-            case 'checkbox':
-                return [
-                    { label: 'Sort unchecked → checked', direction: 'asc' },
-                    { label: 'Sort checked → unchecked', direction: 'desc' },
-                ];
-            case 'number':
-                return [
-                    { label: 'Sort 1 → 9', direction: 'asc' },
-                    { label: 'Sort 9 → 1', direction: 'desc' },
-                ];
-            case 'date':
-            case 'created_time':
-            case 'last_edited_time':
-                return [
-                    { label: 'Sort oldest first', direction: 'asc' },
-                    { label: 'Sort newest first', direction: 'desc' },
-                ];
-            default:
-                return [
-                    { label: 'Sort ascending', direction: 'asc' },
-                    { label: 'Sort descending', direction: 'desc' },
-                ];
-        }
-    };
+    const getSortOptions = () => [
+        { label: 'Sort ascending', direction: 'asc' },
+        { label: 'Sort descending', direction: 'desc' },
+    ];
 
     const calendarGrid = useMemo(() => {
         const year = calendarDate.getFullYear();
@@ -1063,6 +1108,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 {properties.map((prop, idx) => {
                                     const cellVal = row.values?.[prop.id];
 
+                                    // --- Column 0: Title / Primary Name Column ---
                                     if (idx === 0) {
                                         return (
                                             <td key={prop.id} className="py-1.5 px-2.5">
@@ -1098,7 +1144,40 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         );
                                     }
 
-                                    if (prop.id === 'prop-created' || prop.type === 'date') {
+                                    // --- Checkbox / Tickbox ---
+                                    if (prop.type === 'checkbox') {
+                                        const isChecked = cellVal === true || cellVal === 'true';
+                                        return (
+                                            <td key={prop.id} className="py-1.5 px-2.5">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    {...isolateEvents}
+                                                    onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.checked)}
+                                                    className="w-4 h-4 rounded text-blue-600 border-gray-300 focus:ring-0 cursor-pointer accent-blue-600"
+                                                />
+                                            </td>
+                                        );
+                                    }
+
+                                    // --- Number ---
+                                    if (prop.type === 'number') {
+                                        return (
+                                            <td key={prop.id} className="py-1.5 px-2.5">
+                                                <input
+                                                    type="number"
+                                                    value={cellVal ?? ''}
+                                                    placeholder="Empty"
+                                                    {...isolateEvents}
+                                                    onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
+                                                    className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                />
+                                            </td>
+                                        );
+                                    }
+
+                                    // --- Date / Created Time ---
+                                    if (prop.type === 'date' || prop.type === 'created_time' || prop.id === 'prop-created') {
                                         return (
                                             <td key={prop.id} className="py-1.5 px-2.5 text-gray-600 text-xs">
                                                 <input
@@ -1113,8 +1192,9 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         );
                                     }
 
+                                    // --- Select ---
                                     if (prop.type === 'select') {
-                                        const currentOpt = (prop.options || []).find(o => o.id === cellVal);
+                                        const currentOpt = (prop.options || []).find((o) => o.id === cellVal);
                                         const theme = currentOpt ? NOTION_COLORS[currentOpt.color || 'gray'] : null;
 
                                         return (
@@ -1124,8 +1204,8 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                         onClick={() => setActiveSelectMenu({ rowId: row.id, propId: prop.id })}
                                                         className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer ${theme.bg} ${theme.text}`}
                                                     >
-                                                        {currentOpt.label}
-                                                    </span>
+                                {currentOpt.label}
+                            </span>
                                                 ) : (
                                                     <button
                                                         type="button"
@@ -1138,7 +1218,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
 
                                                 {activeSelectMenu?.rowId === row.id && activeSelectMenu?.propId === prop.id && (
                                                     <div className="absolute top-full left-2 mt-1 z-30 bg-white border border-gray-200 shadow-xl rounded-lg p-1.5 min-w-[130px] flex flex-col gap-0.5">
-                                                        {(prop.options || []).map(opt => {
+                                                        {(prop.options || []).map((opt) => {
                                                             const colorTheme = NOTION_COLORS[opt.color || 'gray'];
                                                             return (
                                                                 <button
@@ -1150,9 +1230,9 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                                     }}
                                                                     className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded text-left text-xs"
                                                                 >
-                                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${colorTheme.bg} ${colorTheme.text}`}>
-                                                                        {opt.label}
-                                                                    </span>
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${colorTheme.bg} ${colorTheme.text}`}>
+                                                {opt.label}
+                                            </span>
                                                                 </button>
                                                             );
                                                         })}
@@ -1162,6 +1242,71 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         );
                                     }
 
+                                    // --- Multi-Select ---
+                                    if (prop.type === 'multi-select') {
+                                        const selectedIds = Array.isArray(cellVal) ? cellVal : cellVal ? [cellVal] : [];
+                                        const selectedOpts = (prop.options || []).filter((o) => selectedIds.includes(o.id));
+
+                                        return (
+                                            <td key={prop.id} className="py-1.5 px-2.5 select-none">
+                                                <div className="flex flex-wrap items-center gap-1">
+                                                    {selectedOpts.length > 0 ? (
+                                                        selectedOpts.map((opt) => {
+                                                            const colorTheme = NOTION_COLORS[opt.color || 'gray'];
+                                                            return (
+                                                                <span
+                                                                    key={opt.id}
+                                                                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${colorTheme.bg} ${colorTheme.text}`}
+                                                                >
+                                            {opt.label}
+                                        </span>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <span className="text-gray-300 text-xs">Empty</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        );
+                                    }
+
+                                    // --- URL ---
+                                    if (prop.type === 'url') {
+                                        return (
+                                            <td key={prop.id} className="py-1.5 px-2.5">
+                                                <div className="flex items-center gap-1">
+                                                    <input
+                                                        type="url"
+                                                        value={cellVal || ''}
+                                                        placeholder="Empty"
+                                                        {...isolateEvents}
+                                                        onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
+                                                        className={`w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300 ${
+                                                            cellVal ? 'text-blue-600 underline' : ''
+                                                        }`}
+                                                    />
+                                                </div>
+                                            </td>
+                                        );
+                                    }
+
+                                    // --- Phone & Email ---
+                                    if (prop.type === 'phone' || prop.type === 'email') {
+                                        return (
+                                            <td key={prop.id} className="py-1.5 px-2.5">
+                                                <input
+                                                    type={prop.type === 'email' ? 'email' : 'tel'}
+                                                    value={cellVal || ''}
+                                                    placeholder="Empty"
+                                                    {...isolateEvents}
+                                                    onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
+                                                    className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300"
+                                                />
+                                            </td>
+                                        );
+                                    }
+
+                                    // --- Text / Fallback Default ---
                                     return (
                                         <td key={prop.id} className="py-1.5 px-2.5">
                                             <input
@@ -1561,6 +1706,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             {/* --- PORTALIZED MODALS OUTSIDE PROSEMIRROR --- */}
             {mounted && createPortal(
                 <>
+                    {/* --- PROPERTY COLUMN HEADER MENU (NOTION EXACT UI) --- */}
                     {activeColumnMenu && (
                         <div
                             ref={columnMenuRef}
@@ -1568,11 +1714,11 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 top: `${activeColumnMenu.rect.top}px`,
                                 left: `${activeColumnMenu.rect.left}px`,
                             }}
-                            className="fixed z-50 w-60 bg-white border border-gray-200 shadow-2xl rounded-xl p-1.5 text-xs text-slate-700 select-none animate-in fade-in zoom-in-95 duration-100"
+                            className="fixed z-50 w-[240px] bg-white border border-gray-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 text-xs text-slate-700 select-none animate-in fade-in zoom-in-95 duration-100"
                         >
-                            {/* Property Name Input Header */}
-                            <div className="flex items-center gap-2 p-1.5 bg-gray-50/80 border border-gray-200/70 rounded-lg mb-1">
-                                <div className="text-gray-400 shrink-0">
+                            {/* Top: Property Name Input */}
+                            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[#F7F7F5] border border-gray-200/70 rounded-xl mb-1.5">
+                                <div className="text-gray-500 shrink-0">
                                     {getPropIcon(activeColumnMenu.prop.type)}
                                 </div>
                                 <input
@@ -1585,85 +1731,106 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             e.currentTarget.blur();
                                         }
                                     }}
-                                    className="w-full bg-transparent font-medium text-slate-800 focus:outline-none"
+                                    className="w-full bg-transparent font-medium text-slate-800 text-[13px] focus:outline-none"
                                 />
                             </div>
 
-                            <div className="relative">
+                            {/* Change type with Flyout */}
+                            <div
+                                className="relative"
+                                onMouseEnter={() => setShowTypeSubmenu(true)}
+                                onMouseLeave={() => setShowTypeSubmenu(false)}
+                            >
                                 <button
                                     type="button"
                                     onClick={() => setShowTypeSubmenu((prev) => !prev)}
-                                    className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-colors text-left ${
+                                        showTypeSubmenu ? 'bg-gray-100 text-slate-900' : 'hover:bg-gray-100/70 text-slate-700'
+                                    }`}
                                 >
                                     <div className="flex items-center gap-2.5">
                                         <RotateCw size={14} className="text-gray-500" />
                                         <span>Change type</span>
                                     </div>
-                                    <span className="text-[11px] text-gray-400 capitalize flex items-center gap-1">
-            {PROPERTY_TYPES.find(t => t.type === activeColumnMenu.prop.type)?.label || activeColumnMenu.prop.type} →
-        </span>
+                                    <span className="text-[12px] text-gray-400 capitalize flex items-center gap-1">
+                    {PROPERTY_TYPES.find(t => t.type === activeColumnMenu.prop.type)?.label || activeColumnMenu.prop.type}
+                                        <span className="text-gray-400 font-normal">→</span>
+                </span>
                                 </button>
 
+                                {/* Change Type Submenu Flyout */}
                                 {showTypeSubmenu && (
-                                    <div className="absolute left-full top-0 ml-1.5 w-52 max-h-[380px] overflow-y-auto bg-white border border-gray-200/90 shadow-2xl rounded-xl p-1 z-50 animate-in fade-in zoom-in-95 duration-100">
-                                        {PROPERTY_TYPES.map((item) => {
-                                            const Icon = item.icon;
-                                            const isSelected = activeColumnMenu.prop.type === item.type;
-                                            return (
-                                                <button
-                                                    key={item.type}
-                                                    type="button"
-                                                    onClick={() => handleChangePropertyType(activeColumnMenu.prop.id, item.type)}
-                                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left group ${
-                                                        isSelected ? 'bg-gray-100/80 font-medium text-slate-900' : 'text-slate-700 hover:bg-gray-100/70'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center gap-2.5 min-w-0">
-                                                        <Icon size={14} className="text-gray-500 shrink-0" strokeWidth={1.8} />
-                                                        <span className="truncate">{item.label}</span>
-                                                    </div>
-                                                    {isSelected && <Check size={13} className="text-slate-700 shrink-0" strokeWidth={2.2} />}
-                                                </button>
-                                            );
-                                        })}
+                                    <div
+                                        className="absolute left-full top-0 pl-1 z-50"
+                                        onMouseEnter={() => setShowTypeSubmenu(true)}
+                                        onMouseLeave={() => setShowTypeSubmenu(false)}
+                                    >
+                                        <div className="w-56 max-h-[380px] overflow-y-auto bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100">
+                                            {PROPERTY_TYPES.map((item) => {
+                                                const Icon = item.icon;
+                                                const isSelected = activeColumnMenu.prop.type === item.type;
+                                                return (
+                                                    <button
+                                                        key={item.type}
+                                                        type="button"
+                                                        onClick={() => handleChangePropertyType(activeColumnMenu.prop.id, item.type)}
+                                                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left group ${
+                                                            isSelected
+                                                                ? 'bg-gray-100/90 font-medium text-slate-900'
+                                                                : 'text-slate-700 hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            <Icon size={14} className="text-gray-500 shrink-0" strokeWidth={1.8} />
+                                                            <span className="truncate">{item.label}</span>
+                                                        </div>
+                                                        {isSelected && <Check size={14} className="text-slate-700 shrink-0" strokeWidth={2.2} />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
+                            {/* Filter */}
                             <button
                                 type="button"
                                 onClick={() => setActiveColumnMenu(null)}
-                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100/70 rounded-lg transition-colors text-left text-slate-700"
                             >
                                 <Filter size={14} className="text-gray-500" />
                                 <span>Filter</span>
                             </button>
-                            {/* Sort with flyout submenu */}
+
+                            {/* Sort Row & Flyout Submenu */}
                             <div
-                                className="relative group/sort"
+                                className="relative"
                                 onMouseEnter={() => setShowSortSubmenu(true)}
                                 onMouseLeave={() => setShowSortSubmenu(false)}
                             >
                                 <button
                                     type="button"
-                                    onClick={() => setShowSortSubmenu(prev => !prev)}
-                                    className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                    onClick={() => setShowSortSubmenu((prev) => !prev)}
+                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                                        showSortSubmenu ? 'bg-gray-100 text-slate-900' : 'hover:bg-gray-100/70 text-slate-700'
+                                    }`}
                                 >
                                     <div className="flex items-center gap-2.5">
-                                        <ArrowUpDown size={14} className="text-gray-500" />
+                                        <ArrowUpDown size={14} className="text-gray-500" strokeWidth={1.8} />
                                         <span>Sort</span>
                                     </div>
-                                    <span className="text-[11px] text-gray-400">›</span>
+                                    <span className="text-[12px] text-gray-400">›</span>
                                 </button>
 
                                 {showSortSubmenu && (
                                     <div
                                         className="absolute left-full top-0 pl-1 z-50"
                                         onMouseEnter={() => setShowSortSubmenu(true)}
+                                        onMouseLeave={() => setShowSortSubmenu(false)}
                                     >
-                                        {/* Invisible bridge to catch diagonal mouse movements */}
-                                        <div className="w-56 bg-white border border-gray-200/90 shadow-2xl rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100">
-                                            {getSortOptions(activeColumnMenu.prop.type).map((opt) => {
+                                        <div className="w-[190px] bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs">
+                                            {getSortOptions().map((opt) => {
                                                 const isSelected =
                                                     sortConfig?.propId === activeColumnMenu.prop.id &&
                                                     sortConfig?.direction === opt.direction;
@@ -1680,19 +1847,21 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                             setShowSortSubmenu(false);
                                                             setActiveColumnMenu(null);
                                                         }}
-                                                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors ${
                                                             isSelected
-                                                                ? 'bg-gray-100 font-medium text-slate-900'
+                                                                ? 'bg-gray-100/90 font-medium text-slate-900'
                                                                 : 'text-slate-700 hover:bg-gray-50'
                                                         }`}
                                                     >
                                                         <span>{opt.label}</span>
-                                                        {isSelected && <Check size={13} className="text-blue-600" />}
+                                                        {isSelected && (
+                                                            <Check size={14} className="text-slate-700 shrink-0" strokeWidth={2.2} />
+                                                        )}
                                                     </button>
                                                 );
                                             })}
 
-                                            {/* Clear Sort option if this column is sorted */}
+                                            {/* Show "Clear sort" if current column is sorted */}
                                             {sortConfig?.propId === activeColumnMenu.prop.id && (
                                                 <>
                                                     <div className="h-px bg-gray-100 my-1" />
@@ -1703,7 +1872,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                             setShowSortSubmenu(false);
                                                             setActiveColumnMenu(null);
                                                         }}
-                                                        className="w-full text-left px-2.5 py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                        className="w-full text-left px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                                                     >
                                                         Clear sort
                                                     </button>
@@ -1714,8 +1883,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 )}
                             </div>
 
-
-                            {/* Calculate with nested flyout submenus */}
+                            {/* Calculate with Submenu */}
                             <div
                                 className="relative"
                                 onMouseEnter={() => setShowCalculateSubmenu(true)}
@@ -1726,29 +1894,32 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             >
                                 <button
                                     type="button"
-                                    onClick={() => setShowCalculateSubmenu((prev) => !prev)}
-                                    className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-colors text-left ${
+                                        showCalculateSubmenu ? 'bg-gray-100 text-slate-900' : 'hover:bg-gray-100/70 text-slate-700'
+                                    }`}
                                 >
                                     <div className="flex items-center gap-2.5">
                                         <Sigma size={14} className="text-gray-500" />
                                         <span>Calculate</span>
                                     </div>
-                                    <span className="text-[11px] text-gray-400">›</span>
+                                    <span className="text-[12px] text-gray-400">›</span>
                                 </button>
 
                                 {showCalculateSubmenu && (
                                     <div
                                         className="absolute left-full top-0 pl-1 z-50"
                                         onMouseEnter={() => setShowCalculateSubmenu(true)}
+                                        onMouseLeave={() => {
+                                            setShowCalculateSubmenu(false);
+                                            setActiveCalculateCategory(null);
+                                        }}
                                     >
-                                        <div className="w-36 bg-white border border-gray-200/90 shadow-2xl rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100">
-                                            {/* None */}
+                                        <div className="w-40 bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100">
                                             <button
                                                 type="button"
                                                 onClick={() => {
                                                     setCalculations((prev) => ({ ...prev, [activeColumnMenu.prop.id]: 'none' }));
                                                     setShowCalculateSubmenu(false);
-                                                    setActiveCalculateCategory(null);
                                                     setActiveColumnMenu(null);
                                                 }}
                                                 className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition-colors text-left"
@@ -1759,7 +1930,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                 )}
                                             </button>
 
-                                            {/* Count and Percent Categories */}
                                             {CALCULATE_GROUPS.map((groupDef) => (
                                                 <div
                                                     key={groupDef.key}
@@ -1775,16 +1945,15 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                         }`}
                                                     >
                                                         <span>{groupDef.label}</span>
-                                                        <span className="text-[11px] text-gray-400">›</span>
+                                                        <span className="text-[12px] text-gray-400">›</span>
                                                     </button>
 
-                                                    {/* Submenu flyout (left-aligned like Notion's UI) */}
                                                     {activeCalculateCategory === groupDef.key && (
                                                         <div
-                                                            className="absolute right-full top-0 pr-1 z-50"
+                                                            className="absolute left-full top-0 pl-1 z-50"
                                                             onMouseEnter={() => setActiveCalculateCategory(groupDef.key)}
                                                         >
-                                                            <div className="w-44 bg-white border border-gray-200/90 shadow-2xl rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100">
+                                                            <div className="w-44 bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100">
                                                                 {groupDef.options.map((opt) => {
                                                                     const isSelected = calculations[activeColumnMenu.prop.id] === opt.key;
                                                                     return (
@@ -1821,43 +1990,47 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 )}
                             </div>
 
+                            {/* Separator */}
                             <div className="h-px bg-gray-100 my-1" />
 
+                            {/* Insert Left */}
                             <button
                                 type="button"
                                 onClick={() => handleInsertPropertyAdjacent(activeColumnMenu.prop.id, 'left')}
-                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100/70 rounded-lg transition-colors text-left text-slate-700"
                             >
                                 <ArrowLeftToLine size={14} className="text-gray-500" />
                                 <span>Insert left</span>
                             </button>
 
+                            {/* Insert Right */}
                             <button
                                 type="button"
                                 onClick={() => handleInsertPropertyAdjacent(activeColumnMenu.prop.id, 'right')}
-                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100/70 rounded-lg transition-colors text-left text-slate-700"
                             >
                                 <ArrowRightToLine size={14} className="text-gray-500" />
                                 <span>Insert right</span>
                             </button>
 
+                            {/* Duplicate property */}
                             <button
                                 type="button"
                                 onClick={() => handleDuplicateProperty(activeColumnMenu.prop)}
-                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100 rounded-md transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100/70 rounded-lg transition-colors text-left text-slate-700"
                             >
                                 <Copy size={14} className="text-gray-500" />
                                 <span>Duplicate property</span>
                             </button>
 
-                            {/* Delete Property - Disabled on Title */}
+                            {/* Delete Property - Hide for Title */}
                             {activeColumnMenu.prop.id !== 'prop-title' && (
                                 <>
                                     <div className="h-px bg-gray-100 my-1" />
                                     <button
                                         type="button"
                                         onClick={() => handleDeleteProperty(activeColumnMenu.prop.id)}
-                                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-red-50 text-red-600 rounded-md transition-colors text-left"
+                                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors text-left font-normal"
                                     >
                                         <Trash2 size={14} />
                                         <span>Delete property</span>
