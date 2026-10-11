@@ -15,19 +15,7 @@ const NOTION_COLORS = {
     red:     { bg: 'bg-[#FDEBEC]', text: 'text-[#B91C1C]', swatch: 'bg-[#FFE2DD]' },
 };
 
-// Exactly 10 ordered Notion colors
-const COLOR_PALETTE = [
-    'default', // Index 0 (Option 1, 11, 21...)
-    'gray',    // Index 1 (Option 2, 12, 22...)
-    'brown',   // Index 2 (Option 3, 13, 23...)
-    'orange',  // Index 3 (Option 4, 14, 24...)
-    'yellow',  // Index 4 (Option 5, 15, 25...)
-    'green',   // Index 5 (Option 6, 16, 26...)
-    'blue',    // Index 6 (Option 7, 17, 27...)
-    'purple',  // Index 7 (Option 8, 18, 28...)
-    'pink',    // Index 8 (Option 9, 19, 29...)
-    'red',     // Index 9 (Option 10, 20, 30...)
-];
+const COLOR_PALETTE = ['default', 'gray', 'brown', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'red'];
 
 const COLOR_OPTIONS = [
     { key: 'default', label: 'Default' },
@@ -45,25 +33,32 @@ const COLOR_OPTIONS = [
 export default function SelectCellPopover({
                                               anchorRect,
                                               property,
-                                              selectedValue,
-                                              onSelect,
-                                              onRemove,
+                                              selectedValue, // string for select, array for multi-select
+                                              onSelect,      // (optId) => void
+                                              onRemove,      // (optId) => void
                                               onClose,
                                               onUpdatePropertyOptions,
                                           }) {
+    const isMulti = property?.type === 'multi-select';
     const [searchQuery, setSearchQuery] = useState('');
     const [editingOption, setEditingOption] = useState(null);
     const popoverRef = useRef(null);
     const configMenuRef = useRef(null);
+    const inputRef = useRef(null);
     const listEndRef = useRef(null);
 
     const options = property?.options || [];
 
+    // Normalize selected IDs into an array for easy checking
+    const selectedIds = Array.isArray(selectedValue)
+        ? selectedValue
+        : selectedValue ? [selectedValue] : [];
+
+    const selectedOptionsList = options.filter(o => selectedIds.includes(o.id));
+
     const filteredOptions = options.filter(opt =>
         (opt.label || '').toLowerCase().includes(searchQuery.toLowerCase().trim())
     );
-
-    const selectedOpt = options.find(o => o.id === selectedValue);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -86,12 +81,12 @@ export default function SelectCellPopover({
         };
     }, [onClose]);
 
-    // Automatically assigns color in strict order (1 to 10, then resets back to 1)
+    // Create a new option and toggle it on
     const handleCreateOption = () => {
         const trimmed = searchQuery.trim();
         if (!trimmed) return;
 
-        // Auto-assign: Index 0 to 9, then wraps back to 0 for index 10 (Option #11)
+        // Auto color assignment from 0..9 wrapping around
         const nextColorIndex = options.length % COLOR_PALETTE.length;
         const assignedColor = COLOR_PALETTE[nextColorIndex];
 
@@ -107,8 +102,23 @@ export default function SelectCellPopover({
         setSearchQuery('');
 
         setTimeout(() => {
+            inputRef.current?.focus();
             listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }, 50);
+    };
+
+    const handleOptionClick = (optId) => {
+        if (isMulti) {
+            if (selectedIds.includes(optId)) {
+                onRemove(optId);
+            } else {
+                onSelect(optId);
+            }
+            inputRef.current?.focus();
+        } else {
+            onSelect(optId);
+            onClose();
+        }
     };
 
     const handleRenameOption = (optId, newLabel) => {
@@ -125,7 +135,7 @@ export default function SelectCellPopover({
     const handleDeleteOption = (optId) => {
         const updated = options.filter(o => o.id !== optId);
         onUpdatePropertyOptions(updated);
-        if (selectedValue === optId) {
+        if (selectedIds.includes(optId)) {
             onRemove(optId);
         }
         setEditingOption(null);
@@ -133,63 +143,68 @@ export default function SelectCellPopover({
 
     return (
         <>
-            {/* Main Select Popover */}
             <div
                 ref={popoverRef}
                 style={{
                     top: `${(anchorRect?.bottom || 0) + 4}px`,
                     left: `${Math.max(16, anchorRect?.left || 0)}px`,
                 }}
-                className="fixed z-[60] w-[275px] bg-white border border-gray-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.12)] rounded-xl p-2 text-xs font-sans text-slate-700 animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-[420px]"
+                className="fixed z-[60] w-[300px] bg-white border border-gray-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.12)] rounded-xl p-2 text-xs font-sans text-slate-700 animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-[420px]"
                 onMouseDown={(e) => e.stopPropagation()}
             >
-                {/* Active Tag Display */}
-                {selectedOpt && (
-                    <div className="flex flex-wrap gap-1 mb-2 pb-2 border-b border-gray-100 shrink-0">
-                        <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
-                                NOTION_COLORS[selectedOpt.color || 'default']?.bg
-                            } ${NOTION_COLORS[selectedOpt.color || 'default']?.text}`}
-                        >
-                            <span>{selectedOpt.label}</span>
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onRemove(selectedOpt.id);
-                                }}
-                                className="hover:opacity-75"
+                {/* Notion-style combined Tag Box & Inline Input */}
+                <div
+                    onClick={() => inputRef.current?.focus()}
+                    className="flex flex-wrap items-center gap-1.5 p-1.5 min-h-[34px] border border-gray-200/90 rounded-lg bg-gray-50/40 focus-within:border-blue-500 focus-within:bg-white transition-colors cursor-text mb-2 shrink-0"
+                >
+                    {selectedOptionsList.map((opt) => {
+                        const theme = NOTION_COLORS[opt.color || 'default'];
+                        return (
+                            <span
+                                key={opt.id}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium shrink-0 ${theme.bg} ${theme.text}`}
                             >
-                                <X size={12} />
-                            </button>
-                        </span>
-                    </div>
-                )}
+                                <span className="truncate max-w-[130px]">{opt.label}</span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRemove(opt.id);
+                                    }}
+                                    className="hover:opacity-75 cursor-pointer"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        );
+                    })}
 
-                {/* Input: Pressing Enter creates immediately */}
-                <div className="shrink-0 mb-1">
                     <input
+                        ref={inputRef}
                         type="text"
                         value={searchQuery}
                         autoFocus
-                        placeholder="Select an option or create one"
+                        placeholder={selectedOptionsList.length === 0 ? "Select an option or create one" : ""}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => {
                             e.stopPropagation();
                             if (e.key === 'Enter' && searchQuery.trim()) {
                                 handleCreateOption();
+                            } else if (e.key === 'Backspace' && !searchQuery && selectedOptionsList.length > 0) {
+                                // Pressing backspace removes the last added pill
+                                onRemove(selectedOptionsList[selectedOptionsList.length - 1].id);
                             }
                         }}
-                        className="w-full px-2 py-1.5 text-xs bg-transparent focus:outline-none placeholder:text-gray-400 text-slate-800"
+                        className="flex-1 min-w-[70px] bg-transparent text-xs text-slate-800 focus:outline-none placeholder:text-gray-400 py-0.5"
                     />
                 </div>
 
-                {/* Action button preview */}
+                {/* Always-available Create Button */}
                 {searchQuery.trim().length > 0 && (
                     <button
                         type="button"
                         onClick={handleCreateOption}
-                        className="w-full flex items-center justify-between px-2 py-1.5 mb-1 text-left text-xs bg-blue-50/70 hover:bg-blue-100/70 text-blue-700 rounded-md transition-colors font-medium shrink-0"
+                        className="w-full flex items-center justify-between px-2 py-1.5 mb-1.5 text-left text-xs bg-blue-50/70 hover:bg-blue-100/70 text-blue-700 rounded-md transition-colors font-medium shrink-0"
                     >
                         <div className="flex items-center gap-1.5 truncate">
                             <Plus size={13} className="shrink-0 text-blue-600" />
@@ -200,22 +215,23 @@ export default function SelectCellPopover({
                     </button>
                 )}
 
+                <div className="px-1 text-[11px] text-gray-400 mb-1 select-none shrink-0 font-medium">
+                    Select an option or create one
+                </div>
+
                 {/* Options List */}
                 <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 min-h-[50px]">
                     {filteredOptions.length > 0 ? (
                         filteredOptions.map((opt) => {
                             const theme = NOTION_COLORS[opt.color || 'default'];
-                            const isSelected = selectedValue === opt.id;
+                            const isSelected = selectedIds.includes(opt.id);
 
                             return (
                                 <div
                                     key={opt.id}
-                                    onClick={() => {
-                                        onSelect(opt.id);
-                                        onClose();
-                                    }}
-                                    className={`group/opt flex items-center justify-between px-1.5 py-1 rounded-md cursor-pointer hover:bg-gray-100/70 transition-colors ${
-                                        isSelected ? 'bg-gray-50' : ''
+                                    onClick={() => handleOptionClick(opt.id)}
+                                    className={`group/opt flex items-center justify-between px-1.5 py-1.5 rounded-md cursor-pointer hover:bg-gray-100/70 transition-colors ${
+                                        isSelected ? 'bg-gray-100/50' : ''
                                     }`}
                                 >
                                     <div className="flex items-center gap-1.5 min-w-0">
@@ -230,23 +246,28 @@ export default function SelectCellPopover({
                                         </span>
                                     </div>
 
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const rect = e.currentTarget.getBoundingClientRect();
-                                            setEditingOption({
-                                                ...opt,
-                                                rect: {
-                                                    top: Math.max(16, rect.top - 10),
-                                                    left: rect.right + 8,
-                                                },
-                                            });
-                                        }}
-                                        className="p-1 hover:bg-gray-200/60 rounded text-gray-400 hover:text-slate-700 opacity-0 group-hover/opt:opacity-100 transition-opacity"
-                                    >
-                                        <MoreHorizontal size={13} />
-                                    </button>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        {isSelected && (
+                                            <Check size={13} className="text-slate-700 mr-0.5" strokeWidth={2.2} />
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setEditingOption({
+                                                    ...opt,
+                                                    rect: {
+                                                        top: Math.max(16, rect.top - 10),
+                                                        left: rect.right + 8,
+                                                    },
+                                                });
+                                            }}
+                                            className="p-1 hover:bg-gray-200/60 rounded text-gray-400 hover:text-slate-700 opacity-0 group-hover/opt:opacity-100 transition-opacity"
+                                        >
+                                            <MoreHorizontal size={13} />
+                                        </button>
+                                    </div>
                                 </div>
                             );
                         })
@@ -261,7 +282,7 @@ export default function SelectCellPopover({
                 </div>
             </div>
 
-            {/* Option Configuration Submenu (Color Override & Rename) */}
+            {/* Option Configuration Submenu (Color Picker & Rename) */}
             {editingOption && (
                 <div
                     ref={configMenuRef}

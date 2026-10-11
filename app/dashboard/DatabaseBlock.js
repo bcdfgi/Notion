@@ -452,14 +452,10 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         const updatedProperties = properties.map((p) => {
             if (p.id !== propId) return p;
 
+            // ✅ Clean: Preserves existing user options if they exist, otherwise initializes an empty array []
             let options = p.options;
             if (newType === 'select' || newType === 'multi-select') {
-                options = p.options && p.options.length > 0
-                    ? p.options
-                    : [
-                        { id: 'opt-1', label: 'Option 1', color: 'blue' },
-                        { id: 'opt-2', label: 'Option 2', color: 'green' },
-                    ];
+                options = Array.isArray(p.options) ? p.options : [];
             }
 
             return {
@@ -609,14 +605,12 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
 
     const handleSelectNewPropertyType = (type) => {
         const finalName = newPropName.trim() || PROPERTY_TYPES.find(p => p.type === type)?.label || 'Column';
+
         const newProp = {
             id: `prop-${Date.now()}`,
             name: finalName,
             type,
-            options: type === 'select' || type === 'multi-select' ? [
-                { id: 'opt-1', label: 'Option 1', color: 'blue' },
-                { id: 'opt-2', label: 'Option 2', color: 'green' }
-            ] : undefined
+            options: (type === 'select' || type === 'multi-select') ? [] : undefined
         };
         updateAttributes({ properties: [...properties, newProp] });
         setNewPropName('');
@@ -1236,18 +1230,26 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         const selectedOpts = (prop.options || []).filter((o) => selectedIds.includes(o.id));
 
                                         return (
-                                            <td key={prop.id} className="py-1.5 px-2.5 select-none">
-                                                <div className="flex flex-wrap items-center gap-1">
+                                            <td
+                                                key={prop.id}
+                                                className="py-1.5 px-2.5 select-none cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setActiveSelectMenu({ rowId: row.id, propId: prop.id, rect });
+                                                }}
+                                            >
+                                                <div className="flex flex-wrap items-center gap-1 min-h-[22px]">
                                                     {selectedOpts.length > 0 ? (
                                                         selectedOpts.map((opt) => {
-                                                            const colorTheme = NOTION_COLORS[opt.color || 'gray'];
+                                                            const colorTheme = NOTION_COLORS[opt.color || 'default'];
                                                             return (
                                                                 <span
                                                                     key={opt.id}
                                                                     className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${colorTheme.bg} ${colorTheme.text}`}
                                                                 >
-                                                                    {opt.label}
-                                                                </span>
+                                {opt.label}
+                            </span>
                                                             );
                                                         })
                                                     ) : (
@@ -1711,27 +1713,46 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             {/* --- PORTALIZED MODALS OUTSIDE PROSEMIRROR --- */}
             {mounted && createPortal(
                 <>
-                    {/* Active Select Popover */}
-                    {activeSelectMenu && (
-                        <SelectCellPopover
-                            anchorRect={activeSelectMenu.rect}
-                            property={properties.find(p => p.id === activeSelectMenu.propId)}
-                            selectedValue={rows.find(r => r.id === activeSelectMenu.rowId)?.values?.[activeSelectMenu.propId]}
-                            onSelect={(optId) => {
-                                handleUpdateCell(activeSelectMenu.rowId, activeSelectMenu.propId, optId);
-                            }}
-                            onRemove={() => {
-                                handleUpdateCell(activeSelectMenu.rowId, activeSelectMenu.propId, '');
-                            }}
-                            onClose={() => setActiveSelectMenu(null)}
-                            onUpdatePropertyOptions={(newOptions) => {
-                                const updatedProps = properties.map(p =>
-                                    p.id === activeSelectMenu.propId ? { ...p, options: newOptions } : p
-                                );
-                                updateAttributes({ properties: updatedProps });
-                            }}
-                        />
-                    )}
+                    {/* Active Select / Multi-Select Popover */}
+                    {activeSelectMenu && (() => {
+                        const targetProp = properties.find(p => p.id === activeSelectMenu.propId);
+                        const currentRow = rows.find(r => r.id === activeSelectMenu.rowId);
+                        const rawVal = currentRow?.values?.[activeSelectMenu.propId];
+                        const isMulti = targetProp?.type === 'multi-select';
+
+                        return (
+                            <SelectCellPopover
+                                anchorRect={activeSelectMenu.rect}
+                                property={targetProp}
+                                selectedValue={rawVal}
+                                onSelect={(optId) => {
+                                    if (isMulti) {
+                                        const currentArr = Array.isArray(rawVal) ? rawVal : (rawVal ? [rawVal] : []);
+                                        if (!currentArr.includes(optId)) {
+                                            handleUpdateCell(activeSelectMenu.rowId, activeSelectMenu.propId, [...currentArr, optId]);
+                                        }
+                                    } else {
+                                        handleUpdateCell(activeSelectMenu.rowId, activeSelectMenu.propId, optId);
+                                    }
+                                }}
+                                onRemove={(optId) => {
+                                    if (isMulti) {
+                                        const currentArr = Array.isArray(rawVal) ? rawVal : (rawVal ? [rawVal] : []);
+                                        handleUpdateCell(activeSelectMenu.rowId, activeSelectMenu.propId, currentArr.filter(id => id !== optId));
+                                    } else {
+                                        handleUpdateCell(activeSelectMenu.rowId, activeSelectMenu.propId, '');
+                                    }
+                                }}
+                                onClose={() => setActiveSelectMenu(null)}
+                                onUpdatePropertyOptions={(newOptions) => {
+                                    const updatedProps = properties.map(p =>
+                                        p.id === activeSelectMenu.propId ? { ...p, options: newOptions } : p
+                                    );
+                                    updateAttributes({ properties: updatedProps });
+                                }}
+                            />
+                        );
+                    })()}
 
                     {/* --- PROPERTY COLUMN HEADER MENU (NOTION EXACT UI) --- */}
                     {activeColumnMenu && (
