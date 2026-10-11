@@ -61,18 +61,33 @@ import IconPickerModal from './IconPickerModal';
 import PageIcon from './PageIcon';
 import RowEditor from './RowEditor';
 import PageMoreMenu from './PageMoreMenu';
+import SelectCellPopover from './SelectCellPopover';
 
 const NOTION_COLORS = {
-    gray:   { bg: 'bg-[#F1F1EF]', text: 'text-[#5A5A5A]' },
-    brown:  { bg: 'bg-[#F4EEEE]', text: 'text-[#78350F]' },
-    orange: { bg: 'bg-[#FBECDD]', text: 'text-[#C2410C]' },
-    yellow: { bg: 'bg-[#FBF3DB]', text: 'text-[#A16207]' },
-    green:  { bg: 'bg-[#EDF3EC]', text: 'text-[#15803D]' },
-    blue:   { bg: 'bg-[#E7F3F8]', text: 'text-[#0369A1]' },
-    purple: { bg: 'bg-[#F4EEF8]', text: 'text-[#7E22CE]' },
-    pink:   { bg: 'bg-[#F9EEF3]', text: 'text-[#BE185D]' },
-    red:    { bg: 'bg-[#FDEBEC]', text: 'text-[#B91C1C]' },
+    default: { bg: 'bg-[#F1F1EF]', text: 'text-[#37352F]', swatch: 'bg-[#E3E2E0]' },
+    gray:    { bg: 'bg-[#F1F1EF]', text: 'text-[#5A5A5A]', swatch: 'bg-[#E3E2E0]' },
+    brown:   { bg: 'bg-[#F4EEEE]', text: 'text-[#78350F]', swatch: 'bg-[#EEE0DA]' },
+    orange:  { bg: 'bg-[#FBECDD]', text: 'text-[#C2410C]', swatch: 'bg-[#FADEC9]' },
+    yellow:  { bg: 'bg-[#FBF3DB]', text: 'text-[#A16207]', swatch: 'bg-[#FDECC8]' },
+    green:   { bg: 'bg-[#EDF3EC]', text: 'text-[#15803D]', swatch: 'bg-[#DBEDDB]' },
+    blue:    { bg: 'bg-[#E7F3F8]', text: 'text-[#0369A1]', swatch: 'bg-[#D3E5EF]' },
+    purple:  { bg: 'bg-[#F4EEF8]', text: 'text-[#7E22CE]', swatch: 'bg-[#E8DEEE]' },
+    pink:    { bg: 'bg-[#F9EEF3]', text: 'text-[#BE185D]', swatch: 'bg-[#F5E0E9]' },
+    red:     { bg: 'bg-[#FDEBEC]', text: 'text-[#B91C1C]', swatch: 'bg-[#FFE2DD]' },
 };
+
+const COLOR_OPTIONS = [
+    { key: 'default', label: 'Default' },
+    { key: 'gray',    label: 'Gray' },
+    { key: 'brown',   label: 'Brown' },
+    { key: 'orange',  label: 'Orange' },
+    { key: 'yellow',  label: 'Yellow' },
+    { key: 'green',   label: 'Green' },
+    { key: 'blue',    label: 'Blue' },
+    { key: 'purple',  label: 'Purple' },
+    { key: 'pink',    label: 'Pink' },
+    { key: 'red',     label: 'Red' },
+];
 
 const NOTION_PRESET_COVERS = [
     "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1600&auto=format&fit=crop",
@@ -105,12 +120,7 @@ const PROPERTY_TYPES = [
     { type: 'email', label: 'Email', icon: AtSign, section: 1 },
 
     // Section 2
-    { type: 'relation', label: 'Relation', icon: ArrowUpRight, section: 2 },
-    { type: 'rollup', label: 'Rollup', icon: Search, section: 2 },
     { type: 'formula', label: 'Formula', icon: Sigma, section: 2 },
-    { type: 'button', label: 'Button', icon: MousePointerClick, section: 2 },
-    { type: 'id', label: 'ID', icon: Binary, section: 2 },
-    { type: 'place', label: 'Place', icon: MapPin, section: 2 },
 
     // Section 3
     { type: 'created_time', label: 'Created time', icon: Clock, section: 3 },
@@ -125,16 +135,18 @@ const CALCULATE_GROUPS = [
         label: 'Count',
         options: [
             { key: 'count_all', label: 'Count all' },
-            { key: 'count_checked', label: 'Checked' },
-            { key: 'count_unchecked', label: 'Unchecked' },
+            { key: 'count_checked', label: 'Count Values' },
+            { key: 'count_unchecked', label: 'Count unique values' },
+            { key: 'count_unchecked', label: 'Count empty' },
+            { key: 'count_unchecked', label: 'Count not empty' },
         ],
     },
     {
         key: 'percent',
         label: 'Percent',
         options: [
-            { key: 'percent_checked', label: 'Percent checked' },
-            { key: 'percent_unchecked', label: 'Percent unchecked' },
+            { key: 'percent_checked', label: 'Percent empty' },
+            { key: 'percent_unchecked', label: 'Percent not empty' },
         ],
     },
 ];
@@ -188,21 +200,21 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
 
     const currentActiveView = views.find(v => v.id === activeViewId) || views[0];
     const tagsProperty = properties.find(p => p.id === 'prop-tags' || p.type === 'select') || properties[2];
-    // Tracks which property header was clicked: { prop, rect }
+
     const [activeColumnMenu, setActiveColumnMenu] = useState(null);
     const [showTypeSubmenu, setShowTypeSubmenu] = useState(false);
     const columnMenuRef = useRef(null);
-    // Active sort configuration: { propId: string, direction: 'asc' | 'desc' } | null
+
     const [sortConfig, setSortConfig] = useState(null);
     const [showSortSubmenu, setShowSortSubmenu] = useState(false);
-    // Active calculate states
+
     const [calculations, setCalculations] = useState({});
     const [showCalculateSubmenu, setShowCalculateSubmenu] = useState(false);
     const [activeCalculateCategory, setActiveCalculateCategory] = useState(null);
     const [addPropPos, setAddPropPos] = useState({ top: 0, left: 0 });
     const [propTypeSearch, setPropTypeSearch] = useState('');
     const addPropRef = useRef(null);
-    // Drawer cover repositioning state
+
     const [isDrawerRepositioning, setIsDrawerRepositioning] = useState(false);
     const [isDrawerDraggingCover, setIsDrawerDraggingCover] = useState(false);
     const [drawerCoverPos, setDrawerCoverPos] = useState(50);
@@ -213,8 +225,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const [drawerIsSmallText, setDrawerIsSmallText] = useState(false);
     const [drawerIsFullWidth, setDrawerIsFullWidth] = useState(false);
 
-
-// Keep local drawerCoverPos synced when switching active rows
     useEffect(() => {
         if (activeRow) {
             setDrawerCoverPos(activeRow.coverPosition ?? 50);
@@ -227,13 +237,13 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         setIsDrawerDraggingCover(true);
         drawerDragRef.current = { startY: e.clientY, startPos: drawerCoverPos };
     };
+
     const handleMouseMoveDrawerCover = useCallback((e) => {
         if (!isDrawerDraggingCover) return;
         const deltaY = e.clientY - drawerDragRef.current.startY;
         const newPos = Math.max(0, Math.min(100, drawerDragRef.current.startPos - (deltaY * 0.3)));
         setDrawerCoverPos(newPos);
     }, [isDrawerDraggingCover]);
-
 
     const handleMouseUpDrawerCover = useCallback(() => {
         setIsDrawerDraggingCover(false);
@@ -299,7 +309,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                     const timeA = valA ? new Date(valA).getTime() : 0;
                     const timeB = valB ? new Date(valB).getTime() : 0;
 
-                    // If both timestamps are identical down to the minute, break the tie using row.id
                     if (timeA === timeB) {
                         const idTimeA = parseInt((a.id || '').replace(/\D/g, ''), 10) || 0;
                         const idTimeB = parseInt((b.id || '').replace(/\D/g, ''), 10) || 0;
@@ -309,8 +318,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                     return direction === 'asc' ? timeA - timeB : timeB - timeA;
                 }
 
-
-                // String fallback (A -> Z)
                 const strA = String(valA || '').toLowerCase();
                 const strB = String(valB || '').toLowerCase();
                 return direction === 'asc'
@@ -359,7 +366,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 setShowAddProperty(false);
                 setPropTypeSearch('');
             }
-            // Add this check:
             if (drawerMoreMenuRef.current && !drawerMoreMenuRef.current.contains(e.target)) {
                 setShowDrawerMoreMenu(false);
             }
@@ -367,19 +373,18 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-    // When closing drawer, reset menu state
+
     const closeDrawer = () => {
         setActiveRow(null);
         setShowDrawerMoreMenu(false);
     };
-
 
     const handleAddRow = (dateStr = null, tagValue = '') => {
         const newRow = {
             id: `row-${Date.now()}`,
             icon: { type: 'emoji', value: '♡' },
             cover: '',
-            coverPosition: 50, // <-- Add this
+            coverPosition: 50,
             date: dateStr || new Date().toISOString().split('T')[0],
             isFavorite: false,
             values: {
@@ -393,7 +398,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         updateAttributes({ rows: nextRows });
         setActiveRow(newRow);
 
-        // Broadcast to sidebar recents
         window.dispatchEvent(new CustomEvent('notion:row-created', {
             detail: {
                 row: newRow,
@@ -416,7 +420,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             setActiveRow(prev => ({ ...prev, values: { ...(prev.values || {}), [propId]: val } }));
         }
 
-        //  ADD THIS: When the title column changes, notify the sidebar recents!
         if (propId === 'prop-title') {
             window.dispatchEvent(new CustomEvent('notion:row-updated', {
                 detail: {
@@ -426,6 +429,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             }));
         }
     };
+
     useEffect(() => {
         const handleCloseColMenu = (e) => {
             if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
@@ -439,14 +443,12 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         return () => document.removeEventListener('mousedown', handleCloseColMenu);
     }, [activeColumnMenu]);
 
-    // 1. Rename Property
     const handleRenameProperty = (propId, newName) => {
         const updated = properties.map(p => p.id === propId ? { ...p, name: newName } : p);
         updateAttributes({ properties: updated });
     };
 
     const handleChangePropertyType = (propId, newType) => {
-        // 1. Update the property schema definition
         const updatedProperties = properties.map((p) => {
             if (p.id !== propId) return p;
 
@@ -519,9 +521,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         setActiveColumnMenu(null);
     };
 
-
-
-// 3. Insert Left / Insert Right
     const handleInsertPropertyAdjacent = (targetPropId, direction = 'right') => {
         const index = properties.findIndex(p => p.id === targetPropId);
         if (index === -1) return;
@@ -540,7 +539,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         setActiveColumnMenu(null);
     };
 
-// 4. Duplicate Property
     const handleDuplicateProperty = (prop) => {
         const index = properties.findIndex(p => p.id === prop.id);
         if (index === -1) return;
@@ -555,7 +553,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         const nextProperties = [...properties];
         nextProperties.splice(index + 1, 0, duplicatedProp);
 
-        // Duplicate existing row values for this column
         const nextRows = rows.map(r => ({
             ...r,
             values: {
@@ -568,7 +565,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         setActiveColumnMenu(null);
     };
 
-// 5. Delete Property
     const handleDeleteProperty = (propId) => {
         if (properties.length <= 1) return;
         const nextProperties = properties.filter(p => p.id !== propId);
@@ -592,7 +588,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         }
         setIconPickerTargetRowId(null);
 
-        //  ADD THIS: When the icon changes, notify the sidebar recents!
         window.dispatchEvent(new CustomEvent('notion:row-updated', {
             detail: {
                 rowId,
@@ -600,13 +595,13 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             }
         }));
     };
+
     const handleDeleteRow = (e, rowId) => {
         e?.stopPropagation?.();
         const updated = rows.filter(r => r.id !== rowId);
         updateAttributes({ rows: updated });
         if (activeRow?.id === rowId) setActiveRow(null);
 
-        //  ADD THIS: Notify sidebar to remove deleted row
         window.dispatchEvent(new CustomEvent('notion:row-deleted', {
             detail: { rowId }
         }));
@@ -628,8 +623,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         setPropTypeSearch('');
         setShowAddProperty(false);
     };
-
-
 
     const handleSelectViewType = (viewDef) => {
         if (viewPickerMode === 'convert') {
@@ -682,22 +675,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         }
         setViewPickerMode('add');
         setShowViewPicker(true);
-    };
-
-    const handleAddProperty = () => {
-        if (!newPropName.trim()) return;
-        const newProp = {
-            id: `prop-${Date.now()}`,
-            name: newPropName.trim(),
-            type: newPropType,
-            options: newPropType === 'select' ? [
-                { id: 'opt-1', label: 'Tag 1', color: 'blue' },
-                { id: 'opt-2', label: 'Tag 2', color: 'green' }
-            ] : undefined
-        };
-        updateAttributes({ properties: [...properties, newProp] });
-        setNewPropName('');
-        setShowAddProperty(false);
     };
 
     const handleCreateNewGroup = () => {
@@ -760,15 +737,14 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             setActiveRow((prev) => ({ ...prev, content: contentJson }));
         }
     };
+
     useEffect(() => {
-        // 1. Sync row content updates
         const handleRemoteRowUpdate = (e) => {
             const { rowId, content } = e.detail;
             const updated = rows.map(r => r.id === rowId ? { ...r, content } : r);
             updateAttributes({ rows: updated });
         };
 
-        // 2. Sync title, icon, cover, or properties updated in full-page mode
         const handleRemoteRowFieldUpdate = (e) => {
             const { rowId, field, value } = e.detail;
             const updated = rows.map(r => {
@@ -881,6 +857,36 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             return <span className="text-sm">{row.icon}</span>;
         }
         return <PageIcon icon={row.icon} size={size} />;
+    };
+
+    const renderCalculationResult = (propId) => {
+        const calcKey = calculations[propId];
+        if (!calcKey || calcKey === 'none') return null;
+
+        const totalRows = filteredRows.length;
+        let checkedCount = 0;
+
+        filteredRows.forEach((r) => {
+            const val = r.values?.[propId];
+            if (val === true || val === 'true') {
+                checkedCount += 1;
+            }
+        });
+
+        switch (calcKey) {
+            case 'count_all':
+                return `Count ${totalRows}`;
+            case 'count_checked':
+                return `Checked ${checkedCount}`;
+            case 'count_unchecked':
+                return `Unchecked ${totalRows - checkedCount}`;
+            case 'percent_checked':
+                return `${totalRows === 0 ? 0 : Math.round((checkedCount / totalRows) * 100)}%`;
+            case 'percent_unchecked':
+                return `${totalRows === 0 ? 0 : Math.round(((totalRows - checkedCount) / totalRows) * 100)}%`;
+            default:
+                return null;
+        }
     };
 
     return (
@@ -1064,7 +1070,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             },
                                         });
                                         setShowTypeSubmenu(false);
-                                        setShowSortSubmenu(false); // <-- Reset sort flyout
+                                        setShowSortSubmenu(false);
                                     }}
                                     className={`py-2 px-2.5 font-normal text-gray-500 hover:bg-gray-100/70 rounded cursor-pointer transition-colors ${
                                         idx === 0 ? 'w-[38%] min-w-[200px]' : 'w-[28%] min-w-[170px]'
@@ -1078,7 +1084,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             ))}
                             <th className="py-2 px-2 font-normal text-gray-400 w-16">
                                 <div className="flex items-center gap-1">
-                                    {/* THIS IS THE BUTTON: */}
                                     <button
                                         type="button"
                                         data-add-prop-trigger
@@ -1195,48 +1200,31 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     // --- Select ---
                                     if (prop.type === 'select') {
                                         const currentOpt = (prop.options || []).find((o) => o.id === cellVal);
-                                        const theme = currentOpt ? NOTION_COLORS[currentOpt.color || 'gray'] : null;
+                                        const theme = currentOpt ? NOTION_COLORS[currentOpt.color || 'default'] : null;
 
                                         return (
                                             <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
                                                 {currentOpt ? (
                                                     <span
-                                                        onClick={() => setActiveSelectMenu({ rowId: row.id, propId: prop.id })}
-                                                        className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer ${theme.bg} ${theme.text}`}
+                                                        onClick={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setActiveSelectMenu({ rowId: row.id, propId: prop.id, rect });
+                                                        }}
+                                                        className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer ${theme?.bg} ${theme?.text}`}
                                                     >
-                                {currentOpt.label}
-                            </span>
+                                                        {currentOpt.label}
+                                                    </span>
                                                 ) : (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setActiveSelectMenu({ rowId: row.id, propId: prop.id })}
-                                                        className="text-gray-300 hover:text-gray-500 text-xs"
+                                                        onClick={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setActiveSelectMenu({ rowId: row.id, propId: prop.id, rect });
+                                                        }}
+                                                        className="text-gray-300 hover:text-gray-500 text-xs cursor-pointer"
                                                     >
                                                         Empty
                                                     </button>
-                                                )}
-
-                                                {activeSelectMenu?.rowId === row.id && activeSelectMenu?.propId === prop.id && (
-                                                    <div className="absolute top-full left-2 mt-1 z-30 bg-white border border-gray-200 shadow-xl rounded-lg p-1.5 min-w-[130px] flex flex-col gap-0.5">
-                                                        {(prop.options || []).map((opt) => {
-                                                            const colorTheme = NOTION_COLORS[opt.color || 'gray'];
-                                                            return (
-                                                                <button
-                                                                    key={opt.id}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        handleUpdateCell(row.id, prop.id, opt.id);
-                                                                        setActiveSelectMenu(null);
-                                                                    }}
-                                                                    className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded text-left text-xs"
-                                                                >
-                                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${colorTheme.bg} ${colorTheme.text}`}>
-                                                {opt.label}
-                                            </span>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
                                                 )}
                                             </td>
                                         );
@@ -1258,8 +1246,8 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                                     key={opt.id}
                                                                     className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${colorTheme.bg} ${colorTheme.text}`}
                                                                 >
-                                            {opt.label}
-                                        </span>
+                                                                    {opt.label}
+                                                                </span>
                                                             );
                                                         })
                                                     ) : (
@@ -1333,6 +1321,23 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             </tr>
                         ))}
                         </tbody>
+                        {/* --- CALCULATION FOOTER --- */}
+                        {Object.values(calculations).some((c) => c && c !== 'none') && (
+                            <tfoot>
+                            <tr className="border-t border-gray-200/80 text-xs text-gray-500 font-normal">
+                                {properties.map((prop, idx) => (
+                                    <td key={prop.id} className="py-2 px-2.5">
+                                        {renderCalculationResult(prop.id) && (
+                                            <div className="flex items-center gap-1.5 text-gray-500 font-medium select-none">
+                                                <span>{renderCalculationResult(prop.id)}</span>
+                                            </div>
+                                        )}
+                                    </td>
+                                ))}
+                                <td className="w-16" />
+                            </tr>
+                            </tfoot>
+                        )}
                     </table>
 
                     <button
@@ -1706,6 +1711,28 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             {/* --- PORTALIZED MODALS OUTSIDE PROSEMIRROR --- */}
             {mounted && createPortal(
                 <>
+                    {/* Active Select Popover */}
+                    {activeSelectMenu && (
+                        <SelectCellPopover
+                            anchorRect={activeSelectMenu.rect}
+                            property={properties.find(p => p.id === activeSelectMenu.propId)}
+                            selectedValue={rows.find(r => r.id === activeSelectMenu.rowId)?.values?.[activeSelectMenu.propId]}
+                            onSelect={(optId) => {
+                                handleUpdateCell(activeSelectMenu.rowId, activeSelectMenu.propId, optId);
+                            }}
+                            onRemove={() => {
+                                handleUpdateCell(activeSelectMenu.rowId, activeSelectMenu.propId, '');
+                            }}
+                            onClose={() => setActiveSelectMenu(null)}
+                            onUpdatePropertyOptions={(newOptions) => {
+                                const updatedProps = properties.map(p =>
+                                    p.id === activeSelectMenu.propId ? { ...p, options: newOptions } : p
+                                );
+                                updateAttributes({ properties: updatedProps });
+                            }}
+                        />
+                    )}
+
                     {/* --- PROPERTY COLUMN HEADER MENU (NOTION EXACT UI) --- */}
                     {activeColumnMenu && (
                         <div
@@ -1753,9 +1780,9 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         <span>Change type</span>
                                     </div>
                                     <span className="text-[12px] text-gray-400 capitalize flex items-center gap-1">
-                    {PROPERTY_TYPES.find(t => t.type === activeColumnMenu.prop.type)?.label || activeColumnMenu.prop.type}
+                                        {PROPERTY_TYPES.find(t => t.type === activeColumnMenu.prop.type)?.label || activeColumnMenu.prop.type}
                                         <span className="text-gray-400 font-normal">→</span>
-                </span>
+                                    </span>
                                 </button>
 
                                 {/* Change Type Submenu Flyout */}
@@ -1861,7 +1888,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                 );
                                             })}
 
-                                            {/* Show "Clear sort" if current column is sorted */}
                                             {sortConfig?.propId === activeColumnMenu.prop.id && (
                                                 <>
                                                     <div className="h-px bg-gray-100 my-1" />
@@ -1883,7 +1909,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 )}
                             </div>
 
-                            {/* Calculate with Submenu */}
+                            {/* Calculate with Cascading Nested Flyouts */}
                             <div
                                 className="relative"
                                 onMouseEnter={() => setShowCalculateSubmenu(true)}
@@ -1899,7 +1925,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     }`}
                                 >
                                     <div className="flex items-center gap-2.5">
-                                        <Sigma size={14} className="text-gray-500" />
+                                        <Sigma size={14} className="text-gray-500" strokeWidth={1.8} />
                                         <span>Calculate</span>
                                     </div>
                                     <span className="text-[12px] text-gray-400">›</span>
@@ -1914,19 +1940,24 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             setActiveCalculateCategory(null);
                                         }}
                                     >
-                                        <div className="w-40 bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100">
+                                        <div className="w-[145px] bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs">
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    setCalculations((prev) => ({ ...prev, [activeColumnMenu.prop.id]: 'none' }));
+                                                    setCalculations((prev) => {
+                                                        const next = { ...prev };
+                                                        delete next[activeColumnMenu.prop.id];
+                                                        return next;
+                                                    });
                                                     setShowCalculateSubmenu(false);
+                                                    setActiveCalculateCategory(null);
                                                     setActiveColumnMenu(null);
                                                 }}
-                                                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition-colors text-left"
+                                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left hover:bg-gray-50 transition-colors text-slate-700"
                                             >
-                                                <span className="text-slate-800">None</span>
+                                                <span>None</span>
                                                 {(!calculations[activeColumnMenu.prop.id] || calculations[activeColumnMenu.prop.id] === 'none') && (
-                                                    <Check size={13} className="text-slate-700" strokeWidth={2.2} />
+                                                    <Check size={14} className="text-slate-700 shrink-0" strokeWidth={2.2} />
                                                 )}
                                             </button>
 
@@ -1938,7 +1969,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                 >
                                                     <button
                                                         type="button"
-                                                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors ${
                                                             activeCalculateCategory === groupDef.key
                                                                 ? 'bg-gray-100 text-slate-900 font-medium'
                                                                 : 'text-slate-700 hover:bg-gray-50'
@@ -1953,7 +1984,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                             className="absolute left-full top-0 pl-1 z-50"
                                                             onMouseEnter={() => setActiveCalculateCategory(groupDef.key)}
                                                         >
-                                                            <div className="w-44 bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100">
+                                                            <div className="w-[155px] bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs">
                                                                 {groupDef.options.map((opt) => {
                                                                     const isSelected = calculations[activeColumnMenu.prop.id] === opt.key;
                                                                     return (
@@ -1969,14 +2000,16 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                                                 setActiveCalculateCategory(null);
                                                                                 setActiveColumnMenu(null);
                                                                             }}
-                                                                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                                                                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors ${
                                                                                 isSelected
-                                                                                    ? 'bg-gray-100 font-medium text-slate-900'
+                                                                                    ? 'bg-gray-100/90 font-medium text-slate-900'
                                                                                     : 'text-slate-700 hover:bg-gray-50'
                                                                             }`}
                                                                         >
                                                                             <span>{opt.label}</span>
-                                                                            {isSelected && <Check size={13} className="text-slate-700" strokeWidth={2.2} />}
+                                                                            {isSelected && (
+                                                                                <Check size={14} className="text-slate-700 shrink-0" strokeWidth={2.2} />
+                                                                            )}
                                                                         </button>
                                                                     );
                                                                 })}
@@ -1990,10 +2023,8 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 )}
                             </div>
 
-                            {/* Separator */}
                             <div className="h-px bg-gray-100 my-1" />
 
-                            {/* Insert Left */}
                             <button
                                 type="button"
                                 onClick={() => handleInsertPropertyAdjacent(activeColumnMenu.prop.id, 'left')}
@@ -2003,7 +2034,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 <span>Insert left</span>
                             </button>
 
-                            {/* Insert Right */}
                             <button
                                 type="button"
                                 onClick={() => handleInsertPropertyAdjacent(activeColumnMenu.prop.id, 'right')}
@@ -2013,7 +2043,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 <span>Insert right</span>
                             </button>
 
-                            {/* Duplicate property */}
                             <button
                                 type="button"
                                 onClick={() => handleDuplicateProperty(activeColumnMenu.prop)}
@@ -2023,7 +2052,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 <span>Duplicate property</span>
                             </button>
 
-                            {/* Delete Property - Hide for Title */}
                             {activeColumnMenu.prop.id !== 'prop-title' && (
                                 <>
                                     <div className="h-px bg-gray-100 my-1" />
@@ -2039,6 +2067,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             )}
                         </div>
                     )}
+
                     {/* View Picker Modal */}
                     {showViewPicker && (
                         <div
@@ -2087,11 +2116,10 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             style={{ top: `${addPropPos.top}px`, left: `${addPropPos.left}px` }}
                             className="fixed z-50 w-[300px] max-h-[460px] bg-white border border-gray-200/90 shadow-2xl rounded-xl p-2 flex flex-col animate-in fade-in zoom-in-95 duration-100 select-none"
                         >
-                            {/* Name input */}
                             <div className="flex items-center gap-2 px-2 py-1.5 border-b border-gray-100 mb-1.5">
-            <span className="text-gray-400 hover:text-gray-600 cursor-pointer">
-                <Smile size={16} />
-            </span>
+                                <span className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                                    <Smile size={16} />
+                                </span>
                                 <input
                                     type="text"
                                     value={newPropName}
@@ -2113,7 +2141,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 </button>
                             </div>
 
-                            {/* Search Input */}
                             <div className="flex items-center gap-1.5 px-2 py-1 text-gray-400 mb-1">
                                 <span className="text-[11px] font-medium text-gray-400">Select type</span>
                                 <Search size={12} className="text-gray-400" />
@@ -2126,7 +2153,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 />
                             </div>
 
-                            {/* --- PUT YOUR CODE HERE --- */}
                             <div className="overflow-y-auto max-h-[340px] pr-0.5 space-y-2">
                                 {[1, 2, 3].map((sectionId, idx) => {
                                     const items = PROPERTY_TYPES.filter(
@@ -2164,7 +2190,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     );
                                 })}
                             </div>
-                            {/* --- END OF YOUR CODE --- */}
                         </div>
                     )}
 
@@ -2192,9 +2217,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 className="relative z-10 w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col overflow-y-auto animate-in slide-in-from-right duration-200"
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                {/* Side Peek Drawer Header (Refined Notion Toolbar) */}
                                 <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-white/95 backdrop-blur-md sticky top-0 z-30 select-none text-gray-500">
-                                    {/* Left actions: Close, Full page expansion, Up/Down navigation */}
                                     <div className="flex items-center gap-1">
                                         <button
                                             type="button"
@@ -2208,7 +2231,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                // Close side drawer and open full screen in main canvas
                                                 const rowToOpen = activeRow;
                                                 setActiveRow(null);
                                                 window.dispatchEvent(
@@ -2258,8 +2280,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         </button>
                                     </div>
 
-                                    {/* Right actions: Share, Copy link, Favorite, More options */}
-                                    {/* Right actions: Share, Copy link, Favorite, More options */}
                                     <div className="flex items-center gap-1">
                                         <button
                                             type="button"
@@ -2282,7 +2302,6 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             />
                                         </button>
 
-                                        {/* Notion-style PageMoreMenu */}
                                         <div ref={drawerMoreMenuRef} className="relative">
                                             <button
                                                 type="button"
@@ -2319,7 +2338,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             )}
                                         </div>
                                     </div>
-                                </div> {/* <--- Crucial: keep the closing </div> for the sticky header */}
+                                </div>
 
                                 {activeRow.cover ? (
                                     <div
