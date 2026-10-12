@@ -10,7 +10,6 @@ import {
     Calendar as CalendarIcon,
     Plus,
     Search,
-    Filter,
     ArrowUpDown,
     Zap,
     MoreHorizontal,
@@ -112,12 +111,10 @@ const PROPERTY_TYPES = [
     { type: 'multi-select', label: 'Multi-select', icon: ListFilter, section: 1 },
     { type: 'status', label: 'Status', icon: Loader2, section: 1 },
     { type: 'date', label: 'Date', icon: Calendar, section: 1 },
-    { type: 'person', label: 'Person', icon: Users, section: 1 },
     { type: 'files', label: 'Files & media', icon: Paperclip, section: 1 },
     { type: 'checkbox', label: 'Tickbox', icon: CheckSquare, section: 1 },
     { type: 'url', label: 'URL', icon: Link, section: 1 },
-    { type: 'phone', label: 'Phone', icon: Phone, section: 1 },
-    { type: 'email', label: 'Email', icon: AtSign, section: 1 },
+
 
     // Section 2
     { type: 'formula', label: 'Formula', icon: Sigma, section: 2 },
@@ -125,31 +122,42 @@ const PROPERTY_TYPES = [
     // Section 3
     { type: 'created_time', label: 'Created time', icon: Clock, section: 3 },
     { type: 'last_edited_time', label: 'Last edited time', icon: History, section: 3 },
-    { type: 'created_by', label: 'Created by', icon: User, section: 3 },
-    { type: 'last_edited_by', label: 'Last edited by', icon: UserCheck, section: 3 },
-];
 
+];
 const CALCULATE_GROUPS = [
     {
         key: 'count',
         label: 'Count',
         options: [
             { key: 'count_all', label: 'Count all' },
-            { key: 'count_checked', label: 'Count Values' },
-            { key: 'count_unchecked', label: 'Count unique values' },
-            { key: 'count_unchecked', label: 'Count empty' },
-            { key: 'count_unchecked', label: 'Count not empty' },
+            { key: 'count_values', label: 'Count Values' },
+            { key: 'count_unique', label: 'Count unique values' },
+            { key: 'count_empty', label: 'Count empty' },
+            { key: 'count_not_empty', label: 'Count not empty' },
         ],
     },
     {
         key: 'percent',
         label: 'Percent',
         options: [
-            { key: 'percent_checked', label: 'Percent empty' },
-            { key: 'percent_unchecked', label: 'Percent not empty' },
+            { key: 'percent_empty', label: 'Percent empty' },
+            { key: 'percent_not_empty', label: 'Percent not empty' },
         ],
     },
 ];
+
+const NUMBER_CALCULATE_GROUP = {
+    key: 'more_options',
+    label: 'More options',
+    options: [
+        { key: 'sum', label: 'Sum' },
+        { key: 'average', label: 'Average' },
+        { key: 'median', label: 'Median' },
+        { key: 'min', label: 'Min' },
+        { key: 'max', label: 'Max' },
+        { key: 'range', label: 'Range' },
+    ],
+};
 
 export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const {
@@ -858,31 +866,90 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         if (!calcKey || calcKey === 'none') return null;
 
         const totalRows = filteredRows.length;
-        let checkedCount = 0;
 
-        filteredRows.forEach((r) => {
-            const val = r.values?.[propId];
-            if (val === true || val === 'true') {
-                checkedCount += 1;
+        const isNotEmptyValue = (val) => {
+            if (val === undefined || val === null || val === '') return false;
+            if (Array.isArray(val)) return val.length > 0;
+            if (typeof val === 'boolean') return true;
+            return String(val).trim().length > 0;
+        };
+
+        let notEmptyCount = 0;
+        const uniqueSet = new Set();
+        const numbers = [];
+
+        filteredRows.forEach((row) => {
+            const val = row.values?.[propId];
+            if (isNotEmptyValue(val)) {
+                notEmptyCount += 1;
+                if (Array.isArray(val)) {
+                    val.forEach((item) => uniqueSet.add(String(item)));
+                } else {
+                    uniqueSet.add(String(val));
+                }
+            }
+
+            const num = parseFloat(val);
+            if (!isNaN(num)) {
+                numbers.push(num);
             }
         });
 
+        const emptyCount = totalRows - notEmptyCount;
+
         switch (calcKey) {
             case 'count_all':
-                return `Count ${totalRows}`;
-            case 'count_checked':
-                return `Checked ${checkedCount}`;
-            case 'count_unchecked':
-                return `Unchecked ${totalRows - checkedCount}`;
-            case 'percent_checked':
-                return `${totalRows === 0 ? 0 : Math.round((checkedCount / totalRows) * 100)}%`;
-            case 'percent_unchecked':
-                return `${totalRows === 0 ? 0 : Math.round(((totalRows - checkedCount) / totalRows) * 100)}%`;
+                return { label: 'COUNT', value: totalRows };
+            case 'count_values':
+                return { label: 'VALUES', value: notEmptyCount };
+            case 'count_not_empty':
+                return { label: 'NOT EMPTY', value: notEmptyCount };
+            case 'count_empty':
+                return { label: 'EMPTY', value: emptyCount };
+            case 'count_unique':
+                return { label: 'UNIQUE', value: uniqueSet.size };
+            case 'percent_empty': {
+                const pct = totalRows === 0 ? 0 : Math.round((emptyCount / totalRows) * 100);
+                return { label: 'PERCENT EMPTY', value: `${pct}%` };
+            }
+            case 'percent_not_empty': {
+                const pct = totalRows === 0 ? 0 : Math.round((notEmptyCount / totalRows) * 100);
+                return { label: 'PERCENT NOT EMPTY', value: `${pct}%` };
+            }
+            // Numeric calculations
+            case 'sum': {
+                const sum = numbers.reduce((a, b) => a + b, 0);
+                return { label: 'SUM', value: Number(sum.toFixed(2)) };
+            }
+            case 'average': {
+                if (numbers.length === 0) return { label: 'AVERAGE', value: 0 };
+                const avg = numbers.reduce((a, b) => a + b, 0) / numbers.length;
+                return { label: 'AVERAGE', value: Number(avg.toFixed(2)) };
+            }
+            case 'median': {
+                if (numbers.length === 0) return { label: 'MEDIAN', value: 0 };
+                const sorted = [...numbers].sort((a, b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                const med = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+                return { label: 'MEDIAN', value: Number(med.toFixed(2)) };
+            }
+            case 'min': {
+                if (numbers.length === 0) return { label: 'MIN', value: 0 };
+                return { label: 'MIN', value: Math.min(...numbers) };
+            }
+            case 'max': {
+                if (numbers.length === 0) return { label: 'MAX', value: 0 };
+                return { label: 'MAX', value: Math.max(...numbers) };
+            }
+            case 'range': {
+                if (numbers.length === 0) return { label: 'RANGE', value: 0 };
+                const range = Math.max(...numbers) - Math.min(...numbers);
+                return { label: 'RANGE', value: Number(range.toFixed(2)) };
+            }
             default:
                 return null;
         }
     };
-
     return (
         <NodeViewWrapper className="my-6 not-prose font-sans group/db w-full">
             {/* Title */}
@@ -981,9 +1048,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 </div>
 
                 <div className="flex items-center gap-2 text-gray-400">
-                    <button className="p-1 hover:bg-gray-100 hover:text-slate-700 rounded transition-colors" title="Filter">
-                        <Filter size={14} />
-                    </button>
+
                     <button className="p-1 hover:bg-gray-100 hover:text-slate-700 rounded transition-colors" title="Sort">
                         <ArrowUpDown size={14} />
                     </button>
@@ -1162,6 +1227,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     // --- Number ---
                                     if (prop.type === 'number') {
                                         return (
+                                            // Inside tbody where prop.type === 'number':
                                             <td key={prop.id} className="py-1.5 px-2.5">
                                                 <input
                                                     type="number"
@@ -1169,7 +1235,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                     placeholder="Empty"
                                                     {...isolateEvents}
                                                     onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
-                                                    className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                 />
                                             </td>
                                         );
@@ -1323,19 +1389,58 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             </tr>
                         ))}
                         </tbody>
+
                         {/* --- CALCULATION FOOTER --- */}
                         {Object.values(calculations).some((c) => c && c !== 'none') && (
-                            <tfoot>
-                            <tr className="border-t border-gray-200/80 text-xs text-gray-500 font-normal">
-                                {properties.map((prop, idx) => (
-                                    <td key={prop.id} className="py-2 px-2.5">
-                                        {renderCalculationResult(prop.id) && (
-                                            <div className="flex items-center gap-1.5 text-gray-500 font-medium select-none">
-                                                <span>{renderCalculationResult(prop.id)}</span>
-                                            </div>
-                                        )}
-                                    </td>
-                                ))}
+                            <tfoot className="group/footer border-t border-gray-100">
+                            <tr className="text-gray-400 text-xs">
+                                {properties.map((prop) => {
+                                    const result = renderCalculationResult(prop.id);
+                                    const isNumber = prop.type === 'number';
+
+                                    return (
+                                        <td key={prop.id} className={`py-2 px-2.5 relative ${isNumber ? 'text-right' : 'text-left'}`}>
+                                            {result ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setActiveColumnMenu({
+                                                            prop,
+                                                            rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
+                                                        });
+                                                        setShowCalculateSubmenu(true);
+                                                    }}
+                                                    className={`inline-flex items-center gap-1.5 cursor-pointer py-0.5 px-1.5 rounded hover:bg-gray-100 transition-colors select-none text-gray-500 font-normal ${
+                                                        isNumber ? 'justify-end' : ''
+                                                    }`}
+                                                >
+                                <span className="text-[10px] uppercase font-medium text-gray-400 tracking-wider">
+                                    {result.label}
+                                </span>
+                                                    <span className="text-xs text-gray-700 font-normal">
+                                    {result.value}
+                                </span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setActiveColumnMenu({
+                                                            prop,
+                                                            rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
+                                                        });
+                                                        setShowCalculateSubmenu(true);
+                                                    }}
+                                                    className="opacity-0 group-hover/footer:opacity-100 hover:opacity-100! text-gray-400 hover:text-gray-700 text-xs py-0.5 px-1.5 rounded hover:bg-gray-100 transition-all select-none"
+                                                >
+                                                    Calculate
+                                                </button>
+                                            )}
+                                        </td>
+                                    );
+                                })}
                                 <td className="w-16" />
                             </tr>
                             </tfoot>
@@ -1841,15 +1946,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 )}
                             </div>
 
-                            {/* Filter */}
-                            <button
-                                type="button"
-                                onClick={() => setActiveColumnMenu(null)}
-                                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 hover:bg-gray-100/70 rounded-lg transition-colors text-left text-slate-700"
-                            >
-                                <Filter size={14} className="text-gray-500" />
-                                <span>Filter</span>
-                            </button>
+
 
                             {/* Sort Row & Flyout Submenu */}
                             <div
@@ -1952,96 +2049,104 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     <span className="text-[12px] text-gray-400">›</span>
                                 </button>
 
-                                {showCalculateSubmenu && (
-                                    <div
-                                        className="absolute left-full top-0 pl-1 z-50"
-                                        onMouseEnter={() => setShowCalculateSubmenu(true)}
-                                        onMouseLeave={() => {
-                                            setShowCalculateSubmenu(false);
-                                            setActiveCalculateCategory(null);
-                                        }}
-                                    >
-                                        <div className="w-[145px] bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setCalculations((prev) => {
-                                                        const next = { ...prev };
-                                                        delete next[activeColumnMenu.prop.id];
-                                                        return next;
-                                                    });
-                                                    setShowCalculateSubmenu(false);
-                                                    setActiveCalculateCategory(null);
-                                                    setActiveColumnMenu(null);
-                                                }}
-                                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left hover:bg-gray-50 transition-colors text-slate-700"
-                                            >
-                                                <span>None</span>
-                                                {(!calculations[activeColumnMenu.prop.id] || calculations[activeColumnMenu.prop.id] === 'none') && (
-                                                    <Check size={14} className="text-slate-700 shrink-0" strokeWidth={2.2} />
-                                                )}
-                                            </button>
+                                {showCalculateSubmenu && (() => {
+                                    // Only include "More options" if the column is a number
+                                    const isNumberProp = activeColumnMenu.prop.type === 'number';
+                                    const visibleGroups = isNumberProp
+                                        ? [...CALCULATE_GROUPS, NUMBER_CALCULATE_GROUP]
+                                        : CALCULATE_GROUPS;
 
-                                            {CALCULATE_GROUPS.map((groupDef) => (
-                                                <div
-                                                    key={groupDef.key}
-                                                    className="relative"
-                                                    onMouseEnter={() => setActiveCalculateCategory(groupDef.key)}
+                                    return (
+                                        <div
+                                            className="absolute left-full top-0 pl-1 z-50"
+                                            onMouseEnter={() => setShowCalculateSubmenu(true)}
+                                            onMouseLeave={() => {
+                                                setShowCalculateSubmenu(false);
+                                                setActiveCalculateCategory(null);
+                                            }}
+                                        >
+                                            <div className="w-[145px] bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setCalculations((prev) => {
+                                                            const next = { ...prev };
+                                                            delete next[activeColumnMenu.prop.id];
+                                                            return next;
+                                                        });
+                                                        setShowCalculateSubmenu(false);
+                                                        setActiveCalculateCategory(null);
+                                                        setActiveColumnMenu(null);
+                                                    }}
+                                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left hover:bg-gray-50 transition-colors text-slate-700"
                                                 >
-                                                    <button
-                                                        type="button"
-                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors ${
-                                                            activeCalculateCategory === groupDef.key
-                                                                ? 'bg-gray-100 text-slate-900 font-medium'
-                                                                : 'text-slate-700 hover:bg-gray-50'
-                                                        }`}
-                                                    >
-                                                        <span>{groupDef.label}</span>
-                                                        <span className="text-[12px] text-gray-400">›</span>
-                                                    </button>
-
-                                                    {activeCalculateCategory === groupDef.key && (
-                                                        <div
-                                                            className="absolute left-full top-0 pl-1 z-50"
-                                                            onMouseEnter={() => setActiveCalculateCategory(groupDef.key)}
-                                                        >
-                                                            <div className="w-[155px] bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs">
-                                                                {groupDef.options.map((opt) => {
-                                                                    const isSelected = calculations[activeColumnMenu.prop.id] === opt.key;
-                                                                    return (
-                                                                        <button
-                                                                            key={opt.key}
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setCalculations((prev) => ({
-                                                                                    ...prev,
-                                                                                    [activeColumnMenu.prop.id]: opt.key,
-                                                                                }));
-                                                                                setShowCalculateSubmenu(false);
-                                                                                setActiveCalculateCategory(null);
-                                                                                setActiveColumnMenu(null);
-                                                                            }}
-                                                                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors ${
-                                                                                isSelected
-                                                                                    ? 'bg-gray-100/90 font-medium text-slate-900'
-                                                                                    : 'text-slate-700 hover:bg-gray-50'
-                                                                            }`}
-                                                                        >
-                                                                            <span>{opt.label}</span>
-                                                                            {isSelected && (
-                                                                                <Check size={14} className="text-slate-700 shrink-0" strokeWidth={2.2} />
-                                                                            )}
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
+                                                    <span>None</span>
+                                                    {(!calculations[activeColumnMenu.prop.id] || calculations[activeColumnMenu.prop.id] === 'none') && (
+                                                        <Check size={14} className="text-slate-700 shrink-0" strokeWidth={2.2} />
                                                     )}
-                                                </div>
-                                            ))}
+                                                </button>
+
+                                                {visibleGroups.map((groupDef) => (
+                                                    <div
+                                                        key={groupDef.key}
+                                                        className="relative"
+                                                        onMouseEnter={() => setActiveCalculateCategory(groupDef.key)}
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors ${
+                                                                activeCalculateCategory === groupDef.key
+                                                                    ? 'bg-gray-100 text-slate-900 font-medium'
+                                                                    : 'text-slate-700 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            <span>{groupDef.label}</span>
+                                                            <span className="text-[12px] text-gray-400">›</span>
+                                                        </button>
+
+                                                        {activeCalculateCategory === groupDef.key && (
+                                                            <div
+                                                                className="absolute left-full top-0 pl-1 z-50"
+                                                                onMouseEnter={() => setActiveCalculateCategory(groupDef.key)}
+                                                            >
+                                                                <div className="w-[155px] bg-white border border-gray-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs">
+                                                                    {groupDef.options.map((opt) => {
+                                                                        const isSelected = calculations[activeColumnMenu.prop.id] === opt.key;
+                                                                        return (
+                                                                            <button
+                                                                                key={opt.key}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setCalculations((prev) => ({
+                                                                                        ...prev,
+                                                                                        [activeColumnMenu.prop.id]: opt.key,
+                                                                                    }));
+                                                                                    setShowCalculateSubmenu(false);
+                                                                                    setActiveCalculateCategory(null);
+                                                                                    setActiveColumnMenu(null);
+                                                                                }}
+                                                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors ${
+                                                                                    isSelected
+                                                                                        ? 'bg-gray-100/90 font-medium text-slate-900'
+                                                                                        : 'text-slate-700 hover:bg-gray-50'
+                                                                                }`}
+                                                                            >
+                                                                                <span>{opt.label}</span>
+                                                                                {isSelected && (
+                                                                                    <Check size={14} className="text-slate-700 shrink-0" strokeWidth={2.2} />
+                                                                                )}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
                             </div>
 
                             <div className="h-px bg-gray-100 my-1" />
