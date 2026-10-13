@@ -889,9 +889,11 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 }
             }
 
-            const num = parseFloat(val);
-            if (!isNaN(num)) {
-                numbers.push(num);
+            if (val !== undefined && val !== null && String(val).trim() !== '') {
+                const parsed = parseFloat(String(val).replace(/[^0-9.-]+/g, ''));
+                if (!isNaN(parsed)) {
+                    numbers.push(parsed);
+                }
             }
         });
 
@@ -916,22 +918,22 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 const pct = totalRows === 0 ? 0 : Math.round((notEmptyCount / totalRows) * 100);
                 return { label: 'PERCENT NOT EMPTY', value: `${pct}%` };
             }
-            // Numeric calculations
+            // --- Number Calculations ---
             case 'sum': {
                 const sum = numbers.reduce((a, b) => a + b, 0);
-                return { label: 'SUM', value: Number(sum.toFixed(2)) };
+                return { label: 'SUM', value: Math.round(sum * 100) / 100 };
             }
             case 'average': {
                 if (numbers.length === 0) return { label: 'AVERAGE', value: 0 };
                 const avg = numbers.reduce((a, b) => a + b, 0) / numbers.length;
-                return { label: 'AVERAGE', value: Number(avg.toFixed(2)) };
+                return { label: 'AVERAGE', value: Math.round(avg * 100) / 100 };
             }
             case 'median': {
                 if (numbers.length === 0) return { label: 'MEDIAN', value: 0 };
                 const sorted = [...numbers].sort((a, b) => a - b);
                 const mid = Math.floor(sorted.length / 2);
                 const med = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-                return { label: 'MEDIAN', value: Number(med.toFixed(2)) };
+                return { label: 'MEDIAN', value: Math.round(med * 100) / 100 };
             }
             case 'min': {
                 if (numbers.length === 0) return { label: 'MIN', value: 0 };
@@ -944,7 +946,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             case 'range': {
                 if (numbers.length === 0) return { label: 'RANGE', value: 0 };
                 const range = Math.max(...numbers) - Math.min(...numbers);
-                return { label: 'RANGE', value: Number(range.toFixed(2)) };
+                return { label: 'RANGE', value: Math.round(range * 100) / 100 };
             }
             default:
                 return null;
@@ -1399,44 +1401,49 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     const isNumber = prop.type === 'number';
 
                                     return (
-                                        <td key={prop.id} className={`py-2 px-2.5 relative ${isNumber ? 'text-right' : 'text-left'}`}>
+                                        <td
+                                            key={prop.id}
+                                            className={`py-2 px-2.5 relative ${isNumber ? 'text-right' : 'text-left'}`}
+                                        >
                                             {result ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        const rect = e.currentTarget.getBoundingClientRect();
-                                                        setActiveColumnMenu({
-                                                            prop,
-                                                            rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
-                                                        });
-                                                        setShowCalculateSubmenu(true);
-                                                    }}
-                                                    className={`inline-flex items-center gap-1.5 cursor-pointer py-0.5 px-1.5 rounded hover:bg-gray-100 transition-colors select-none text-gray-500 font-normal ${
-                                                        isNumber ? 'justify-end' : ''
-                                                    }`}
-                                                >
-                                <span className="text-[10px] uppercase font-medium text-gray-400 tracking-wider">
-                                    {result.label}
-                                </span>
-                                                    <span className="text-xs text-gray-700 font-normal">
-                                    {result.value}
-                                </span>
-                                                </button>
+                                                <div className={`flex items-center ${isNumber ? 'justify-end' : 'justify-start'}`}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setActiveColumnMenu({
+                                                                prop,
+                                                                rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
+                                                            });
+                                                            setShowCalculateSubmenu(true);
+                                                        }}
+                                                        className="inline-flex items-center gap-1.5 cursor-pointer py-0.5 px-1.5 rounded hover:bg-gray-100 transition-colors select-none"
+                                                    >
+                                                            <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider">
+                                                                {result.label}
+                                                            </span>
+                                                        <span className="text-xs text-slate-700 font-medium">
+                                                                {result.value}
+                                                            </span>
+                                                    </button>
+                                                </div>
                                             ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        const rect = e.currentTarget.getBoundingClientRect();
-                                                        setActiveColumnMenu({
-                                                            prop,
-                                                            rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
-                                                        });
-                                                        setShowCalculateSubmenu(true);
-                                                    }}
-                                                    className="opacity-0 group-hover/footer:opacity-100 hover:opacity-100! text-gray-400 hover:text-gray-700 text-xs py-0.5 px-1.5 rounded hover:bg-gray-100 transition-all select-none"
-                                                >
-                                                    Calculate
-                                                </button>
+                                                <div className={`flex items-center ${isNumber ? 'justify-end' : 'justify-start'}`}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setActiveColumnMenu({
+                                                                prop,
+                                                                rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
+                                                            });
+                                                            setShowCalculateSubmenu(true);
+                                                        }}
+                                                        className="opacity-0 group-hover/footer:opacity-100 hover:opacity-100! text-gray-400 hover:text-gray-700 text-xs py-0.5 px-1.5 rounded hover:bg-gray-100 transition-all select-none"
+                                                    >
+                                                        Calculate
+                                                    </button>
+                                                </div>
                                             )}
                                         </td>
                                     );
