@@ -64,6 +64,7 @@ import PageMoreMenu from './PageMoreMenu';
 import SelectCellPopover from './SelectCellPopover';
 import StatusCellPopover, { StatusBadge } from './StatusCellPopover';
 import DateCellPopover from './DateCellPopover';
+import FilesCellPopover, { FileBadge } from './FileCellPopover';
 
 const NOTION_COLORS = {
     default: { bg: 'bg-[#F1F1EF]', text: 'text-[#37352F]', swatch: 'bg-[#E3E2E0]' },
@@ -237,6 +238,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const [drawerIsFullWidth, setDrawerIsFullWidth] = useState(false);
     const [activeStatusMenu, setActiveStatusMenu] = useState(null);
     const [activeDateMenu, setActiveDateMenu] = useState(null);
+    const [activeFilesMenu, setActiveFilesMenu] = useState(null);
 
     useEffect(() => {
         if (activeRow) {
@@ -912,6 +914,8 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             }
         });
 
+
+
         const emptyCount = totalRows - notEmptyCount;
 
         switch (calcKey) {
@@ -965,6 +969,25 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             }
             default:
                 return null;
+        }
+    };
+    const handleOpenFileOrDownload = (fileData) => {
+        if (!fileData) return;
+
+        // External Link -> open in new tab
+        if (fileData.type === 'link') {
+            window.open(fileData.url, '_blank', 'noopener,noreferrer');
+            return;
+        }
+
+        // Uploaded File -> trigger direct browser download
+        if (fileData.dataUrl) {
+            const link = document.createElement('a');
+            link.href = fileData.dataUrl;
+            link.download = fileData.name || 'download';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
     };
     return (
@@ -1221,6 +1244,39 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                         Open
                                                     </button>
                                                 </div>
+                                            </td>
+                                        );
+                                    }
+                                    // --- Files & Media Column ---
+                                    if (prop.type === 'files') {
+                                        // cellVal can be an object: { type: 'upload' | 'link', name, url, dataUrl }
+                                        const fileData = typeof cellVal === 'object' ? cellVal : null;
+
+                                        return (
+                                            <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
+                                                {fileData ? (
+                                                    <FileBadge
+                                                        fileData={fileData}
+                                                        onDownloadOrOpen={handleOpenFileOrDownload}
+                                                        onRemove={() => handleUpdateCell(row.id, prop.id, null)}
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setActiveFilesMenu({
+                                                                rowId: row.id,
+                                                                propId: prop.id,
+                                                                rect,
+                                                            });
+                                                        }}
+                                                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-gray-400 hover:text-slate-700 hover:bg-gray-100/70 text-xs transition-colors cursor-pointer"
+                                                    >
+                                                        <Plus size={12} />
+                                                        <span>Add a file or image</span>
+                                                    </button>
+                                                )}
                                             </td>
                                         );
                                     }
@@ -1885,6 +1941,16 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 handleUpdateCell(activeDateMenu.rowId, activeDateMenu.propId, formattedDate);
                             }}
                             onClose={() => setActiveDateMenu(null)}
+                        />
+                    )}
+                    {/* Files & Media Popover */}
+                    {activeFilesMenu && (
+                        <FilesCellPopover
+                            anchorRect={activeFilesMenu.rect}
+                            onSelectFile={(newFile) => {
+                                handleUpdateCell(activeFilesMenu.rowId, activeFilesMenu.propId, newFile);
+                            }}
+                            onClose={() => setActiveFilesMenu(null)}
                         />
                     )}
                     {/* Active Select / Multi-Select Popover */}
@@ -2763,6 +2829,41 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                         >
                                                             {currentVal || 'Empty'}
                                                         </button>
+                                                    </div>
+                                                );
+                                            }
+                                            // --- Files & media in Side Peek Drawer ---
+                                            if (prop.type === 'files') {
+                                                const fileData = typeof activeRow.values?.[prop.id] === 'object' ? activeRow.values?.[prop.id] : null;
+                                                return (
+                                                    <div key={prop.id} className="flex items-center">
+                                                        <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">
+                                                            {getPropIcon(prop.type)}
+                                                            <span>{prop.name}</span>
+                                                        </div>
+                                                        {fileData ? (
+                                                            <FileBadge
+                                                                fileData={fileData}
+                                                                onDownloadOrOpen={handleOpenFileOrDownload}
+                                                                onRemove={() => handleUpdateCell(activeRow.id, prop.id, null)}
+                                                            />
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setActiveFilesMenu({
+                                                                        rowId: activeRow.id,
+                                                                        propId: prop.id,
+                                                                        rect,
+                                                                    });
+                                                                }}
+                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-100 rounded"
+                                                            >
+                                                                <Plus size={12} />
+                                                                <span>Add a file or image</span>
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 );
                                             }
