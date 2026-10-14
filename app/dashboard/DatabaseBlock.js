@@ -402,6 +402,10 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         properties.filter(p => p.type === 'status').forEach(p => {
             statusDefaults[p.id] = 'not_started';
         });
+        const createdTimeDefaults = {};
+        properties.filter(p => p.type === 'created_time').forEach(p => {
+            createdTimeDefaults[p.id] = nowFormatted;
+        });
         const newRow = {
             id: `row-${Date.now()}`,
             icon: { type: 'emoji', value: '♡' },
@@ -517,6 +521,18 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 case 'status':
                     nextVal = currentVal || 'not_started';
                     break;
+                case 'created_time': {
+
+                    if (currentVal) {
+                        nextVal = currentVal;
+                    } else {
+                        const timestampFromId = parseInt((row.id || '').replace(/\D/g, ''), 10);
+                        const d = !isNaN(timestampFromId) && timestampFromId > 0 ? new Date(timestampFromId) : new Date();
+                        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                        nextVal = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    }
+                    break;
+                }
                 default:
                     if (typeof currentVal === 'boolean') {
                         nextVal = currentVal ? 'Yes' : 'No';
@@ -1179,8 +1195,12 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         setShowTypeSubmenu(false);
                                         setShowSortSubmenu(false);
                                     }}
-                                    className={`py-2 px-2.5 font-normal text-gray-500 hover:bg-gray-100/70 rounded cursor-pointer transition-colors ${
-                                        idx === 0 ? 'w-[38%] min-w-[200px]' : 'w-[28%] min-w-[170px]'
+                                    className={`py-2 px-2.5 font-normal text-gray-500 hover:bg-gray-100/70 rounded cursor-pointer transition-colors whitespace-nowrap ${
+                                        idx === 0
+                                            ? 'w-[32%] min-w-[200px]'
+                                            : prop.type === 'created_time' || prop.type === 'date'
+                                                ? 'min-w-[190px]'
+                                                : 'min-w-[150px]'
                                     }`}
                                 >
                                     <div className="flex items-center gap-1.5">
@@ -1482,6 +1502,35 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                     onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
                                                     className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300"
                                                 />
+                                            </td>
+                                        );
+                                    }
+                                    if (prop.type === 'created_time' || (prop.id === 'prop-created' && prop.type !== 'date')) {
+                                        const displayVal = cellVal || formatCurrentDateTime();
+                                        return (
+                                            <td key={prop.id} className="py-2 px-2.5 text-slate-800 text-[13px] select-none whitespace-nowrap overflow-hidden text-ellipsis">
+                                                {displayVal}
+                                            </td>
+                                        );
+                                    }
+                                    if (prop.type === 'date') {
+                                        return (
+                                            <td
+                                                key={prop.id}
+                                                className="py-1.5 px-2.5 relative select-none cursor-pointer whitespace-nowrap overflow-hidden text-ellipsis"
+                                                onClick={(e) => {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setActiveDateMenu({
+                                                        rowId: row.id,
+                                                        propId: prop.id,
+                                                        rect,
+                                                        currentDate: cellVal || '',
+                                                    });
+                                                }}
+                                            >
+                                                <span className={`text-[13px] ${cellVal ? 'text-slate-800' : 'text-gray-300'}`}>
+                                                    {cellVal || 'Empty'}
+                                                </span>
                                             </td>
                                         );
                                     }
@@ -2918,6 +2967,22 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                         >
                                                             {calculatedValue !== '' ? calculatedValue : 'Empty'}
                                                         </button>
+                                                    </div>
+                                                );
+                                            }
+                                            // --- Created Time in Side Peek Drawer ---
+
+                                            if (prop.type === 'created_time') {
+                                                const currentVal = activeRow.values?.[prop.id] || formatCurrentDateTime();
+                                                return (
+                                                    <div key={prop.id} className="flex items-center">
+                                                        <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">
+                                                            {getPropIcon(prop.type)}
+                                                            <span>{prop.name}</span>
+                                                        </div>
+                                                        <span className="text-[13px] text-slate-800 px-2 py-1 select-none whitespace-nowrap">
+                                                            {currentVal}
+                                                        </span>
                                                     </div>
                                                 );
                                             }
