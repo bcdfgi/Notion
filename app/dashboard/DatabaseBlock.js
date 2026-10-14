@@ -55,12 +55,14 @@ import {
     MousePointerClick,
     MapPin,
     Binary,
+    SunMedium
 } from 'lucide-react';
 import IconPickerModal from './IconPickerModal';
 import PageIcon from './PageIcon';
 import RowEditor from './RowEditor';
 import PageMoreMenu from './PageMoreMenu';
 import SelectCellPopover from './SelectCellPopover';
+import StatusCellPopover, { StatusBadge } from './StatusCellPopover';
 
 const NOTION_COLORS = {
     default: { bg: 'bg-[#F1F1EF]', text: 'text-[#37352F]', swatch: 'bg-[#E3E2E0]' },
@@ -109,7 +111,7 @@ const PROPERTY_TYPES = [
     { type: 'number', label: 'Number', icon: Hash, section: 1 },
     { type: 'select', label: 'Select', icon: ChevronDownCircle, section: 1 },
     { type: 'multi-select', label: 'Multi-select', icon: ListFilter, section: 1 },
-    { type: 'status', label: 'Status', icon: Loader2, section: 1 },
+    { type: 'status', label: 'Status', icon: SunMedium, section: 1 },
     { type: 'date', label: 'Date', icon: Calendar, section: 1 },
     { type: 'files', label: 'Files & media', icon: Paperclip, section: 1 },
     { type: 'checkbox', label: 'Tickbox', icon: CheckSquare, section: 1 },
@@ -232,6 +234,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const [drawerFontStyle, setDrawerFontStyle] = useState('default');
     const [drawerIsSmallText, setDrawerIsSmallText] = useState(false);
     const [drawerIsFullWidth, setDrawerIsFullWidth] = useState(false);
+    const [activeStatusMenu, setActiveStatusMenu] = useState(null);
 
     useEffect(() => {
         if (activeRow) {
@@ -388,6 +391,11 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     };
 
     const handleAddRow = (dateStr = null, tagValue = '') => {
+
+        const statusDefaults = {};
+        properties.filter(p => p.type === 'status').forEach(p => {
+            statusDefaults[p.id] = 'not_started';
+        });
         const newRow = {
             id: `row-${Date.now()}`,
             icon: { type: 'emoji', value: '♡' },
@@ -399,6 +407,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 'prop-title': '',
                 'prop-created': formatCurrentDateTime(),
                 'prop-tags': tagValue,
+                ...statusDefaults,
             },
             content: { type: 'doc', content: [{ type: 'paragraph' }] },
         };
@@ -477,6 +486,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             let nextVal = currentVal;
 
             switch (newType) {
+
                 case 'checkbox':
                     nextVal = currentVal === true || currentVal === 'true' || currentVal === '1';
                     break;
@@ -497,6 +507,9 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                     if (Array.isArray(currentVal)) {
                         nextVal = currentVal[0] || '';
                     }
+                    break;
+                case 'status':
+                    nextVal = currentVal || 'not_started';
                     break;
                 default:
                     if (typeof currentVal === 'boolean') {
@@ -1327,6 +1340,26 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             </td>
                                         );
                                     }
+                                    // --- Status Column ---
+                                    if (prop.type === 'status') {
+                                        const statusVal = cellVal || 'not_started';
+                                        return (
+                                            <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
+                                                <StatusBadge
+                                                    statusId={statusVal}
+                                                    onClick={(e) => {
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setActiveStatusMenu({
+                                                            rowId: row.id,
+                                                            propId: prop.id,
+                                                            rect,
+                                                            currentStatus: statusVal,
+                                                        });
+                                                    }}
+                                                />
+                                            </td>
+                                        );
+                                    }
 
                                     // --- URL ---
                                     if (prop.type === 'url') {
@@ -1825,6 +1858,16 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             {/* --- PORTALIZED MODALS OUTSIDE PROSEMIRROR --- */}
             {mounted && createPortal(
                 <>
+                    {activeStatusMenu && (
+                        <StatusCellPopover
+                            anchorRect={activeStatusMenu.rect}
+                            currentStatusId={activeStatusMenu.currentStatus}
+                            onSelect={(statusId) => {
+                                handleUpdateCell(activeStatusMenu.rowId, activeStatusMenu.propId, statusId);
+                            }}
+                            onClose={() => setActiveStatusMenu(null)}
+                        />
+                    )}
                     {/* Active Select / Multi-Select Popover */}
                     {activeSelectMenu && (() => {
                         const targetProp = properties.find(p => p.id === activeSelectMenu.propId);
@@ -2651,22 +2694,50 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
 
                                     {/* Properties list */}
                                     <div className="space-y-3 pb-8 border-b border-gray-100 text-xs">
-                                        {properties.filter(p => p.type !== 'title').map((prop) => (
-                                            <div key={prop.id} className="flex items-center">
-                                                <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">
-                                                    {getPropIcon(prop.type)}
-                                                    <span>{prop.name}</span>
+                                        {properties.filter(p => p.type !== 'title').map((prop) => {
+                                            // --- Status Property ---
+                                            if (prop.type === 'status') {
+                                                const currentVal = activeRow.values?.[prop.id] || 'not_started';
+                                                return (
+                                                    <div key={prop.id} className="flex items-center">
+                                                        <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">
+                                                            {getPropIcon(prop.type)}
+                                                            <span>{prop.name}</span>
+                                                        </div>
+                                                        <StatusBadge
+                                                            statusId={currentVal}
+                                                            onClick={(e) => {
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setActiveStatusMenu({
+                                                                    rowId: activeRow.id,
+                                                                    propId: prop.id,
+                                                                    rect,
+                                                                    currentStatus: currentVal,
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                );
+                                            }
+
+                                            // --- All other properties (fallback to standard input) ---
+                                            return (
+                                                <div key={prop.id} className="flex items-center">
+                                                    <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">
+                                                        {getPropIcon(prop.type)}
+                                                        <span>{prop.name}</span>
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        value={activeRow.values?.[prop.id] || ''}
+                                                        placeholder="Empty"
+                                                        {...isolateEvents}
+                                                        onChange={(e) => handleUpdateCell(activeRow.id, prop.id, e.target.value)}
+                                                        className="border border-gray-200 px-2 py-1 rounded focus:outline-none w-full text-slate-800 placeholder:text-gray-300"
+                                                    />
                                                 </div>
-                                                <input
-                                                    type="text"
-                                                    value={activeRow.values?.[prop.id] || ''}
-                                                    placeholder="Empty"
-                                                    {...isolateEvents}
-                                                    onChange={(e) => handleUpdateCell(activeRow.id, prop.id, e.target.value)}
-                                                    className="border border-gray-200 px-2 py-1 rounded focus:outline-none w-full text-slate-800 placeholder:text-gray-300"
-                                                />
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                     <div className="flex-1 flex flex-col pt-3 pb-20">
                                         <RowEditor
