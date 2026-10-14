@@ -63,6 +63,7 @@ import RowEditor from './RowEditor';
 import PageMoreMenu from './PageMoreMenu';
 import SelectCellPopover from './SelectCellPopover';
 import StatusCellPopover, { StatusBadge } from './StatusCellPopover';
+import DateCellPopover from './DateCellPopover';
 
 const NOTION_COLORS = {
     default: { bg: 'bg-[#F1F1EF]', text: 'text-[#37352F]', swatch: 'bg-[#E3E2E0]' },
@@ -235,6 +236,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const [drawerIsSmallText, setDrawerIsSmallText] = useState(false);
     const [drawerIsFullWidth, setDrawerIsFullWidth] = useState(false);
     const [activeStatusMenu, setActiveStatusMenu] = useState(null);
+    const [activeDateMenu, setActiveDateMenu] = useState(null);
 
     useEffect(() => {
         if (activeRow) {
@@ -1256,18 +1258,24 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         );
                                     }
 
-                                    // --- Date / Created Time ---
-                                    if (prop.type === 'date' || prop.type === 'created_time' || prop.id === 'prop-created') {
+                                    if (prop.type === 'date' || prop.id === 'prop-created') {
                                         return (
-                                            <td key={prop.id} className="py-1.5 px-2.5 text-gray-600 text-xs">
-                                                <input
-                                                    type="text"
-                                                    value={cellVal || ''}
-                                                    {...isolateEvents}
-                                                    onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
-                                                    placeholder="Empty"
-                                                    className="w-full bg-transparent focus:outline-none text-gray-600 placeholder:text-gray-300 text-xs"
-                                                />
+                                            <td
+                                                key={prop.id}
+                                                className="py-1.5 px-2.5 relative select-none cursor-pointer"
+                                                onClick={(e) => {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setActiveDateMenu({
+                                                        rowId: row.id,
+                                                        propId: prop.id,
+                                                        rect,
+                                                        currentDate: cellVal || '',
+                                                    });
+                                                }}
+                                            >
+            <span className={`text-xs ${cellVal ? 'text-slate-800' : 'text-gray-300'}`}>
+                {cellVal || 'Empty'}
+            </span>
                                             </td>
                                         );
                                     }
@@ -1866,6 +1874,17 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 handleUpdateCell(activeStatusMenu.rowId, activeStatusMenu.propId, statusId);
                             }}
                             onClose={() => setActiveStatusMenu(null)}
+                        />
+                    )}
+
+                    {activeDateMenu && (
+                        <DateCellPopover
+                            anchorRect={activeDateMenu.rect}
+                            currentDate={activeDateMenu.currentDate}
+                            onSelect={(formattedDate) => {
+                                handleUpdateCell(activeDateMenu.rowId, activeDateMenu.propId, formattedDate);
+                            }}
+                            onClose={() => setActiveDateMenu(null)}
                         />
                     )}
                     {/* Active Select / Multi-Select Popover */}
@@ -2716,6 +2735,34 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                                 });
                                                             }}
                                                         />
+                                                    </div>
+                                                );
+                                            }
+                                            if (prop.type === 'date') {
+                                                const currentVal = activeRow.values?.[prop.id] || '';
+                                                return (
+                                                    <div key={prop.id} className="flex items-center">
+                                                        <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">
+                                                            {getPropIcon(prop.type)}
+                                                            <span>{prop.name}</span>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setActiveDateMenu({
+                                                                    rowId: activeRow.id,
+                                                                    propId: prop.id,
+                                                                    rect,
+                                                                    currentDate: currentVal,
+                                                                });
+                                                            }}
+                                                            className={`text-xs text-left px-2 py-1 rounded hover:bg-gray-100 border border-transparent hover:border-gray-200 transition-colors ${
+                                                                currentVal ? 'text-slate-800' : 'text-gray-300'
+                                                            }`}
+                                                        >
+                                                            {currentVal || 'Empty'}
+                                                        </button>
                                                     </div>
                                                 );
                                             }
