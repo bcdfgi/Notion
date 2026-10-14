@@ -65,6 +65,7 @@ import SelectCellPopover from './SelectCellPopover';
 import StatusCellPopover, { StatusBadge } from './StatusCellPopover';
 import DateCellPopover from './DateCellPopover';
 import FilesCellPopover, { FileBadge } from './FileCellPopover';
+import FormulaEditorModal, { evaluateFormula } from './FormulaEditorModal';
 
 const NOTION_COLORS = {
     default: { bg: 'bg-[#F1F1EF]', text: 'text-[#37352F]', swatch: 'bg-[#E3E2E0]' },
@@ -239,6 +240,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const [activeStatusMenu, setActiveStatusMenu] = useState(null);
     const [activeDateMenu, setActiveDateMenu] = useState(null);
     const [activeFilesMenu, setActiveFilesMenu] = useState(null);
+    const [activeFormulaProp, setActiveFormulaProp] = useState(null);
 
     useEffect(() => {
         if (activeRow) {
@@ -584,6 +586,12 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
 
         updateAttributes({ properties: nextProperties, rows: nextRows });
         setActiveColumnMenu(null);
+    };
+    const handleSaveFormula = (propId, formulaString) => {
+        const updatedProps = properties.map((p) =>
+            p.id === propId ? { ...p, formula: formulaString } : p
+        );
+        updateAttributes({ properties: updatedProps });
     };
 
     const handleDeleteProperty = (propId) => {
@@ -1444,6 +1452,23 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             </td>
                                         );
                                     }
+                                    // --- Formula Column ---
+                                    if (prop.type === 'formula') {
+                                        const calculatedValue = evaluateFormula(prop.formula, row.values || {}, properties);
+
+                                        return (
+                                            <td
+                                                key={prop.id}
+                                                onClick={() => setActiveFormulaProp(prop)}
+                                                className="py-1.5 px-2.5 relative select-none cursor-pointer hover:bg-gray-100/50 transition-colors"
+                                                title="Click to edit formula"
+                                            >
+            <span className={`text-xs font-mono ${calculatedValue !== '' ? 'text-slate-800' : 'text-gray-300'}`}>
+                {calculatedValue !== '' ? calculatedValue : 'Empty'}
+            </span>
+                                            </td>
+                                        );
+                                    }
 
                                     // --- Phone & Email ---
                                     if (prop.type === 'phone' || prop.type === 'email') {
@@ -1951,6 +1976,16 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 handleUpdateCell(activeFilesMenu.rowId, activeFilesMenu.propId, newFile);
                             }}
                             onClose={() => setActiveFilesMenu(null)}
+                        />
+                    )}
+                    {/* Formula Editor Modal */}
+                    {activeFormulaProp && (
+                        <FormulaEditorModal
+                            property={activeFormulaProp}
+                            rows={rows}
+                            properties={properties}
+                            onSaveFormula={handleSaveFormula}
+                            onClose={() => setActiveFormulaProp(null)}
                         />
                     )}
                     {/* Active Select / Multi-Select Popover */}
@@ -2864,6 +2899,25 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                                 <span>Add a file or image</span>
                                                             </button>
                                                         )}
+                                                    </div>
+                                                );
+                                            }
+                                            // --- Formula in Side Peek Drawer ---
+                                            if (prop.type === 'formula') {
+                                                const calculatedValue = evaluateFormula(prop.formula, activeRow.values || {}, properties);
+                                                return (
+                                                    <div key={prop.id} className="flex items-center">
+                                                        <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">
+                                                            {getPropIcon(prop.type)}
+                                                            <span>{prop.name}</span>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setActiveFormulaProp(prop)}
+                                                            className="text-xs font-mono text-left px-2 py-1 rounded hover:bg-gray-100 border border-transparent hover:border-gray-200 transition-colors text-slate-800"
+                                                        >
+                                                            {calculatedValue !== '' ? calculatedValue : 'Empty'}
+                                                        </button>
                                                     </div>
                                                 );
                                             }
