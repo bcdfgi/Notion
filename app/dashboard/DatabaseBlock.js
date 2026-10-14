@@ -66,6 +66,7 @@ import StatusCellPopover, { StatusBadge } from './StatusCellPopover';
 import DateCellPopover from './DateCellPopover';
 import FilesCellPopover, { FileBadge } from './FileCellPopover';
 import FormulaEditorModal, { evaluateFormula } from './FormulaEditorModal';
+import NotionScrollBar from './NotionScrollBar';
 
 const NOTION_COLORS = {
     default: { bg: 'bg-[#F1F1EF]', text: 'text-[#37352F]', swatch: 'bg-[#E3E2E0]' },
@@ -126,7 +127,7 @@ const PROPERTY_TYPES = [
 
     // Section 3
     { type: 'created_time', label: 'Created time', icon: Clock, section: 3 },
-    { type: 'last_edited_time', label: 'Last edited time', icon: History, section: 3 },
+    { type: 'last_edited_time', label: 'Last edited time', icon: Clock, section: 3 },
 
 ];
 const CALCULATE_GROUPS = [
@@ -241,6 +242,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const [activeDateMenu, setActiveDateMenu] = useState(null);
     const [activeFilesMenu, setActiveFilesMenu] = useState(null);
     const [activeFormulaProp, setActiveFormulaProp] = useState(null);
+    const tableContainerRef = useRef(null);
 
     useEffect(() => {
         if (activeRow) {
@@ -322,7 +324,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                     const numB = parseFloat(valB) || 0;
                     return direction === 'asc' ? numA - numB : numB - numA;
                 }
-                if (propType === 'date' || propType === 'created_time' || propId === 'prop-created') {
+                if (propType === 'date' || propType === 'created_time' || propType === 'last_edited_time' || propId === 'prop-created') {
                     const timeA = valA ? new Date(valA).getTime() : 0;
                     const timeB = valB ? new Date(valB).getTime() : 0;
 
@@ -397,15 +399,23 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     };
 
     const handleAddRow = (dateStr = null, tagValue = '') => {
+        const nowFormatted = formatCurrentDateTime(); // <-- Declare it here first
 
         const statusDefaults = {};
         properties.filter(p => p.type === 'status').forEach(p => {
             statusDefaults[p.id] = 'not_started';
         });
+
         const createdTimeDefaults = {};
         properties.filter(p => p.type === 'created_time').forEach(p => {
             createdTimeDefaults[p.id] = nowFormatted;
         });
+
+        const lastEditedTimeDefaults = {};
+        properties.filter(p => p.type === 'last_edited_time').forEach(p => {
+            lastEditedTimeDefaults[p.id] = nowFormatted;
+        });
+
         const newRow = {
             id: `row-${Date.now()}`,
             icon: { type: 'emoji', value: '♡' },
@@ -415,9 +425,11 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             isFavorite: false,
             values: {
                 'prop-title': '',
-                'prop-created': formatCurrentDateTime(),
+                'prop-created': nowFormatted,
                 'prop-tags': tagValue,
                 ...statusDefaults,
+                ...createdTimeDefaults,
+                ...lastEditedTimeDefaults,
             },
             content: { type: 'doc', content: [{ type: 'paragraph' }] },
         };
@@ -441,10 +453,36 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     };
 
     const handleUpdateCell = (rowId, propId, val) => {
-        const updated = rows.map(r => r.id === rowId ? { ...r, values: { ...(r.values || {}), [propId]: val } } : r);
+        const nowFormatted = formatCurrentDateTime();
+
+        // Collect all last_edited_time property updates
+        const lastEditedUpdates = {};
+        properties.filter(p => p.type === 'last_edited_time').forEach(p => {
+            lastEditedUpdates[p.id] = nowFormatted;
+        });
+
+        const updated = rows.map(r => {
+            if (r.id !== rowId) return r;
+            return {
+                ...r,
+                values: {
+                    ...(r.values || {}),
+                    [propId]: val,
+                    ...lastEditedUpdates,
+                },
+            };
+        });
+
         updateAttributes({ rows: updated });
         if (activeRow?.id === rowId) {
-            setActiveRow(prev => ({ ...prev, values: { ...(prev.values || {}), [propId]: val } }));
+            setActiveRow(prev => ({
+                ...prev,
+                values: {
+                    ...(prev.values || {}),
+                    [propId]: val,
+                    ...lastEditedUpdates,
+                },
+            }));
         }
 
         if (propId === 'prop-title') {
@@ -533,6 +571,9 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                     }
                     break;
                 }
+                case 'last_edited_time':
+                    nextVal = currentVal || formatCurrentDateTime();
+                    break;
                 default:
                     if (typeof currentVal === 'boolean') {
                         nextVal = currentVal ? 'Yes' : 'No';
@@ -772,12 +813,24 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     }, [filteredRows, tagsProperty]);
 
     const handleUpdateRowContent = (rowId, contentJson) => {
+        const nowFormatted = formatCurrentDateTime();
+        const lastEditedUpdates = {};
+        properties.filter(p => p.type === 'last_edited_time').forEach(p => {
+            lastEditedUpdates[p.id] = nowFormatted;
+        });
+
         const updated = rows.map((r) =>
-            r.id === rowId ? { ...r, content: contentJson } : r
+            r.id === rowId
+                ? { ...r, content: contentJson, values: { ...(r.values || {}), ...lastEditedUpdates } }
+                : r
         );
         updateAttributes({ rows: updated });
         if (activeRow?.id === rowId) {
-            setActiveRow((prev) => ({ ...prev, content: contentJson }));
+            setActiveRow((prev) => ({
+                ...prev,
+                content: contentJson,
+                values: { ...(prev.values || {}), ...lastEditedUpdates },
+            }));
         }
     };
 
@@ -1174,328 +1227,380 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 </div>
             </div>
 
+
             {/* --- 1. TABLE VIEW --- */}
             {currentActiveView?.type === 'table' && (
-                <div className="w-full overflow-x-auto text-[13px]">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                        <tr className="border-b border-gray-200/70 text-gray-400 text-xs select-none">
-                            {properties.map((prop, idx) => (
-                                <th
-                                    key={prop.id}
-                                    onClick={(e) => {
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        setActiveColumnMenu({
-                                            prop,
-                                            rect: {
-                                                top: rect.bottom + 4,
-                                                left: Math.max(16, rect.left),
-                                            },
-                                        });
-                                        setShowTypeSubmenu(false);
-                                        setShowSortSubmenu(false);
-                                    }}
-                                    className={`py-2 px-2.5 font-normal text-gray-500 hover:bg-gray-100/70 rounded cursor-pointer transition-colors whitespace-nowrap ${
-                                        idx === 0
-                                            ? 'w-[32%] min-w-[200px]'
-                                            : prop.type === 'created_time' || prop.type === 'date'
-                                                ? 'min-w-[190px]'
-                                                : 'min-w-[150px]'
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-1.5">
-                                        {getPropIcon(prop.type)}
-                                        <span className="text-slate-700 font-medium">{prop.name}</span>
-                                    </div>
-                                </th>
-                            ))}
-                            <th className="py-2 px-2 font-normal text-gray-400 w-16">
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        type="button"
-                                        data-add-prop-trigger
+                <div className="w-full flex flex-col">
+                    {/* Hide default OS scrollbars */}
+                    <div
+                        ref={tableContainerRef}
+                        className="w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden text-[13px]"
+                    >
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                            <tr className="border-b border-gray-200/70 text-gray-400 text-xs select-none">
+                                {properties.map((prop, idx) => (
+                                    <th
+                                        key={prop.id}
                                         onClick={(e) => {
                                             const rect = e.currentTarget.getBoundingClientRect();
-                                            setAddPropPos({
-                                                top: rect.bottom + 4,
-                                                left: Math.max(16, rect.right - 300),
+                                            setActiveColumnMenu({
+                                                prop,
+                                                rect: {
+                                                    top: rect.bottom + 4,
+                                                    left: Math.max(16, rect.left),
+                                                },
                                             });
-                                            setShowAddProperty(true);
+                                            setShowTypeSubmenu(false);
+                                            setShowSortSubmenu(false);
                                         }}
-                                        className="p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
+                                        className={`py-2 px-2.5 font-normal text-gray-500 hover:bg-gray-100/70 rounded cursor-pointer transition-colors whitespace-nowrap ${
+                                            idx === 0
+                                                ? 'w-[32%] min-w-[200px]'
+                                                : prop.type === 'created_time' || prop.type === 'last_edited_time' || prop.type === 'date'
+                                                    ? 'min-w-[190px]'
+                                                    : 'min-w-[150px]'
+                                        }`}
                                     >
-                                        <Plus size={13} />
-                                    </button>
-                                    <MoreHorizontal size={13} className="text-gray-300" />
-                                </div>
-                            </th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {filteredRows.map((row) => (
-                            <tr
-                                key={row.id}
-                                className="group/row border-b border-gray-100 hover:bg-gray-50/70 transition-colors"
-                            >
-                                {properties.map((prop, idx) => {
-                                    const cellVal = row.values?.[prop.id];
+                                        <div className="flex items-center gap-1.5">
+                                            {getPropIcon(prop.type)}
+                                            <span className="text-slate-700 font-medium">{prop.name}</span>
+                                        </div>
+                                    </th>
+                                ))}
+                                <th className="py-2 px-2 font-normal text-gray-400 w-16">
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            data-add-prop-trigger
+                                            onClick={(e) => {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setAddPropPos({
+                                                    top: rect.bottom + 4,
+                                                    left: Math.max(16, rect.right - 300),
+                                                });
+                                                setShowAddProperty(true);
+                                            }}
+                                            className="p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
+                                        >
+                                            <Plus size={13} />
+                                        </button>
+                                        <MoreHorizontal size={13} className="text-gray-300" />
+                                    </div>
+                                </th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {filteredRows.map((row) => (
+                                <tr
+                                    key={row.id}
+                                    className="group/row border-b border-gray-100 hover:bg-gray-50/70 transition-colors"
+                                >
+                                    {properties.map((prop, idx) => {
+                                        const cellVal = row.values?.[prop.id];
 
-                                    // --- Column 0: Title / Primary Name Column ---
-                                    if (idx === 0) {
-                                        return (
-                                            <td key={prop.id} className="py-1.5 px-2.5">
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setIconPickerTargetRowId(row.id);
-                                                        }}
-                                                        className="p-0.5 hover:bg-gray-200/50 rounded flex items-center justify-center shrink-0 cursor-pointer"
-                                                        title="Change icon"
-                                                    >
-                                                        {renderRowIcon(row, 15)}
-                                                    </button>
+                                        // --- Column 0: Title / Primary Name Column ---
+                                        if (idx === 0) {
+                                            return (
+                                                <td key={prop.id} className="py-1.5 px-2.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setIconPickerTargetRowId(row.id);
+                                                            }}
+                                                            className="p-0.5 hover:bg-gray-200/50 rounded flex items-center justify-center shrink-0 cursor-pointer"
+                                                            title="Change icon"
+                                                        >
+                                                            {renderRowIcon(row, 15)}
+                                                        </button>
+                                                        <input
+                                                            type="text"
+                                                            value={cellVal || ''}
+                                                            placeholder="Untitled"
+                                                            {...isolateEvents}
+                                                            onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
+                                                            className="w-full bg-transparent focus:outline-none font-medium text-slate-800 placeholder:text-gray-300"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setActiveRow(row)}
+                                                            className="opacity-0 group-hover/row:opacity-100 uppercase tracking-wider text-[10px] font-semibold text-gray-400 hover:text-slate-800 bg-white border border-gray-200 px-1.5 py-0.5 rounded shadow-2xs transition-all shrink-0 ml-1 select-none"
+                                                        >
+                                                            Open
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            );
+                                        }
+                                        // --- Files & Media Column ---
+                                        if (prop.type === 'files') {
+                                            const fileData = typeof cellVal === 'object' ? cellVal : null;
+
+                                            return (
+                                                <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
+                                                    {fileData ? (
+                                                        <FileBadge
+                                                            fileData={fileData}
+                                                            onDownloadOrOpen={handleOpenFileOrDownload}
+                                                            onRemove={() => handleUpdateCell(row.id, prop.id, null)}
+                                                        />
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setActiveFilesMenu({
+                                                                    rowId: row.id,
+                                                                    propId: prop.id,
+                                                                    rect,
+                                                                });
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-gray-400 hover:text-slate-700 hover:bg-gray-100/70 text-xs transition-colors cursor-pointer"
+                                                        >
+                                                            <Plus size={12} />
+                                                            <span>Add a file or image</span>
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            );
+                                        }
+
+                                        // --- Checkbox / Tickbox ---
+                                        if (prop.type === 'checkbox') {
+                                            const isChecked = cellVal === true || cellVal === 'true';
+                                            return (
+                                                <td key={prop.id} className="py-1.5 px-2.5">
                                                     <input
-                                                        type="text"
-                                                        value={cellVal || ''}
-                                                        placeholder="Untitled"
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        {...isolateEvents}
+                                                        onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.checked)}
+                                                        className="w-4 h-4 rounded text-blue-600 border-gray-300 focus:ring-0 cursor-pointer accent-blue-600"
+                                                    />
+                                                </td>
+                                            );
+                                        }
+
+                                        // --- Number ---
+                                        if (prop.type === 'number') {
+                                            return (
+                                                <td key={prop.id} className="py-1.5 px-2.5">
+                                                    <input
+                                                        type="number"
+                                                        value={cellVal ?? ''}
+                                                        placeholder="Empty"
                                                         {...isolateEvents}
                                                         onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
-                                                        className="w-full bg-transparent focus:outline-none font-medium text-slate-800 placeholder:text-gray-300"
+                                                        className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                     />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setActiveRow(row)}
-                                                        className="opacity-0 group-hover/row:opacity-100 uppercase tracking-wider text-[10px] font-semibold text-gray-400 hover:text-slate-800 bg-white border border-gray-200 px-1.5 py-0.5 rounded shadow-2xs transition-all shrink-0 ml-1 select-none"
-                                                    >
-                                                        Open
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        );
-                                    }
-                                    // --- Files & Media Column ---
-                                    if (prop.type === 'files') {
-                                        // cellVal can be an object: { type: 'upload' | 'link', name, url, dataUrl }
-                                        const fileData = typeof cellVal === 'object' ? cellVal : null;
+                                                </td>
+                                            );
+                                        }
 
-                                        return (
-                                            <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
-                                                {fileData ? (
-                                                    <FileBadge
-                                                        fileData={fileData}
-                                                        onDownloadOrOpen={handleOpenFileOrDownload}
-                                                        onRemove={() => handleUpdateCell(row.id, prop.id, null)}
-                                                    />
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            setActiveFilesMenu({
-                                                                rowId: row.id,
-                                                                propId: prop.id,
-                                                                rect,
-                                                            });
-                                                        }}
-                                                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-gray-400 hover:text-slate-700 hover:bg-gray-100/70 text-xs transition-colors cursor-pointer"
-                                                    >
-                                                        <Plus size={12} />
-                                                        <span>Add a file or image</span>
-                                                    </button>
-                                                )}
-                                            </td>
-                                        );
-                                    }
-
-                                    // --- Checkbox / Tickbox ---
-                                    if (prop.type === 'checkbox') {
-                                        const isChecked = cellVal === true || cellVal === 'true';
-                                        return (
-                                            <td key={prop.id} className="py-1.5 px-2.5">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isChecked}
-                                                    {...isolateEvents}
-                                                    onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.checked)}
-                                                    className="w-4 h-4 rounded text-blue-600 border-gray-300 focus:ring-0 cursor-pointer accent-blue-600"
-                                                />
-                                            </td>
-                                        );
-                                    }
-
-                                    // --- Number ---
-                                    if (prop.type === 'number') {
-                                        return (
-                                            // Inside tbody where prop.type === 'number':
-                                            <td key={prop.id} className="py-1.5 px-2.5">
-                                                <input
-                                                    type="number"
-                                                    value={cellVal ?? ''}
-                                                    placeholder="Empty"
-                                                    {...isolateEvents}
-                                                    onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
-                                                    className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                />
-                                            </td>
-                                        );
-                                    }
-
-                                    if (prop.type === 'date' || prop.id === 'prop-created') {
-                                        return (
-                                            <td
-                                                key={prop.id}
-                                                className="py-1.5 px-2.5 relative select-none cursor-pointer"
-                                                onClick={(e) => {
-                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                    setActiveDateMenu({
-                                                        rowId: row.id,
-                                                        propId: prop.id,
-                                                        rect,
-                                                        currentDate: cellVal || '',
-                                                    });
-                                                }}
-                                            >
-            <span className={`text-xs ${cellVal ? 'text-slate-800' : 'text-gray-300'}`}>
-                {cellVal || 'Empty'}
-            </span>
-                                            </td>
-                                        );
-                                    }
-
-                                    // --- Select ---
-                                    if (prop.type === 'select') {
-                                        const currentOpt = (prop.options || []).find((o) => o.id === cellVal);
-                                        const theme = currentOpt ? NOTION_COLORS[currentOpt.color || 'default'] : null;
-
-                                        return (
-                                            <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
-                                                {currentOpt ? (
-                                                    <span
-                                                        onClick={(e) => {
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            setActiveSelectMenu({ rowId: row.id, propId: prop.id, rect });
-                                                        }}
-                                                        className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer ${theme?.bg} ${theme?.text}`}
-                                                    >
-                                                        {currentOpt.label}
-                                                    </span>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            setActiveSelectMenu({ rowId: row.id, propId: prop.id, rect });
-                                                        }}
-                                                        className="text-gray-300 hover:text-gray-500 text-xs cursor-pointer"
-                                                    >
-                                                        Empty
-                                                    </button>
-                                                )}
-                                            </td>
-                                        );
-                                    }
-
-                                    // --- Multi-Select ---
-                                    if (prop.type === 'multi-select') {
-                                        const selectedIds = Array.isArray(cellVal) ? cellVal : cellVal ? [cellVal] : [];
-                                        const selectedOpts = (prop.options || []).filter((o) => selectedIds.includes(o.id));
-
-                                        return (
-                                            <td
-                                                key={prop.id}
-                                                className="py-1.5 px-2.5 select-none cursor-pointer"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                    setActiveSelectMenu({ rowId: row.id, propId: prop.id, rect });
-                                                }}
-                                            >
-                                                <div className="flex flex-wrap items-center gap-1 min-h-[22px]">
-                                                    {selectedOpts.length > 0 ? (
-                                                        selectedOpts.map((opt) => {
-                                                            const colorTheme = NOTION_COLORS[opt.color || 'default'];
-                                                            return (
-                                                                <span
-                                                                    key={opt.id}
-                                                                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${colorTheme.bg} ${colorTheme.text}`}
-                                                                >
-                                {opt.label}
-                            </span>
-                                                            );
-                                                        })
-                                                    ) : (
-                                                        <span className="text-gray-300 text-xs">Empty</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        );
-                                    }
-                                    // --- Status Column ---
-                                    if (prop.type === 'status') {
-                                        const statusVal = cellVal || 'not_started';
-                                        return (
-                                            <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
-                                                <StatusBadge
-                                                    statusId={statusVal}
+                                        if (prop.type === 'date' || prop.id === 'prop-created') {
+                                            return (
+                                                <td
+                                                    key={prop.id}
+                                                    className="py-1.5 px-2.5 relative select-none cursor-pointer"
                                                     onClick={(e) => {
                                                         const rect = e.currentTarget.getBoundingClientRect();
-                                                        setActiveStatusMenu({
+                                                        setActiveDateMenu({
                                                             rowId: row.id,
                                                             propId: prop.id,
                                                             rect,
-                                                            currentStatus: statusVal,
+                                                            currentDate: cellVal || '',
                                                         });
                                                     }}
-                                                />
-                                            </td>
-                                        );
-                                    }
+                                                >
+                                                    <span className={`text-xs ${cellVal ? 'text-slate-800' : 'text-gray-300'}`}>
+                                                        {cellVal || 'Empty'}
+                                                    </span>
+                                                </td>
+                                            );
+                                        }
 
-                                    // --- URL ---
-                                    if (prop.type === 'url') {
-                                        return (
-                                            <td key={prop.id} className="py-1.5 px-2.5">
-                                                <div className="flex items-center gap-1">
+                                        // --- Select ---
+                                        if (prop.type === 'select') {
+                                            const currentOpt = (prop.options || []).find((o) => o.id === cellVal);
+                                            const theme = currentOpt ? NOTION_COLORS[currentOpt.color || 'default'] : null;
+
+                                            return (
+                                                <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
+                                                    {currentOpt ? (
+                                                        <span
+                                                            onClick={(e) => {
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setActiveSelectMenu({ rowId: row.id, propId: prop.id, rect });
+                                                            }}
+                                                            className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer ${theme?.bg} ${theme?.text}`}
+                                                        >
+                                                            {currentOpt.label}
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setActiveSelectMenu({ rowId: row.id, propId: prop.id, rect });
+                                                            }}
+                                                            className="text-gray-300 hover:text-gray-500 text-xs cursor-pointer"
+                                                        >
+                                                            Empty
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            );
+                                        }
+
+                                        // --- Multi-Select ---
+                                        if (prop.type === 'multi-select') {
+                                            const selectedIds = Array.isArray(cellVal) ? cellVal : cellVal ? [cellVal] : [];
+                                            const selectedOpts = (prop.options || []).filter((o) => selectedIds.includes(o.id));
+
+                                            return (
+                                                <td
+                                                    key={prop.id}
+                                                    className="py-1.5 px-2.5 select-none cursor-pointer"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setActiveSelectMenu({ rowId: row.id, propId: prop.id, rect });
+                                                    }}
+                                                >
+                                                    <div className="flex flex-wrap items-center gap-1 min-h-[22px]">
+                                                        {selectedOpts.length > 0 ? (
+                                                            selectedOpts.map((opt) => {
+                                                                const colorTheme = NOTION_COLORS[opt.color || 'default'];
+                                                                return (
+                                                                    <span
+                                                                        key={opt.id}
+                                                                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${colorTheme.bg} ${colorTheme.text}`}
+                                                                    >
+                                                                        {opt.label}
+                                                                    </span>
+                                                                );
+                                                            })
+                                                        ) : (
+                                                            <span className="text-gray-300 text-xs">Empty</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            );
+                                        }
+
+                                        // --- Status Column ---
+                                        if (prop.type === 'status') {
+                                            const statusVal = cellVal || 'not_started';
+                                            return (
+                                                <td key={prop.id} className="py-1.5 px-2.5 relative select-none">
+                                                    <StatusBadge
+                                                        statusId={statusVal}
+                                                        onClick={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setActiveStatusMenu({
+                                                                rowId: row.id,
+                                                                propId: prop.id,
+                                                                rect,
+                                                                currentStatus: statusVal,
+                                                            });
+                                                        }}
+                                                    />
+                                                </td>
+                                            );
+                                        }
+
+                                        // --- URL ---
+                                        if (prop.type === 'url') {
+                                            return (
+                                                <td key={prop.id} className="py-1.5 px-2.5">
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="url"
+                                                            value={cellVal || ''}
+                                                            placeholder="Empty"
+                                                            {...isolateEvents}
+                                                            onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
+                                                            className={`w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300 ${
+                                                                cellVal ? 'text-blue-600 underline' : ''
+                                                            }`}
+                                                        />
+                                                    </div>
+                                                </td>
+                                            );
+                                        }
+
+                                        // --- Formula Column ---
+                                        if (prop.type === 'formula') {
+                                            const calculatedValue = evaluateFormula(prop.formula, row.values || {}, properties);
+                                            return (
+                                                <td
+                                                    key={prop.id}
+                                                    onClick={() => setActiveFormulaProp(prop)}
+                                                    className="py-1.5 px-2.5 relative select-none cursor-pointer hover:bg-gray-100/50 transition-colors"
+                                                    title="Click to edit formula"
+                                                >
+                                                    <span className={`text-xs font-mono ${calculatedValue !== '' ? 'text-slate-800' : 'text-gray-300'}`}>
+                                                        {calculatedValue !== '' ? calculatedValue : 'Empty'}
+                                                    </span>
+                                                </td>
+                                            );
+                                        }
+
+                                        // --- Phone & Email ---
+                                        if (prop.type === 'phone' || prop.type === 'email') {
+                                            return (
+                                                <td key={prop.id} className="py-1.5 px-2.5">
                                                     <input
-                                                        type="url"
+                                                        type={prop.type === 'email' ? 'email' : 'tel'}
                                                         value={cellVal || ''}
                                                         placeholder="Empty"
                                                         {...isolateEvents}
                                                         onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
-                                                        className={`w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300 ${
-                                                            cellVal ? 'text-blue-600 underline' : ''
-                                                        }`}
+                                                        className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300"
                                                     />
-                                                </div>
-                                            </td>
-                                        );
-                                    }
-                                    // --- Formula Column ---
-                                    if (prop.type === 'formula') {
-                                        const calculatedValue = evaluateFormula(prop.formula, row.values || {}, properties);
+                                                </td>
+                                            );
+                                        }
 
-                                        return (
-                                            <td
-                                                key={prop.id}
-                                                onClick={() => setActiveFormulaProp(prop)}
-                                                className="py-1.5 px-2.5 relative select-none cursor-pointer hover:bg-gray-100/50 transition-colors"
-                                                title="Click to edit formula"
-                                            >
-            <span className={`text-xs font-mono ${calculatedValue !== '' ? 'text-slate-800' : 'text-gray-300'}`}>
-                {calculatedValue !== '' ? calculatedValue : 'Empty'}
-            </span>
-                                            </td>
-                                        );
-                                    }
+                                        // --- Created Time & Last Edited Time Columns (Single Line, Read-Only) ---
+                                        if (prop.type === 'created_time' || prop.type === 'last_edited_time' || (prop.id === 'prop-created' && prop.type !== 'date')) {
+                                            const displayVal = cellVal || formatCurrentDateTime();
+                                            return (
+                                                <td key={prop.id} className="py-2 px-2.5 text-slate-800 text-[13px] select-none whitespace-nowrap overflow-hidden text-ellipsis">
+                                                    {displayVal}
+                                                </td>
+                                            );
+                                        }
 
-                                    // --- Phone & Email ---
-                                    if (prop.type === 'phone' || prop.type === 'email') {
+                                        if (prop.type === 'date') {
+                                            return (
+                                                <td
+                                                    key={prop.id}
+                                                    className="py-1.5 px-2.5 relative select-none cursor-pointer whitespace-nowrap overflow-hidden text-ellipsis"
+                                                    onClick={(e) => {
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        setActiveDateMenu({
+                                                            rowId: row.id,
+                                                            propId: prop.id,
+                                                            rect,
+                                                            currentDate: cellVal || '',
+                                                        });
+                                                    }}
+                                                >
+                                                    <span className={`text-[13px] ${cellVal ? 'text-slate-800' : 'text-gray-300'}`}>
+                                                        {cellVal || 'Empty'}
+                                                    </span>
+                                                </td>
+                                            );
+                                        }
+
+                                        // --- Text / Fallback Default ---
                                         return (
                                             <td key={prop.id} className="py-1.5 px-2.5">
                                                 <input
-                                                    type={prop.type === 'email' ? 'email' : 'tel'}
+                                                    type="text"
                                                     value={cellVal || ''}
                                                     placeholder="Empty"
                                                     {...isolateEvents}
@@ -1504,135 +1609,95 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                 />
                                             </td>
                                         );
-                                    }
-                                    if (prop.type === 'created_time' || (prop.id === 'prop-created' && prop.type !== 'date')) {
-                                        const displayVal = cellVal || formatCurrentDateTime();
-                                        return (
-                                            <td key={prop.id} className="py-2 px-2.5 text-slate-800 text-[13px] select-none whitespace-nowrap overflow-hidden text-ellipsis">
-                                                {displayVal}
-                                            </td>
-                                        );
-                                    }
-                                    if (prop.type === 'date') {
+                                    })}
+
+                                    <td className="py-1.5 px-2 text-right select-none">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => handleDeleteRow(e, row.id)}
+                                            className="opacity-0 group-hover/row:opacity-100 text-gray-300 hover:text-red-500 p-0.5 transition-opacity"
+                                        >
+                                            ✕
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+
+                            {/* --- CALCULATION FOOTER --- */}
+                            {Object.values(calculations).some((c) => c && c !== 'none') && (
+                                <tfoot className="group/footer border-t border-gray-100">
+                                <tr className="text-gray-400 text-xs">
+                                    {properties.map((prop) => {
+                                        const result = renderCalculationResult(prop.id);
+                                        const isNumber = prop.type === 'number';
+
                                         return (
                                             <td
                                                 key={prop.id}
-                                                className="py-1.5 px-2.5 relative select-none cursor-pointer whitespace-nowrap overflow-hidden text-ellipsis"
-                                                onClick={(e) => {
-                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                    setActiveDateMenu({
-                                                        rowId: row.id,
-                                                        propId: prop.id,
-                                                        rect,
-                                                        currentDate: cellVal || '',
-                                                    });
-                                                }}
+                                                className={`py-2 px-2.5 relative ${isNumber ? 'text-right' : 'text-left'}`}
                                             >
-                                                <span className={`text-[13px] ${cellVal ? 'text-slate-800' : 'text-gray-300'}`}>
-                                                    {cellVal || 'Empty'}
-                                                </span>
-                                            </td>
-                                        );
-                                    }
-
-                                    // --- Text / Fallback Default ---
-                                    return (
-                                        <td key={prop.id} className="py-1.5 px-2.5">
-                                            <input
-                                                type="text"
-                                                value={cellVal || ''}
-                                                placeholder="Empty"
-                                                {...isolateEvents}
-                                                onChange={(e) => handleUpdateCell(row.id, prop.id, e.target.value)}
-                                                className="w-full bg-transparent focus:outline-none text-xs text-slate-800 placeholder:text-gray-300"
-                                            />
-                                        </td>
-                                    );
-                                })}
-
-                                <td className="py-1.5 px-2 text-right select-none">
-                                    <button
-                                        type="button"
-                                        onClick={(e) => handleDeleteRow(e, row.id)}
-                                        className="opacity-0 group-hover/row:opacity-100 text-gray-300 hover:text-red-500 p-0.5 transition-opacity"
-                                    >
-                                        ✕
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-
-                        {/* --- CALCULATION FOOTER --- */}
-                        {Object.values(calculations).some((c) => c && c !== 'none') && (
-                            <tfoot className="group/footer border-t border-gray-100">
-                            <tr className="text-gray-400 text-xs">
-                                {properties.map((prop) => {
-                                    const result = renderCalculationResult(prop.id);
-                                    const isNumber = prop.type === 'number';
-
-                                    return (
-                                        <td
-                                            key={prop.id}
-                                            className={`py-2 px-2.5 relative ${isNumber ? 'text-right' : 'text-left'}`}
-                                        >
-                                            {result ? (
-                                                <div className={`flex items-center ${isNumber ? 'justify-end' : 'justify-start'}`}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            setActiveColumnMenu({
-                                                                prop,
-                                                                rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
-                                                            });
-                                                            setShowCalculateSubmenu(true);
-                                                        }}
-                                                        className="inline-flex items-center gap-1.5 cursor-pointer py-0.5 px-1.5 rounded hover:bg-gray-100 transition-colors select-none"
-                                                    >
+                                                {result ? (
+                                                    <div className={`flex items-center ${isNumber ? 'justify-end' : 'justify-start'}`}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setActiveColumnMenu({
+                                                                    prop,
+                                                                    rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
+                                                                });
+                                                                setShowCalculateSubmenu(true);
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 cursor-pointer py-0.5 px-1.5 rounded hover:bg-gray-100 transition-colors select-none"
+                                                        >
                                                             <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider">
                                                                 {result.label}
                                                             </span>
-                                                        <span className="text-xs text-slate-700 font-medium">
+                                                            <span className="text-xs text-slate-700 font-medium">
                                                                 {result.value}
                                                             </span>
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className={`flex items-center ${isNumber ? 'justify-end' : 'justify-start'}`}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            setActiveColumnMenu({
-                                                                prop,
-                                                                rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
-                                                            });
-                                                            setShowCalculateSubmenu(true);
-                                                        }}
-                                                        className="opacity-0 group-hover/footer:opacity-100 hover:opacity-100! text-gray-400 hover:text-gray-700 text-xs py-0.5 px-1.5 rounded hover:bg-gray-100 transition-all select-none"
-                                                    >
-                                                        Calculate
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </td>
-                                    );
-                                })}
-                                <td className="w-16" />
-                            </tr>
-                            </tfoot>
-                        )}
-                    </table>
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className={`flex items-center ${isNumber ? 'justify-end' : 'justify-start'}`}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setActiveColumnMenu({
+                                                                    prop,
+                                                                    rect: { top: rect.bottom + 4, left: Math.max(16, rect.left) },
+                                                                });
+                                                                setShowCalculateSubmenu(true);
+                                                            }}
+                                                            className="opacity-0 group-hover/footer:opacity-100 hover:opacity-100! text-gray-400 hover:text-gray-700 text-xs py-0.5 px-1.5 rounded hover:bg-gray-100 transition-all select-none"
+                                                        >
+                                                            Calculate
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                    <td className="w-16" />
+                                </tr>
+                                </tfoot>
+                            )}
+                        </table>
 
-                    <button
-                        type="button"
-                        onClick={() => handleAddRow()}
-                        className="w-full text-left py-2 px-2.5 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-50/80 flex items-center gap-2 transition-colors rounded-b-md select-none"
-                    >
-                        <Plus size={13} className="text-gray-400" />
-                        <span>New page</span>
-                    </button>
+                        <button
+                            type="button"
+                            onClick={() => handleAddRow()}
+                            className="w-full text-left py-2 px-2.5 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-50/80 flex items-center gap-2 transition-colors rounded-b-md select-none"
+                        >
+                            <Plus size={13} className="text-gray-400" />
+                            <span>New page</span>
+                        </button>
+                    </div>
+
+                    {/* Notion's Floating Dark Rounded Scrollbar */}
+                    <NotionScrollBar targetRef={tableContainerRef} />
                 </div>
             )}
 
@@ -2973,6 +3038,21 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             // --- Created Time in Side Peek Drawer ---
 
                                             if (prop.type === 'created_time') {
+                                                const currentVal = activeRow.values?.[prop.id] || formatCurrentDateTime();
+                                                return (
+                                                    <div key={prop.id} className="flex items-center">
+                                                        <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">
+                                                            {getPropIcon(prop.type)}
+                                                            <span>{prop.name}</span>
+                                                        </div>
+                                                        <span className="text-[13px] text-slate-800 px-2 py-1 select-none whitespace-nowrap">
+                                                            {currentVal}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            }
+                                            // --- Last Edited Time in Side Peek Drawer ---
+                                            if (prop.type === 'last_edited_time') {
                                                 const currentVal = activeRow.values?.[prop.id] || formatCurrentDateTime();
                                                 return (
                                                     <div key={prop.id} className="flex items-center">
