@@ -1,9 +1,12 @@
 'use client';
 import React, { useState } from 'react';
 import { Sliders, Settings, X, Search, ChevronDown } from 'lucide-react';
+import IconPickerModal from './IconPickerModal';
+import PageIcon from './PageIcon';
 
-export default function SettingsModal({ isOpen, onClose, userEmail, theme = 'Light', onThemeChange }) {
+export default function SettingsModal({ isOpen, onClose, userEmail, theme = 'Light', onThemeChange,workspaceName,onWorkspaceNameChange,workspaceIcon,onWorkspaceIconChange }) {
     const [activeTab, setActiveTab] = useState('preferences');
+    const [showWorkspaceIconPicker, setShowWorkspaceIconPicker] = useState(false);
 
     if (!isOpen) return null;
 
@@ -117,23 +120,91 @@ export default function SettingsModal({ isOpen, onClose, userEmail, theme = 'Lig
                     )}
 
                     {activeTab === 'general' && (
-                        <div>
-                            <h2 className="text-2xl font-bold tracking-tight mb-1">General</h2>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">Customize your workspace details</p>
-                            <div className="space-y-4">
+                        <div className="max-w-xl">
+                            <h2 className="text-2xl font-bold tracking-tight mb-1 text-slate-800 dark:text-slate-100">
+                                General
+                            </h2>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
+                                Manage your workspace name, domains and more
+                            </p>
+
+                            {/* Section Heading */}
+                            <div className="border-b border-gray-100 dark:border-[#2F2F2F] pb-2 mb-6">
+                                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                    Workspace settings
+                                </h3>
+                            </div>
+
+                            <div className="space-y-6">
+                                {/* Workspace Name Input */}
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Workspace Name</label>
+                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-200 mb-0.5">
+                                        Workspace name
+                                    </label>
+                                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-2">
+                                        Your workspace name can be up to 65 characters
+                                    </p>
                                     <input
                                         type="text"
-                                        defaultValue={`${userEmail?.split('@')[0]}'s Notion`}
-                                        className="w-full max-w-sm text-xs px-3 py-1.5 border border-gray-200 dark:border-[#383838] dark:bg-[#262626] dark:text-[#EBEBEB] rounded-md focus:outline-none focus:border-blue-500"
+                                        maxLength={65}
+                                        value={workspaceName}
+                                        onChange={(e) => onWorkspaceNameChange?.(e.target.value)}
+                                        placeholder="Workspace name"
+                                        className="w-full text-xs px-3 py-2 bg-gray-50/60 dark:bg-[#262626] border border-gray-200 dark:border-[#383838] rounded-lg text-slate-800 dark:text-[#EBEBEB] focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors shadow-xs"
                                     />
+                                </div>
+
+                                {/* Workspace Icon Selector */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-200 mb-0.5">
+                                        Icon
+                                    </label>
+                                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
+                                        Upload an image or pick an emoji. This icon will appear in your sidebar and notifications.
+                                    </p>
+
+                                    <div className="relative inline-block">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowWorkspaceIconPicker(prev => !prev)}
+                                            className="w-14 h-14 rounded-lg border border-gray-200 dark:border-[#383838] bg-gray-50 dark:bg-[#262626] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2e2e2e] transition-colors overflow-hidden cursor-pointer shadow-xs"
+                                            title="Change workspace icon"
+                                        >
+                                            {workspaceIcon ? (
+                                                typeof workspaceIcon === 'string' && (workspaceIcon.startsWith('http') || workspaceIcon.startsWith('data:')) ? (
+                                                    <img src={workspaceIcon} alt="Workspace Icon" className="w-full h-full object-cover" />
+                                                ) : typeof workspaceIcon === 'string' ? (
+                                                    <span className="text-3xl leading-none">{workspaceIcon}</span>
+                                                ) : workspaceIcon?.type === 'emoji' && workspaceIcon?.value ? (
+                                                    <span className="text-3xl leading-none">{workspaceIcon.value}</span>
+                                                ) : workspaceIcon?.emoji ? (
+                                                    <span className="text-3xl leading-none">{workspaceIcon.emoji}</span>
+                                                ) : (
+                                                    <PageIcon icon={workspaceIcon} size={28} />
+                                                )
+                                            ) : (
+                                                <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center text-xs font-bold text-white shadow-xs">
+                                                    {userEmail?.[0]?.toUpperCase() || 'U'}
+                                                </div>
+                                            )}
+                                        </button>
+                                        {showWorkspaceIconPicker && (
+                                            <div className="absolute top-16 left-0 z-50">
+                                                <IconPickerModal
+                                                    onSelect={(selected) => {
+                                                        onWorkspaceIconChange?.(selected);
+                                                        setShowWorkspaceIconPicker(false);
+                                                    }}
+                                                    onClose={() => setShowWorkspaceIconPicker(false)}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
-                </div>
-            </div>
         </div>
-    );
-}
+        </div>
+        </div>
+    );}

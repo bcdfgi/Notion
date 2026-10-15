@@ -8,7 +8,7 @@ export function evaluateFormula(expression, rowValues = {}, properties = []) {
     try {
         let sanitized = expression.trim();
 
-        // 1. Replace property references: prop("ColumnName") or prop('ColumnName')
+
         properties.forEach((prop) => {
             const regex = new RegExp(`prop\\(["']${prop.name}["']\\)`, 'gi');
             let rawVal = rowValues[prop.id];

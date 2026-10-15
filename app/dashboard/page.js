@@ -1190,6 +1190,28 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             console.error("Failed to update favorite status:", err);
         }
     };
+    const [workspaceName, setWorkspaceName] = useState(() => {
+        return localStorage.getItem('app-workspace-name') || `${userEmail.split('@')[0]}'s Notion`;
+    });
+    const [workspaceIcon, setWorkspaceIcon] = useState(() => {
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('app-workspace-icon') : null;
+        if (!saved) return null;
+        try {
+            return JSON.parse(saved);
+        } catch {
+            return saved;
+        }
+    });
+
+    const handleWorkspaceNameChange = (name) => {
+        setWorkspaceName(name);
+        localStorage.setItem('app-workspace-name', name);
+    };
+
+    const handleWorkspaceIconChange = (icon) => {
+        setWorkspaceIcon(icon);
+        localStorage.setItem('app-workspace-icon', typeof icon === 'string' ? icon : JSON.stringify(icon));
+    };
 
 
     const updateHandlePosition = useCallback((targetElement, isTitle = false) => {
@@ -1493,6 +1515,36 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         );
     }
 
+    const renderWorkspaceIcon = (icon, size = 16) => {
+        if (!icon) {
+            return (
+                <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-xs">
+                    {userEmail?.[0]?.toUpperCase() || 'U'}
+                </div>
+            );
+        }
+
+        // Direct image URL or Data URI
+        if (typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('data:'))) {
+            return <img src={icon} alt="Workspace" className="w-full h-full object-cover rounded" />;
+        }
+
+        // Direct emoji string
+        if (typeof icon === 'string') {
+            return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{icon}</span>;
+        }
+
+        // Object from IconPicker (e.g., { type: 'emoji', value: '🌹' } or { emoji: '🌹' })
+        if (icon.type === 'emoji' && icon.value) {
+            return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{icon.value}</span>;
+        }
+        if (icon.emoji) {
+            return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{icon.emoji}</span>;
+        }
+
+        // PageIcon component for Lucide / custom icon structures
+        return <PageIcon icon={icon} size={size} />;
+    };
     return (
         <div className="flex h-screen bg-white dark:bg-[#191919] overflow-hidden font-sans text-slate-900 dark:text-[#EBEBEB] transition-colors">
 
@@ -1500,13 +1552,42 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 ease-in-out bg-[#FBFBFA] dark:bg-[#202020] border-r border-gray-200 dark:border-[#2F2F2F] flex flex-col z-20 overflow-hidden`}
             >
                 <div className="p-4 flex flex-col h-full min-w-[256px]">
-                    <div className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg cursor-pointer transition-colors">
-                        <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
-                            {userEmail[0].toUpperCase()}
+                    {/* ONLY ONE WORKSPACE HEADER ITEM */}
+                    <div
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg cursor-pointer transition-colors"
+                    >
+                        <div className="w-6 h-6 rounded flex items-center justify-center overflow-hidden shrink-0">
+                            {renderWorkspaceIcon(workspaceIcon, 16)}
                         </div>
                         <span className="font-semibold text-sm text-slate-700 dark:text-slate-200 truncate">
-                            {`${userEmail.split('@')[0]}'s Notion`}
-                        </span>
+                {workspaceName}
+            </span>
+                    </div>
+                    <div
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg cursor-pointer transition-colors"
+                    >
+                        <div className="w-6 h-6 rounded flex items-center justify-center overflow-hidden shrink-0">
+                            {workspaceIcon ? (
+                                typeof workspaceIcon === 'string' ? (
+                                    workspaceIcon.startsWith('http') || workspaceIcon.startsWith('data:') ? (
+                                        <img src={workspaceIcon} alt="Workspace" className="w-full h-full object-cover rounded" />
+                                    ) : (
+                                        <span className="text-sm leading-none">{workspaceIcon}</span>
+                                    )
+                                ) : (
+                                    <PageIcon icon={workspaceIcon} size={18} />
+                                )
+                            ) : (
+                                <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-xs">
+                                    {userEmail[0].toUpperCase()}
+                                </div>
+                            )}
+                        </div>
+                        <span className="font-semibold text-sm text-slate-700 dark:text-slate-200 truncate">
+        {workspaceName}
+    </span>
                     </div>
 
                     <nav className="flex-1 space-y-1">
@@ -2588,6 +2669,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 userEmail={userEmail}
                 theme={theme}
                 onThemeChange={handleThemeChange}
+                workspaceName={workspaceName}
+                onWorkspaceNameChange={handleWorkspaceNameChange}
+                workspaceIcon={workspaceIcon}
+                onWorkspaceIconChange={handleWorkspaceIconChange}
             />
             <PageLinkModal
                 isOpen={showPageLinkModal}
