@@ -1,3 +1,4 @@
+// NotionScrollBar.jsx
 'use client';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 
@@ -14,15 +15,13 @@ export default function NotionScrollBar({ targetRef }) {
 
         const { clientWidth, scrollWidth, scrollLeft } = el;
 
-        // If the table doesn't overflow horizontally, hide the scrollbar
-        if (scrollWidth <= clientWidth) {
+        if (scrollWidth <= clientWidth + 2) {
             setThumbStyle((prev) => (prev.visible ? { ...prev, visible: false } : prev));
             return;
         }
 
         const trackWidth = track.clientWidth;
-        // Calculate thumb size proportional to visible content
-        const computedThumbWidth = Math.max(48, (clientWidth / scrollWidth) * trackWidth);
+        const computedThumbWidth = Math.max(64, (clientWidth / scrollWidth) * trackWidth);
         const maxScroll = scrollWidth - clientWidth;
         const maxLeft = trackWidth - computedThumbWidth;
         const computedLeft = maxScroll > 0 ? (scrollLeft / maxScroll) * maxLeft : 0;
@@ -42,25 +41,21 @@ export default function NotionScrollBar({ targetRef }) {
         el.addEventListener('scroll', updateScrollMetrics, { passive: true });
         window.addEventListener('resize', updateScrollMetrics);
 
-        const resizeObserver = new ResizeObserver(() => updateScrollMetrics());
-        resizeObserver.observe(el);
+        const observer = new ResizeObserver(() => updateScrollMetrics());
+        observer.observe(el);
 
         return () => {
             el.removeEventListener('scroll', updateScrollMetrics);
             window.removeEventListener('resize', updateScrollMetrics);
-            resizeObserver.disconnect();
+            observer.disconnect();
         };
     }, [targetRef, updateScrollMetrics]);
 
-    // Handle dragging the thumb
     const handleMouseDown = (e) => {
         e.preventDefault();
         e.stopPropagation();
         isDraggingRef.current = true;
-        dragStartRef.current = {
-            startX: e.clientX,
-            startLeft: thumbStyle.left,
-        };
+        dragStartRef.current = { startX: e.clientX, startLeft: thumbStyle.left };
 
         const handleMouseMove = (moveEvent) => {
             if (!isDraggingRef.current) return;
@@ -87,7 +82,6 @@ export default function NotionScrollBar({ targetRef }) {
         window.addEventListener('mouseup', handleMouseUp);
     };
 
-    // Clicking anywhere on the track jumps to that position
     const handleTrackClick = (e) => {
         const el = targetRef.current;
         const track = trackRef.current;
@@ -105,11 +99,11 @@ export default function NotionScrollBar({ targetRef }) {
     if (!thumbStyle.visible) return null;
 
     return (
-        <div className="w-full py-2.5 flex items-center justify-center select-none">
+        <div className="w-full py-3 flex items-center justify-center select-none">
             <div
                 ref={trackRef}
                 onClick={handleTrackClick}
-                className="w-full max-w-[96%] h-3 relative rounded-full cursor-pointer bg-transparent hover:bg-gray-100/50 transition-colors"
+                className="w-full max-w-[96%] h-2.5 relative rounded-full cursor-pointer bg-black/5 hover:bg-black/10 transition-colors"
             >
                 <div
                     onMouseDown={handleMouseDown}
@@ -117,7 +111,7 @@ export default function NotionScrollBar({ targetRef }) {
                         width: `${thumbStyle.width}px`,
                         transform: `translate3d(${thumbStyle.left}px, 0, 0)`,
                     }}
-                    className="absolute top-0.5 h-2 rounded-full bg-[#37352F]/40 hover:bg-[#37352F]/65 active:bg-[#37352F]/80 transition-colors cursor-grab active:cursor-grabbing shadow-xs"
+                    className="absolute top-0 h-2.5 rounded-full bg-[#5A5A5A] hover:bg-[#37352F] active:bg-[#1A1A1A] transition-colors cursor-grab active:cursor-grabbing shadow-sm"
                 />
             </div>
         </div>

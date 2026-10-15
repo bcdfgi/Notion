@@ -1229,14 +1229,16 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
 
 
             {/* --- 1. TABLE VIEW --- */}
+            {/* --- 1. TABLE VIEW --- */}
             {currentActiveView?.type === 'table' && (
                 <div className="w-full flex flex-col">
-                    {/* Hide default OS scrollbars */}
+                    {/* Table container with native overflow enabled */}
                     <div
                         ref={tableContainerRef}
                         className="w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden text-[13px]"
                     >
-                        <table className="w-full text-left border-collapse">
+                        {/* table-auto and whitespace-nowrap prevent squishing */}
+                        <table className="min-w-full w-max text-left border-collapse table-auto">
                             <thead>
                             <tr className="border-b border-gray-200/70 text-gray-400 text-xs select-none">
                                 {properties.map((prop, idx) => (
@@ -1256,10 +1258,8 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         }}
                                         className={`py-2 px-2.5 font-normal text-gray-500 hover:bg-gray-100/70 rounded cursor-pointer transition-colors whitespace-nowrap ${
                                             idx === 0
-                                                ? 'w-[32%] min-w-[200px]'
-                                                : prop.type === 'created_time' || prop.type === 'last_edited_time' || prop.type === 'date'
-                                                    ? 'min-w-[190px]'
-                                                    : 'min-w-[150px]'
+                                                ? 'min-w-[220px]'
+                                                : 'min-w-[170px]'
                                         }`}
                                     >
                                         <div className="flex items-center gap-1.5">
@@ -1268,7 +1268,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         </div>
                                     </th>
                                 ))}
-                                <th className="py-2 px-2 font-normal text-gray-400 w-16">
+                                <th className="py-2 px-2 font-normal text-gray-400 w-16 min-w-[64px]">
                                     <div className="flex items-center gap-1">
                                         <button
                                             type="button"
@@ -1689,17 +1689,18 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                         <button
                             type="button"
                             onClick={() => handleAddRow()}
-                            className="w-full text-left py-2 px-2.5 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-50/80 flex items-center gap-2 transition-colors rounded-b-md select-none"
+                            className="w-full text-left py-2 px-2.5 text-xs text-gray-400 hover:text-slate-700 hover:bg-gray-50/80 flex items-center gap-2 transition-colors rounded-b-md select-none whitespace-nowrap"
                         >
                             <Plus size={13} className="text-gray-400" />
                             <span>New page</span>
                         </button>
                     </div>
 
-                    {/* Notion's Floating Dark Rounded Scrollbar */}
+                    {/* Floating Scrollbar Component */}
                     <NotionScrollBar targetRef={tableContainerRef} />
                 </div>
             )}
+
 
             {/* --- 2. BOARD VIEW --- */}
             {currentActiveView?.type === 'board' && (

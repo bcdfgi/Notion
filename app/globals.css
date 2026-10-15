@@ -444,3 +444,9 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
     width: 0;
     height: 0;
 }
+/* Ensure DatabaseBlock tables use natural auto width and don't get squished */
+.not-prose table {
+    table-layout: auto !important;
+    width: max-content !important;
+    min-width: 100% !important;
+}
