@@ -46,7 +46,7 @@ import { TableOfContentsExtension } from './TableOfContentExtension';
 import { BlockEquationExtension } from './AdvancedNodes';
 import { VideoExtension } from './VideoExtension';
 import { BookmarkExtension } from './BookmarkExtension';
-import { Smile, MoreHorizontal, Star, Plus, ChevronDown, ChevronRight, Lock, Link2, Maximize2 } from 'lucide-react';
+import { Smile, MoreHorizontal, Star, Plus, ChevronDown, ChevronRight, Lock, Link2, Maximize2, Settings } from 'lucide-react';
 import RowEditor from './RowEditor'; // (or './RowEditor', matching your filename)
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -140,6 +140,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [rowCoverPosition, setRowCoverPosition] = useState(50);
     const [isDraggingRowCover, setIsDraggingRowCover] = useState(false);
     const rowDragRef = useRef({ startY: 0, startPos: 50 });
+    const [theme, setTheme] = useState('Light');
 
 
 
@@ -266,7 +267,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: 'tiptap prose prose-slate max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 -ml-45',
+                class: 'tiptap prose prose-slate dark:prose-invert max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 -ml-45 text-slate-800 dark:text-[#EBEBEB]',
             },
         },
 
@@ -430,6 +431,28 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
         setIsLoading(false);
     }, [currentPageId, editor, userEmail, debouncedSave]);
+
+    // Initialize theme from localStorage and toggle .dark on <html>
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('app-theme') || 'Light';
+        setTheme(savedTheme);
+        if (savedTheme === 'Dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, []);
+
+    const handleThemeChange = (newTheme) => {
+        setTheme(newTheme);
+        localStorage.setItem('app-theme', newTheme);
+        if (newTheme === 'Dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    };
+
 
 
 
@@ -1471,27 +1494,27 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     }
 
     return (
-        <div className="flex h-screen bg-white overflow-hidden font-sans text-slate-900">
+        <div className="flex h-screen bg-white dark:bg-[#191919] overflow-hidden font-sans text-slate-900 dark:text-[#EBEBEB] transition-colors">
 
             <aside
-                className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 ease-in-out bg-[#FBFBFA] border-r border-gray-200 flex flex-col z-20 overflow-hidden`}
+                className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 ease-in-out bg-[#FBFBFA] dark:bg-[#202020] border-r border-gray-200 dark:border-[#2F2F2F] flex flex-col z-20 overflow-hidden`}
             >
                 <div className="p-4 flex flex-col h-full min-w-[256px]">
-                    <div className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 rounded-lg cursor-pointer transition-colors">
+                    <div className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg cursor-pointer transition-colors">
                         <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
                             {userEmail[0].toUpperCase()}
                         </div>
-                        <span className="font-semibold text-sm text-slate-700 truncate">
+                        <span className="font-semibold text-sm text-slate-700 dark:text-slate-200 truncate">
                             {`${userEmail.split('@')[0]}'s Notion`}
                         </span>
                     </div>
 
                     <nav className="flex-1 space-y-1">
-                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
+                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg transition-colors group">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
                             Home
                         </button>
-                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
+                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg transition-colors group">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
                             Library
                         </button>
@@ -1529,8 +1552,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                 }}
                                                 className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors text-left ${
                                                     isSelected
-                                                        ? 'bg-gray-200 text-slate-900 font-medium'
-                                                        : 'text-slate-600 hover:bg-gray-200/50'
+                                                        ? 'bg-gray-200 dark:bg-[#2C2C2C] text-slate-900 dark:text-white font-medium'
+                                                        : 'text-slate-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C]/50'
                                                 }`}
                                             >
                                                 {item.icon ? (
@@ -1641,14 +1664,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         </div>
                         <button
                             onClick={() => setIsSettingsOpen(true)}
-                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group"
+                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg transition-colors group"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                             Settings
                         </button>
                     </nav>
 
-                    <div className="mt-auto pt-4 border-t border-gray-200">
+                    <div className="mt-auto pt-4 border-t border-gray-200 dark:border-[#2F2F2F]">
                         <button  onClick={()=> logout()}  className="w-full text-left px-2 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 transition-colors">
                             Log out
                         </button>
@@ -1657,12 +1680,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             </aside>
 
 
-            <div className="flex-1 flex flex-col min-w-0 bg-white relative">
-                <header className="h-11 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md z-20 border-b border-gray-100">
+            <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#191919] relative transition-colors">
+                <header className="h-11 flex items-center justify-between px-4 bg-white/80 dark:bg-[#191919]/80 backdrop-blur-md z-20 border-b border-gray-100 dark:border-[#2F2F2F]">
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded-md text-gray-500 dark:text-gray-400 transition-colors"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -2330,7 +2353,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                             saveContent(editor?.getJSON(), fallback);
                                         }
                                     }}
-                                    className="-ml-45 text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300"
+                                    className="-ml-45 text-5xl font-bold mb-8 outline-none text-slate-800 dark:text-slate-100 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300 dark:empty:before:text-[#474747]"
                                 />
 
                                 {editor && (
@@ -2341,7 +2364,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                             placement: 'top-start',
                                             offset: [0, 10],
                                         }}
-                                        className="w-64 bg-white border border-gray-200/80 shadow-2xl rounded-2xl p-2.5 flex flex-col gap-2 z-50 text-slate-700 select-none animate-in fade-in zoom-in-95 duration-100"
+                                        className="w-64 bg-white dark:bg-[#222222] border border-gray-200/80 dark:border-[#333333] shadow-2xl rounded-2xl p-2.5 flex flex-col gap-2 z-50 text-slate-700 dark:text-slate-200 select-none animate-in fade-in zoom-in-95 duration-100"
                                     >
                                         <div className="relative group/type">
                                             <button
@@ -2563,6 +2586,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
                 userEmail={userEmail}
+                theme={theme}
+                onThemeChange={handleThemeChange}
             />
             <PageLinkModal
                 isOpen={showPageLinkModal}

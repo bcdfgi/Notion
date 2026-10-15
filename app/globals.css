@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode (.dark) in Tailwind CSS v4 */
+@variant dark (&:where(.dark, .dark *));
+
 @layer components {
     /* --------------------------------------------------
        1. Placeholders (Root Editor & Nested Quotes)
     -------------------------------------------------- */
-    /* Editor root empty placeholder */
     .tiptap p.is-editor-empty:first-child::before {
         @apply text-gray-300 float-left h-0 pointer-events-none;
         content: attr(data-placeholder);
@@ -18,20 +20,20 @@
     .tiptap blockquote p.is-empty::before {
         content: attr(data-placeholder);
         float: left;
-        color: #9ca3af; /* Tailwind text-gray-400 */
+        color: #9ca3af;
         pointer-events: none;
         height: 0;
     }
 
     .dark .tiptap blockquote p.is-empty::before {
-        color: #6b7280; /* Tailwind dark:text-gray-500 */
+        color: #6b7280;
     }
 
     /* --------------------------------------------------
        2. Notion-Style Quote Block
     -------------------------------------------------- */
     .tiptap blockquote {
-        border-left: 3px solid #111827 !important; /* Solid dark bar */
+        border-left: 3px solid #111827 !important;
         padding-left: 0.875rem !important;
         margin-top: 0.375rem !important;
         margin-bottom: 0.375rem !important;
@@ -40,11 +42,10 @@
     }
 
     .dark .tiptap blockquote {
-        border-left-color: #e5e7eb !important;     /* White/Light bar in dark mode */
+        border-left-color: #e5e7eb !important;
         color: inherit !important;
     }
 
-    /* Strip Tailwind Typography (@tailwindcss/typography) pseudo quotes */
     .tiptap blockquote p:first-of-type::before,
     .tiptap blockquote p:last-of-type::after {
         content: "" !important;
@@ -242,9 +243,18 @@
     font-size: 14px;
 }
 
+.dark .tiptap table td,
+.dark .tiptap table th {
+    border-color: #374151;
+}
+
 .tiptap table th {
     background-color: #f9fafb;
     font-weight: 500;
+}
+
+.dark .tiptap table th {
+    background-color: #262626;
 }
 
 .tiptap table .selectedCell:after {
@@ -268,10 +278,8 @@
     border-top: 1px solid #e5e7eb;
     margin: 1.5rem 0;
     cursor: default;
-
-    /* Stretch out past the container padding */
     width: calc(100% + 8rem);
-    margin-left: 0rem; /* Adjust to match the container's px padding */
+    margin-left: 0rem;
 }
 
 .tiptap hr.ProseMirror-selectednode {
@@ -308,26 +316,23 @@
     outline: none;
 }
 
-/* Heading Sizes for the Toggle Header */
 .notion-toggle-wrapper[data-level="1"] .toggle-summary-heading {
-    font-size: 1.875rem; /* 30px */
+    font-size: 1.875rem;
     line-height: 2.25rem;
     font-weight: 700;
 }
 
 .notion-toggle-wrapper[data-level="2"] .toggle-summary-heading {
-    font-size: 1.5rem;   /* 24px */
+    font-size: 1.5rem;
     line-height: 2rem;
     font-weight: 600;
 }
 
 .notion-toggle-wrapper[data-level="3"] .toggle-summary-heading {
-    font-size: 1.25rem;  /* 20px */
+    font-size: 1.25rem;
     line-height: 1.75rem;
     font-weight: 600;
 }
-
-/* Hide content when collapsed */
 
 .notion-toggle-wrapper[data-open="false"] div[data-type="details-content"],
 .notion-toggle-wrapper:not([data-open="true"]) div[data-type="details-content"],
@@ -336,7 +341,6 @@
     display: none !important;
 }
 
-/* Notion Empty Toggle Placeholder */
 div[data-type="details-content"] > p:only-child:empty::before,
 div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:only-child::before {
     content: "Empty toggle. Click to drop blocks inside." !important;
@@ -348,13 +352,11 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
     font-size: 0.95rem;
 }
 
-/* Dark mode placeholder */
 .dark div[data-type="details-content"] > p:only-child:empty::before,
 .dark div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:only-child::before {
     color: #6b7280 !important;
 }
 
-/* Serif font support */
 .font-serif div[data-type="details-content"] > p:only-child:empty::before {
     font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
@@ -376,7 +378,6 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
     outline: none;
 }
 
-/* The vertical grey divider line between columns (as in Notion) */
 .notion-column:not(:last-child)::after {
     content: "";
     position: absolute;
@@ -384,7 +385,7 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
     top: 4px;
     bottom: 4px;
     width: 3px;
-    background-color: #e5e7eb; /* Soft grey divider bar */
+    background-color: #e5e7eb;
     border-radius: 9999px;
     transform: translateX(50%);
     pointer-events: none;
@@ -394,7 +395,6 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
     background-color: #374151;
 }
 
-/* Notion Empty Placeholder inside each column */
 .notion-column > p:only-child:empty::before,
 .notion-column > p:only-child > .ProseMirror-trailingBreak:only-child::before,
 .notion-column > p.is-empty::before {
@@ -418,6 +418,10 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
     scrollbar-color: rgba(55, 53, 47, 0.35) transparent;
 }
 
+.dark .notion-scrollbar {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
 .notion-scrollbar::-webkit-scrollbar {
     height: 8px;
     background: transparent;
@@ -435,8 +439,16 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
     transition: background-color 0.15s ease;
 }
 
+.dark .notion-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
 .notion-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: rgba(55, 53, 47, 0.55);
+}
+
+.dark .notion-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.35);
 }
 
 .notion-scrollbar::-webkit-scrollbar-button {
@@ -444,7 +456,7 @@ div[data-type="details-content"] > p:only-child > .ProseMirror-trailingBreak:onl
     width: 0;
     height: 0;
 }
-/* Ensure DatabaseBlock tables use natural auto width and don't get squished */
+
 .not-prose table {
     table-layout: auto !important;
     width: max-content !important;
