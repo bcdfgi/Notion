@@ -231,15 +231,15 @@ export async function deletePage(pageId) {
 
 export async function getPageById(pageId) {
     try {
-        if (!pageId || !ObjectId.isValid(pageId)) return null;
-
+        if (!pageId) return null;
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
-        const page = await db.collection("pages").findOne(
-            { _id: new ObjectId(pageId) },
-            { projection: { title: 1, icon: 1 } }
-        );
+        const query = ObjectId.isValid(pageId)
+            ? { _id: new ObjectId(pageId) }
+            : { _id: pageId };
+
+        const page = await db.collection("pages").findOne(query);
 
         if (!page) return null;
 

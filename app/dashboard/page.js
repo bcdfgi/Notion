@@ -949,17 +949,42 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const handleInsertPageLink = async (selectedPage) => {
         if (!editor || !currentPageId || !selectedPage) return;
 
-        const targetId = String(selectedPage._id?.$oid || selectedPage._id || '').trim();
-        const pageTitle = (selectedPage.title || 'Untitled').trim();
-        const pageIconVal = selectedPage.icon || null;
+        console.log("Inserting page link for:", selectedPage);
 
-        if (!targetId) return;
+        // 1. Robust ID resolution across all common Mongo/Modal formats
+        const targetId = String(
+            selectedPage._id?.$oid ||
+            selectedPage._id ||
+            selectedPage.id ||
+            selectedPage.pageId ||
+            (selectedPage.page && (selectedPage.page._id || selectedPage.page.id)) ||
+            ''
+        ).trim();
 
-        // Restore cursor position if saved by slash command
+        // If no valid ID could be resolved, abort immediately to prevent inserting a null node
+        if (!targetId || targetId === 'null' || targetId === 'undefined') {
+            console.error("Failed to insert page link: no valid page ID found on object:", selectedPage);
+            return;
+        }
+
+        // 2. Resolve title and icon cleanly
+        const rawTitle = selectedPage.title || (selectedPage.page && selectedPage.page.title) || 'Untitled';
+        const pageTitle = typeof rawTitle === 'string' ? rawTitle.trim() : 'Untitled';
+        const pageIconVal = selectedPage.icon !== undefined ? selectedPage.icon : (selectedPage.page?.icon || null);
+
+        // 3. Close the modal if open
+        setShowPageLinkModal(false);
+
+        // 4. Restore saved position
         const insertPos = typeof window !== 'undefined' && window.__PAGE_LINK_POS__
             ? window.__PAGE_LINK_POS__
             : editor.state.selection.from;
 
+        if (typeof window !== 'undefined') {
+            delete window.__PAGE_LINK_POS__;
+        }
+
+        // 5. Insert node with validated attributes
         editor
             .chain()
             .focus()
@@ -975,34 +1000,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             .insertContent(' ')
             .run();
 
-        // Clear saved position
-        if (typeof window !== 'undefined') {
-            delete window.__PAGE_LINK_POS__;
-        }
-
+        // 6. Immediately sync and save
         const updatedJson = editor.getJSON();
-        const activePage = pagesRef.current.find(p => String(p._id) === String(currentPageId));
-        const domTitle = titleRef.current?.innerText?.replace(/\n/g, '').trim();
-        const currentTitle = domTitle || activePage?.title || "Untitled";
+        const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
 
-        const nextPages = pagesRef.current.map(p =>
-            String(p._id) === String(currentPageId) ? { ...p, content: updatedJson, title: currentTitle } : p
-        );
-        pagesRef.current = nextPages;
-        setPages(nextPages);
-
-        debouncedSave.cancel();
-        setSavingStatus("Saving...");
-        try {
-            const res = await updatePageContent(currentPageId, {
-                title: currentTitle,
-                content: updatedJson,
-                userEmail: userEmailRef.current,
-            });
-            setSavingStatus(res.success ? "Saved" : "Error");
-        } catch {
-            setSavingStatus("Error");
-        }
+        debouncedSave(updatedJson, currentTitle, currentPageId);
+        debouncedSave.flush();
     };
 
 

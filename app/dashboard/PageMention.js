@@ -7,15 +7,19 @@ import { FileText } from 'lucide-react';
 
 const PageMentionComponent = ({ node, editor }) => {
     const { pageId, title, icon } = node.attrs;
-    const [pagesCache, setPagesCache] = useState(() => {
-        return typeof window !== 'undefined' && window.__NOTION_PAGES__ ? window.__NOTION_PAGES__ : [];
+
+    // 1. Maintain local state for the live pages list from window or editor storage
+    const [pagesList, setPagesList] = useState(() => {
+        if (typeof window !== 'undefined' && Array.isArray(window.__NOTION_PAGES__)) {
+            return window.__NOTION_PAGES__;
+        }
+        return editor?.storage?.pageMention?.pages || [];
     });
 
-    // Listen for the pages update event dispatched by Dashboard
     useEffect(() => {
         const handlePagesUpdated = (e) => {
             if (Array.isArray(e.detail)) {
-                setPagesCache(e.detail);
+                setPagesList(e.detail);
             }
         };
 
@@ -23,20 +27,19 @@ const PageMentionComponent = ({ node, editor }) => {
         return () => window.removeEventListener('notion:pages-updated', handlePagesUpdated);
     }, []);
 
-    // 1. Look up live page from cache or editor storage
-    const livePage = useMemo(() => {
-        const pagesList =
-            pagesCache.length > 0
-                ? pagesCache
-                : editor?.storage?.pageMention?.pages ||
-                (typeof window !== 'undefined' ? window.__NOTION_PAGES__ : []) ||
-                [];
-        return pagesList.find((p) => String(p._id || p.id) === String(pageId));
-    }, [pagesCache, editor, pageId]);
+    // 2. Resolve target page from pages list
+    const matchedPage = useMemo(() => {
+        if (!pageId || !Array.isArray(pagesList)) return null;
+        const cleanTargetId = String(pageId).trim();
+        return pagesList.find((p) => {
+            const pId = String(p._id?.$oid || p._id || p.id || '').trim();
+            return pId === cleanTargetId;
+        });
+    }, [pagesList, pageId]);
 
-    // 2. Use live values if found, fallback to stored node attributes
-    const displayTitle = livePage?.title || title || 'Untitled';
-    const displayIcon = livePage?.icon !== undefined ? livePage.icon : icon;
+    // 3. Prefer matched page's current title and icon; fallback to stored attrs
+    const displayTitle = matchedPage?.title || (title && title !== 'Untitled' ? title : null) || 'Untitled';
+    const displayIcon = matchedPage?.icon !== undefined ? matchedPage.icon : icon;
 
     const renderIcon = () => {
         if (!displayIcon) {
@@ -58,7 +61,6 @@ const PageMentionComponent = ({ node, editor }) => {
         <NodeViewWrapper as="span" className="inline-block align-baseline mx-0.5">
             <span
                 data-page-id={pageId}
-                data-page-title={displayTitle}
                 contentEditable={false}
                 className="page-mention-pill inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-gray-100/90 hover:bg-gray-200/90 text-slate-800 font-medium text-xs border border-gray-200/70 transition-colors cursor-pointer select-none"
             >
@@ -79,17 +81,11 @@ export const PageMention = Node.create({
     inline: true,
     atom: true,
 
-    addStorage() {
-        return {
-            pages: [],
-        };
-    },
-
     addAttributes() {
         return {
             pageId: {
                 default: null,
-                parseHTML: (element) => element.getAttribute('data-page-id'),
+                parseHTML: (element) => element.getAttribute('data-page-id') || null,
                 renderHTML: (attributes) => {
                     if (!attributes.pageId) return {};
                     return { 'data-page-id': attributes.pageId };
@@ -97,10 +93,7 @@ export const PageMention = Node.create({
             },
             title: {
                 default: 'Untitled',
-                parseHTML: (element) =>
-                    element.getAttribute('data-page-title') ||
-                    element.innerText?.trim() ||
-                    'Untitled',
+                parseHTML: (element) => element.getAttribute('data-page-title') || 'Untitled',
                 renderHTML: (attributes) => ({
                     'data-page-title': attributes.title || 'Untitled',
                 }),
@@ -136,12 +129,22 @@ export const PageMention = Node.create({
         return [
             {
                 tag: 'span[data-page-id]',
+                getAttrs: (element) => {
+                    const pageId = element.getAttribute('data-page-id');
+                    if (!pageId || pageId === 'null' || pageId === 'undefined') {
+                        return false;
+                    }
+                    return {
+                        pageId,
+                        title: element.getAttribute('data-page-title') || 'Untitled',
+                    };
+                },
             },
         ];
     },
 
     renderHTML({ HTMLAttributes }) {
-        return ['span', mergeAttributes(HTMLAttributes, { class: 'page-mention-node' })];
+        return ['span', mergeAttributes(HTMLAttributes)];
     },
 
     addNodeView() {
