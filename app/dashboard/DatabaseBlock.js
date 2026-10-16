@@ -2817,7 +2817,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     </div>
                                 ) : null}
 
-                                <div className="p-8 flex-1 flex flex-col">
+                                <div className="px-12 py-8 flex-1 flex flex-col">
                                     <div className="flex items-center gap-3 mb-2 select-none">
                                         {!activeRow.icon && (
                                             <button

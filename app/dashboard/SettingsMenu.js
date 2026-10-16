@@ -4,9 +4,44 @@ import { Sliders, Settings, X, Search, ChevronDown } from 'lucide-react';
 import IconPickerModal from './IconPickerModal';
 import PageIcon from './PageIcon';
 
-export default function SettingsModal({ isOpen, onClose, userEmail, theme = 'Light', onThemeChange,workspaceName,onWorkspaceNameChange,workspaceIcon,onWorkspaceIconChange }) {
+export default function SettingsModal({
+                                          isOpen,
+                                          onClose,
+                                          userEmail,
+                                          theme = 'Light',
+                                          onThemeChange,
+                                          workspaceName,
+                                          onWorkspaceNameChange,
+                                          workspaceIcon,
+                                          onWorkspaceIconChange,
+                                      }) {
     const [activeTab, setActiveTab] = useState('preferences');
     const [showWorkspaceIconPicker, setShowWorkspaceIconPicker] = useState(false);
+    const [nameDraft, setNameDraft] = useState(workspaceName || '');
+    const [charError, setCharError] = useState('');
+
+    React.useEffect(() => {
+        setNameDraft(workspaceName || '');
+        setCharError('');
+    }, [workspaceName, isOpen]);
+
+    const handleInputChange = (e) => {
+        const val = e.target.value;
+
+        if (val.length > 65) {
+            setCharError('Workspace name cannot exceed 65 characters.');
+            setNameDraft(val.slice(0, 65));
+            return;
+        }
+
+        setCharError('');
+        setNameDraft(val);
+    };
+
+    const handleSaveWorkspaceName = () => {
+        if (!nameDraft.trim()) return;
+        onWorkspaceNameChange?.(nameDraft.trim());
+    };
 
     if (!isOpen) return null;
 
@@ -144,14 +179,38 @@ export default function SettingsModal({ isOpen, onClose, userEmail, theme = 'Lig
                                     <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-2">
                                         Your workspace name can be up to 65 characters
                                     </p>
-                                    <input
-                                        type="text"
-                                        maxLength={65}
-                                        value={workspaceName}
-                                        onChange={(e) => onWorkspaceNameChange?.(e.target.value)}
-                                        placeholder="Workspace name"
-                                        className="w-full text-xs px-3 py-2 bg-gray-50/60 dark:bg-[#262626] border border-gray-200 dark:border-[#383838] rounded-lg text-slate-800 dark:text-[#EBEBEB] focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors shadow-xs"
-                                    />
+
+                                    <div className="relative max-w-lg">
+                                        <input
+                                            type="text"
+                                            maxLength={65}
+                                            value={nameDraft}
+                                            onChange={handleInputChange}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleSaveWorkspaceName();
+                                                }
+                                            }}
+                                            placeholder="Workspace name"
+                                            className="w-full text-xs px-3 py-2 pr-16 bg-gray-50/60 dark:bg-[#262626] border border-gray-200 dark:border-[#383838] rounded-lg text-slate-800 dark:text-[#EBEBEB] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors shadow-xs"
+                                        />
+
+                                        {/* Inline Save button when modified */}
+                                        {nameDraft !== workspaceName && nameDraft.trim().length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveWorkspaceName}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                                            >
+                                                Save
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {charError && (
+                                        <p className="text-[11px] text-red-500 mt-1">{charError}</p>
+                                    )}
                                 </div>
 
                                 {/* Workspace Icon Selector */}
@@ -166,12 +225,13 @@ export default function SettingsModal({ isOpen, onClose, userEmail, theme = 'Lig
                                     <div className="relative inline-block">
                                         <button
                                             type="button"
-                                            onClick={() => setShowWorkspaceIconPicker(prev => !prev)}
+                                            onClick={() => setShowWorkspaceIconPicker((prev) => !prev)}
                                             className="w-14 h-14 rounded-lg border border-gray-200 dark:border-[#383838] bg-gray-50 dark:bg-[#262626] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2e2e2e] transition-colors overflow-hidden cursor-pointer shadow-xs"
                                             title="Change workspace icon"
                                         >
                                             {workspaceIcon ? (
-                                                typeof workspaceIcon === 'string' && (workspaceIcon.startsWith('http') || workspaceIcon.startsWith('data:')) ? (
+                                                typeof workspaceIcon === 'string' &&
+                                                (workspaceIcon.startsWith('http') || workspaceIcon.startsWith('data:')) ? (
                                                     <img src={workspaceIcon} alt="Workspace Icon" className="w-full h-full object-cover" />
                                                 ) : typeof workspaceIcon === 'string' ? (
                                                     <span className="text-3xl leading-none">{workspaceIcon}</span>
@@ -204,7 +264,8 @@ export default function SettingsModal({ isOpen, onClose, userEmail, theme = 'Lig
                             </div>
                         </div>
                     )}
+                </div>
+            </div>
         </div>
-        </div>
-        </div>
-    );}
+    );
+}

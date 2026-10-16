@@ -1190,11 +1190,22 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             console.error("Failed to update favorite status:", err);
         }
     };
+
+
+
+
+
+
     const [workspaceName, setWorkspaceName] = useState(() => {
-        return localStorage.getItem('app-workspace-name') || `${userEmail.split('@')[0]}'s Notion`;
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('app-workspace-name') || `${userEmail.split('@')[0]}'s Notion`;
+        }
+        return `${userEmail.split('@')[0]}'s Notion`;
     });
+
     const [workspaceIcon, setWorkspaceIcon] = useState(() => {
-        const saved = typeof window !== 'undefined' ? localStorage.getItem('app-workspace-icon') : null;
+        if (typeof window === 'undefined') return null;
+        const saved = localStorage.getItem('app-workspace-icon');
         if (!saved) return null;
         try {
             return JSON.parse(saved);
@@ -1205,12 +1216,16 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
     const handleWorkspaceNameChange = (name) => {
         setWorkspaceName(name);
-        localStorage.setItem('app-workspace-name', name);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('app-workspace-name', name);
+        }
     };
 
     const handleWorkspaceIconChange = (icon) => {
         setWorkspaceIcon(icon);
-        localStorage.setItem('app-workspace-icon', typeof icon === 'string' ? icon : JSON.stringify(icon));
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('app-workspace-icon', typeof icon === 'string' ? icon : JSON.stringify(icon));
+        }
     };
 
 
@@ -1564,31 +1579,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 {workspaceName}
             </span>
                     </div>
-                    <div
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg cursor-pointer transition-colors"
-                    >
-                        <div className="w-6 h-6 rounded flex items-center justify-center overflow-hidden shrink-0">
-                            {workspaceIcon ? (
-                                typeof workspaceIcon === 'string' ? (
-                                    workspaceIcon.startsWith('http') || workspaceIcon.startsWith('data:') ? (
-                                        <img src={workspaceIcon} alt="Workspace" className="w-full h-full object-cover rounded" />
-                                    ) : (
-                                        <span className="text-sm leading-none">{workspaceIcon}</span>
-                                    )
-                                ) : (
-                                    <PageIcon icon={workspaceIcon} size={18} />
-                                )
-                            ) : (
-                                <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-xs">
-                                    {userEmail[0].toUpperCase()}
-                                </div>
-                            )}
-                        </div>
-                        <span className="font-semibold text-sm text-slate-700 dark:text-slate-200 truncate">
-        {workspaceName}
-    </span>
-                    </div>
+
+
 
                     <nav className="flex-1 space-y-1">
                         <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg transition-colors group">

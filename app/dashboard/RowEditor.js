@@ -40,11 +40,12 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
     const containerRef = useRef(null);
 
     // Hover handle states
-    const [handlePos, setHandlePos] = useState({ top: -100, opacity: 0 });
+    const [handlePos, setHandlePos] = useState({top: 14, opacity: 1});
     const [showPlusMenu, setShowPlusMenu] = useState(false);
     const [showBlockMenu, setShowBlockMenu] = useState(false);
     const plusMenuRef = useRef(null);
     const blockMenuRef = useRef(null);
+
 
     const updateHandlePosition = useCallback((targetElement) => {
         if (!containerRef.current || !targetElement) return;
@@ -76,17 +77,17 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
                         language: {
                             default: 'Plain Text',
                             parseHTML: (el) => el.getAttribute('data-language') || 'Plain Text',
-                            renderHTML: (attrs) => ({ 'data-language': attrs.language }),
+                            renderHTML: (attrs) => ({'data-language': attrs.language}),
                         },
                         caption: {
                             default: '',
                             parseHTML: (el) => el.getAttribute('data-caption') || '',
-                            renderHTML: (attrs) => ({ 'data-caption': attrs.caption }),
+                            renderHTML: (attrs) => ({'data-caption': attrs.caption}),
                         },
                         wrap: {
                             default: false,
                             parseHTML: (el) => el.getAttribute('data-wrap') === 'true',
-                            renderHTML: (attrs) => ({ 'data-wrap': attrs.wrap ? 'true' : 'false' }),
+                            renderHTML: (attrs) => ({'data-wrap': attrs.wrap ? 'true' : 'false'}),
                         },
                     };
                 },
@@ -94,16 +95,16 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
                     return ReactNodeViewRenderer(CodeBlockComponent);
                 },
             }),
-            Table.configure({ resizable: true }),
+            Table.configure({resizable: true}),
             TableRow,
             TableHeader,
             TableCell,
             TaskList,
-            TaskItem.configure({ nested: true }),
+            TaskItem.configure({nested: true}),
             Underline,
             TextStyle,
             Color,
-            Highlight.configure({ multicolor: true }),
+            Highlight.configure({multicolor: true}),
             Code,
             ColumnGroup,
             Column,
@@ -119,30 +120,30 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
             PageMention,
             Link.configure({
                 openOnClick: false,
-                HTMLAttributes: { class: 'text-blue-500 underline cursor-pointer' },
+                HTMLAttributes: {class: 'text-blue-500 underline cursor-pointer'},
             }),
             Placeholder.configure({
                 placeholder: "Press '/' for commands...",
             }),
             SlashCommands,
         ],
-        content: initialContent || { type: 'doc', content: [{ type: 'paragraph' }] },
+        content: initialContent || {type: 'doc', content: [{type: 'paragraph'}]},
         immediatelyRender: false,
         editorProps: {
             attributes: {
                 class: 'tiptap prose prose-slate max-w-none focus:outline-none min-h-[350px] text-[14px] text-slate-800 caret-blue-500 py-3',
             },
         },
-        onUpdate: ({ editor }) => {
+        onUpdate: ({editor}) => {
             isUpdatingRef.current = true;
             onChange(editor.getJSON());
             setTimeout(() => {
                 isUpdatingRef.current = false;
             }, 100);
         },
-        onSelectionUpdate: ({ editor }) => {
+        onSelectionUpdate: ({editor}) => {
             if (!editor.view) return;
-            const { selection } = editor.state;
+            const {selection} = editor.state;
             let node = editor.view.domAtPos(selection.from).node;
             const editorRoot = editor.view.dom;
             while (node && node.parentNode !== editorRoot) {
@@ -186,25 +187,33 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
         if (!editor || isUpdatingRef.current) return;
         const currentJson = JSON.stringify(editor.getJSON());
         const incomingJson = JSON.stringify(
-            initialContent || { type: 'doc', content: [{ type: 'paragraph' }] }
+            initialContent || {type: 'doc', content: [{type: 'paragraph'}]}
         );
         if (currentJson !== incomingJson) {
             editor.commands.setContent(
-                initialContent || { type: 'doc', content: [{ type: 'paragraph' }] },
+                initialContent || {type: 'doc', content: [{type: 'paragraph'}]},
                 false
             );
         }
     }, [initialContent, editor]);
+    useEffect(() => {
+        if (editor && editor.view) {
+            const firstBlock = editor.view.dom.querySelector('.tiptap > *');
+            if (firstBlock) {
+                updateHandlePosition(firstBlock);
+            }
+        }
+    }, [editor, updateHandlePosition]);
 
     return (
         <div
             ref={containerRef}
             onMouseMove={handleMouseMove}
-            className="w-full relative group/roweditor mt-2"
+            className="w-full relative group/roweditor mt-2 pl-4" {/* Added pl-4 padding */}
         >
             {/* Hover Action Handle (+ and 6-dots) */}
             <div
-                className="absolute -left-12 flex items-center gap-0.5 z-40 transition-opacity duration-150"
+                className="absolute -left-7 sm:-left-8 flex items-center gap-0.5 z-40 transition-opacity duration-150"
                 style={{
                     top: `${handlePos.top}px`,
                     opacity: handlePos.opacity,
@@ -220,10 +229,11 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
                             setShowPlusMenu((prev) => !prev);
                             setShowBlockMenu(false);
                         }}
-                        className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+                        className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                         title="Add a block below"
                     >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             strokeWidth="2.5">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
@@ -235,8 +245,8 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
                                 items={plusMenuItems}
                                 command={(item) => {
                                     if (item.command && editor) {
-                                        const { from, to } = editor.state.selection;
-                                        item.command({ editor, range: { from, to } });
+                                        const {from, to} = editor.state.selection;
+                                        item.command({editor, range: {from, to}});
                                     }
                                     setShowPlusMenu(false);
                                 }}
@@ -258,8 +268,12 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
                         title="Drag to move or click for options"
                     >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" />
-                            <circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" />
+                            <circle cx="9" cy="6" r="2"/>
+                            <circle cx="9" cy="12" r="2"/>
+                            <circle cx="9" cy="18" r="2"/>
+                            <circle cx="15" cy="6" r="2"/>
+                            <circle cx="15" cy="12" r="2"/>
+                            <circle cx="15" cy="18" r="2"/>
                         </svg>
                     </button>
 
@@ -276,7 +290,7 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
             </div>
 
             {/* TipTap Editor Content */}
-            <EditorContent editor={editor} />
+            <EditorContent editor={editor}/>
         </div>
     );
 }
