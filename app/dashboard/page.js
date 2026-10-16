@@ -302,9 +302,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 console.log("Forcing direct save to MongoDB...");
                 const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
                 const json = editor.getJSON();
+                const contentPayload = JSON.stringify(json);
                 const res = await updatePageContent(currentPageId, {
                     title: currentTitle,
-                    content: json,
+                    content: contentPayload,
                     userEmail: userEmailRef.current,
                 });
                 console.log("Direct MongoDB save result:", res);
@@ -323,9 +324,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setSavingStatus("Saving...");
 
             try {
+                // Ensure content is stored as stringified JSON so nested attributes (attrs.level) are NEVER lost
+                const contentPayload = typeof json === 'string' ? json : JSON.stringify(json);
+
                 const result = await updatePageContent(pageId, {
                     title: currentTitle,
-                    content: json,
+                    content: contentPayload,
                     userEmail: userEmailRef.current,
                 });
 
@@ -335,7 +339,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     setLastEditedTime(now);
                     setPages(prevPages =>
                         prevPages.map(p =>
-                            p._id === pageId ? { ...p, title: currentTitle, content: json } : p
+                            p._id === pageId ? { ...p, title: currentTitle, content: contentPayload } : p
                         )
                     );
                 } else {
@@ -427,7 +431,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
             if (editor && !editor.isDestroyed) {
                 const raw = selectedPage.content;
-                const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                const parsedContent = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
                 isSwitchingPageRef.current = true;
                 isHydratedRef.current = false;

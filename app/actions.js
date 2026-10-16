@@ -1,5 +1,5 @@
 'use server';
-import { Resend } from 'resend';
+import  { Resend } from 'resend';
 import clientPromise from "@/lib/mongodb";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -155,6 +155,7 @@ export async function getPages(userEmail) {
             pages: pages.map(p => ({
                 ...p,
                 _id: p._id.toString(),
+                content: p.content || { type: 'doc', content: [{ type: 'paragraph' }] },
                 createdAt: p.createdAt ? p.createdAt.toISOString() : null,
                 updatedAt: p.updatedAt ? p.updatedAt.toISOString() : null,
             }))
@@ -171,7 +172,6 @@ export async function updatePageContent(pageId, rawData) {
             return { success: false, error: "Invalid ID" };
         }
 
-        const data = JSON.parse(JSON.stringify(rawData));
         const client = await clientPromise;
         const db = client.db("notion_clone");
 
@@ -179,15 +179,21 @@ export async function updatePageContent(pageId, rawData) {
             updatedAt: new Date()
         };
 
-        // Explicitly map all supported page properties
-        if (data.title !== undefined) updateData.title = data.title || "Untitled";
-        if (data.content !== undefined) updateData.content = data.content;
-        if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
-        if (data.coverPosition !== undefined) updateData.coverPosition = data.coverPosition;
-        if (data.icon !== undefined) updateData.icon = data.icon;
-        if (data.isFavorite !== undefined) updateData.isFavorite = Boolean(data.isFavorite); // Added fix
+        if (rawData.title !== undefined) updateData.title = rawData.title || "Untitled";
 
-        // Update directly by ObjectId
+        // ✅ Clean BSON conversion: strips symbols, functions, and invalid prototype references
+        if (rawData.content !== undefined) {
+            const rawString = typeof rawData.content === 'string'
+                ? rawData.content
+                : JSON.stringify(rawData.content);
+            updateData.content = JSON.parse(rawString);
+        }
+
+        if (rawData.coverImage !== undefined) updateData.coverImage = rawData.coverImage;
+        if (rawData.coverPosition !== undefined) updateData.coverPosition = rawData.coverPosition;
+        if (rawData.icon !== undefined) updateData.icon = rawData.icon;
+        if (rawData.isFavorite !== undefined) updateData.isFavorite = Boolean(rawData.isFavorite);
+
         const updateResult = await db.collection("pages").updateOne(
             { _id: new ObjectId(pageId) },
             { $set: updateData }
