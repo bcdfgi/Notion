@@ -21,7 +21,7 @@ export const slashItems = [
         icon: 'H1',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).toggleHeading({ level: 1 }).run();
+            editor.chain().focus().deleteRange(range).setNode('heading', { level: 1 }).run();
         },
     },
     {
@@ -30,7 +30,7 @@ export const slashItems = [
         icon: 'H2',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).toggleHeading({ level: 2 }).run();
+            editor.chain().focus().deleteRange(range).setNode('heading', { level: 2 }).run();
         },
     },
     {
@@ -39,7 +39,7 @@ export const slashItems = [
         icon: 'H3',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).toggleHeading({ level: 3 }).run();
+            editor.chain().focus().deleteRange(range).setNode('heading', { level: 3 }).run();
         },
     },
     {
@@ -48,7 +48,7 @@ export const slashItems = [
         icon: 'H4',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).toggleHeading({ level: 4 }).run();
+            editor.chain().focus().deleteRange(range).setNode('heading', { level: 4 }).run();
         },
     },
     {

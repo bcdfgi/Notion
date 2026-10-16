@@ -273,7 +273,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
         onUpdate: ({ editor }) => {
-            if (isSwitchingPageRef.current || !isHydratedRef.current) return;
+            if (isSwitchingPageRef.current) return;
             const currentTitle = titleRef.current?.innerText?.trim();
             saveContent(editor.getJSON(), currentTitle);
         },
@@ -295,6 +295,22 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             window.editor = editor;
         }
     }, [editor]);
+
+    useEffect(() => {
+        if (editor && currentPageId) {
+            window.forceSaveNow = async () => {
+                console.log("Forcing direct save to MongoDB...");
+                const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+                const json = editor.getJSON();
+                const res = await updatePageContent(currentPageId, {
+                    title: currentTitle,
+                    content: json,
+                    userEmail: userEmailRef.current,
+                });
+                console.log("Direct MongoDB save result:", res);
+            };
+        }
+    }, [editor, currentPageId]);
 
     const userEmailRef = useRef(userEmail);
     useEffect(() => {
@@ -418,14 +434,16 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 debouncedSave.cancel();
 
                 editor.commands.setContent(
-                    parsed && parsed.type ? parsed : { type: 'doc', content: [{ type: 'paragraph' }] },
+                    parsedContent && parsedContent.type ? parsedContent : { type: 'doc', content: [{ type: 'paragraph' }] },
                     { emitUpdate: false }
                 );
+
+                setIsLoading(false);
 
                 setTimeout(() => {
                     isSwitchingPageRef.current = false;
                     isHydratedRef.current = true;
-                }, 500);
+                }, 100);
             }
 
         }
@@ -509,11 +527,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                     setIsLoading(false);
 
-// 2. Only enable saving AFTER the editor finishes rendering
                     setTimeout(() => {
                         isSwitchingPageRef.current = false;
                         isHydratedRef.current = true;
-                    }, 500);
+                    }, 100);
 
                     // Allow TipTap's NodeViews to finish mounting then immediately enable saving
                 } else if (result.success && result.pages.length === 0) {
@@ -1288,9 +1305,9 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
     const saveContent = useCallback((json, title) => {
-        if (!isHydratedRef.current || isSwitchingPageRef.current) return;
+        // Only prevent saves if explicitly switching pages to avoid overwriting page A with page B's content
+        if (isSwitchingPageRef.current) return;
 
-        // Look up the known title from state if DOM ref is missing or empty
         const currentActivePage = pagesRef.current.find(p => p._id === currentPageId);
         const existingTitle = currentActivePage?.title || "Untitled";
 
@@ -1303,6 +1320,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             debouncedSave(json, cleanTitle, currentPageId);
         }
     }, [currentPageId, debouncedSave, isLoading]);
+
+
     useEffect(() => {
         const handleTriggerImport = (e) => {
             const type = e.detail?.type || 'markdown';
@@ -2471,21 +2490,21 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                                                    onClick={() => editor.chain().focus().setNode('heading', { level: 1 }).run()}
                                                     className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
                                                 >
                                                     Heading 1
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                                                    onClick={() => editor.chain().focus().setNode('heading', { level: 2 }).run()}
                                                     className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
                                                 >
                                                     Heading 2
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                                                    onClick={() => editor.chain().focus().setNode('heading', { level: 3 }).run()}
                                                     className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
                                                 >
                                                     Heading 3
@@ -2707,6 +2726,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
         </div>
+
     );
 };
 
