@@ -321,7 +321,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: 'tiptap prose prose-slate dark:prose-invert max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 -ml-45 text-slate-800 dark:text-[#EBEBEB]',
+                class: 'tiptap prose prose-slate dark:prose-invert max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 text-slate-800 dark:text-[#EBEBEB]',
             },
         },
 
@@ -810,7 +810,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             return { ...prev, row: updatedRow };
         });
 
-        // Notify DatabaseBlock to sync into TipTap doc attributes
+        // 1. Notify DatabaseBlock to sync into TipTap doc attributes
         window.dispatchEvent(new CustomEvent('notion:update-row-field', {
             detail: { rowId, field, value }
         }));
@@ -824,6 +824,16 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 detail: { rowId, icon: value }
             }));
         }
+
+        // 2. 🔥 FORCE TIP TAP TO PERSIST THE DATABASE ATTRIBUTES TO MONGODB 🔥
+        setTimeout(() => {
+            if (editor && currentPageId) {
+                const updatedJson = editor.getJSON();
+                const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+                debouncedSave(updatedJson, currentTitle, currentPageId);
+                debouncedSave.flush();
+            }
+        }, 50);
     };
     const allFavorites = useMemo(() => {
         const list = [];
@@ -2128,42 +2138,49 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             )}
 
                             <main
-                                className={`mx-auto pb-40 transition-all duration-150 group/rowpage ${
-                                    isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'
+                                ref={containerRef}
+                                onMouseMove={handleMouseMove}
+                                className={`ml-8 sm:ml-12 mr-auto relative group/rowpage pb-40 transition-all duration-150 ${
+                                    isFullWidth ? 'max-w-6xl pr-14' : 'max-w-4xl pr-16'
                                 } ${
-                                    activeDatabaseRowItem.row?.cover ? 'mt-4' : 'mt-16'
+                                    activeDatabaseRowItem.row?.cover ? 'mt-0' : 'mt-10'
                                 } ${
                                     fontStyle === 'serif' ? 'font-serif' : fontStyle === 'mono' ? 'font-mono' : 'font-sans'
                                 } ${
                                     isSmallText ? 'text-xs' : 'text-base'
                                 }`}
                             >
-
-                                {/* Hover Actions: Add Icon & Add Cover (shown when missing) */}
-                                <div className={`flex items-center gap-2 mb-3 select-none transition-opacity ${
-                                    !activeDatabaseRowItem.row?.icon || !activeDatabaseRowItem.row?.cover
-                                        ? 'opacity-0 group-hover/rowpage:opacity-100'
-                                        : ''
-                                }`}>
-                                    {!activeDatabaseRowItem.row?.icon && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowIconPicker(true)}
-                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                        >
-                                            <Smile size={14} /> Add icon
-                                        </button>
-                                    )}
-                                    {!activeDatabaseRowItem.row?.cover && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowRowCoverPicker(true)}
-                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                                            Add cover
-                                        </button>
-                                    )}
+                                {/* Top Actions: Add Icon & Add Cover (Always visible on hover if missing) */}
+                                <div className="flex items-center gap-2 min-h-[28px] mb-1 select-none">
+                                    <div className="flex items-center gap-1.5 opacity-0 group-hover/rowpage:opacity-100 transition-opacity duration-150">
+                                        {!activeDatabaseRowItem.row?.icon && (
+                                            <div className="flex items-center gap-2 min-h-[28px] mb-1 select-none">
+                                                <div className="flex items-center gap-1.5 opacity-0 group-hover/rowpage:opacity-100 transition-opacity duration-150">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowIconPicker(true)}
+                                                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
+                                                    >
+                                                        <Smile size={14} /> Add icon
+                                                    </button>
+                                                    {!activeDatabaseRowItem.row?.cover && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowRowCoverPicker(true)}
+                                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                                                <polyline points="21 15 16 10 5 21" />
+                                                            </svg>
+                                                            Add cover
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Icon Picker Popover */}
@@ -2185,7 +2202,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 {/* Row Cover Picker Popover */}
                                 {showRowCoverPicker && (
                                     <div className="relative z-50 mb-4">
-                                        <div className="absolute top-0 left-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-72 z-50">
+                                        <div className="absolute top-0 left-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-72 z-50 select-none">
                                             <div className="flex items-center justify-between mb-3">
                                                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
                                                 <button
@@ -2197,7 +2214,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                 </button>
                                             </div>
 
-                                            {/* Presets */}
                                             <div className="grid grid-cols-2 gap-2 mb-3">
                                                 {NOTION_COVERS.map((url, i) => (
                                                     <button
@@ -2214,7 +2230,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                 ))}
                                             </div>
 
-                                            {/* Upload / Link */}
                                             <div className="space-y-2 pt-2 border-t border-gray-100">
                                                 <input
                                                     type="file"
@@ -2257,10 +2272,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     </div>
                                 )}
 
-                                {/* Row Icon (Notion style with cover overlap support) */}
-                                {/* Row Icon (Notion-style: transparent, overlaying the cover seam cleanly) */}
+
+                                {/* Row Icon with integrated hover action */}
                                 {activeDatabaseRowItem.row?.icon && (
-                                    <div className={`relative z-10 inline-block mb-3 ${
+                                    <div className={`relative z-10 flex items-center gap-3 mb-2 ${
                                         activeDatabaseRowItem.row?.cover ? '-mt-16 sm:-mt-20' : ''
                                     }`}>
                                         <button
@@ -2271,8 +2286,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                         >
                                             {typeof activeDatabaseRowItem.row.icon === 'string' ? (
                                                 <span className="text-6xl sm:text-7xl leading-none drop-shadow-xs">
-                    {activeDatabaseRowItem.row.icon}
-                </span>
+                                                    {activeDatabaseRowItem.row.icon}
+                                                </span>
                                             ) : (
                                                 <div className="flex items-center justify-center">
                                                     <PageIcon
@@ -2282,6 +2297,22 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                 </div>
                                             )}
                                         </button>
+
+                                        {/* "Add cover" button visible right next to the icon on hover */}
+                                        {!activeDatabaseRowItem.row?.cover && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowRowCoverPicker(true)}
+                                                className="opacity-0 group-hover/rowpage:opacity-100 flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 px-2 py-1 rounded-md hover:bg-gray-100 transition-all select-none cursor-pointer"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                                    <polyline points="21 15 16 10 5 21" />
+                                                </svg>
+                                                Add cover
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 
@@ -2392,10 +2423,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             <main
                                 ref={containerRef}
                                 onMouseMove={handleMouseMove}
-                                className={`mx-auto relative group pb-40 transition-all duration-150 ${
-                                    isFullWidth ? 'max-w-5xl px-14 sm:px-20' : 'max-w-3xl px-16'
+                                className={`ml-10 sm:ml-14 mr-auto relative group pb-40 transition-all duration-150 ${
+                                    isFullWidth ? 'max-w-6xl pr-14' : 'max-w-4xl pr-16'
                                 } ${
-                                    coverImage ? 'mt-8' : 'mt-16'
+                                    coverImage ? 'mt-0' : 'mt-12'
                                 } ${
                                     fontStyle === 'serif' ? 'font-serif' : fontStyle === 'mono' ? 'font-mono' : 'font-sans'
                                 } ${
@@ -2406,7 +2437,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     ref={plusMenuRef}
                                     className="absolute flex items-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100"
                                     style={{
-                                        transform: `translate3d(calc(-100% - 180px), ${handlePos.top}px, 0)`,
+                                        transform: `translate3d(-52px, ${handlePos.top}px, 0)`,
                                         transition: 'transform 100ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms',
                                     }}
                                 >
@@ -2549,80 +2580,87 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 )}
 
                                 <div className="flex items-center gap-2 mb-2">
+                                    {/* Page Icon (Notion Style: Overlaps cover seam, aligns with title) */}
                                     {pageIcon ? (
-                                        <div className="relative inline-block">
+                                        <div className={`relative z-10 inline-block select-none ${coverImage ? '-mt-12 sm:-mt-14 mb-2' : 'mt-4 mb-3'}`}>
                                             <button
                                                 type="button"
-                                                onClick={() => setShowIconPicker(prev => !prev)}
-                                                className={`p-1 rounded-lg hover:bg-gray-200/50 transition-colors flex items-center justify-center border-none bg-transparent shadow-none outline-none ${
-                                                    coverImage ? '-mt-16' : ''
-                                                }`}
+                                                onClick={() => setShowIconPicker((prev) => !prev)}
+                                                className="group/iconbtn p-1 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer"
+                                                title="Change icon"
                                             >
-                                                <PageIcon icon={pageIcon} size={coverImage ? 56 : 44} />
+                                                {typeof pageIcon === 'string' ? (
+                                                    <span className="text-6xl sm:text-7xl leading-none drop-shadow-xs">
+                    {pageIcon}
+                </span>
+                                                ) : (
+                                                    <div className="flex items-center justify-center drop-shadow-xs">
+                                                        <PageIcon icon={pageIcon} size={coverImage ? 76 : 60} />
+                                                    </div>
+                                                )}
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity mb-2 flex items-center gap-2 select-none">
                                             <button
                                                 type="button"
                                                 onClick={() => setShowIconPicker(true)}
-                                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors"
                                             >
                                                 <Smile size={14} />
                                                 Add icon
                                             </button>
+                                            {!coverImage && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCoverPicker(true)}
+                                                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors"
+                                                >
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                                                    Add cover
+                                                </button>
+                                            )}
                                         </div>
                                     )}
 
-                                    {!coverImage && (
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => setShowCoverPicker(true)}
-                                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                            >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                                                Add cover
-                                            </button>
+                                    {showIconPicker && (
+                                        <div className="relative z-50">
+                                            <div className="absolute top-0 left-0">
+                                                <IconPickerModal
+                                                    onSelect={(selected) => handleUpdateIcon(selected)}
+                                                    onClose={() => setShowIconPicker(false)}
+                                                />
+                                            </div>
                                         </div>
                                     )}
-                                </div>
-
-                                {showIconPicker && (
-                                    <div className="relative z-50">
-                                        <div className="absolute top-0 left-0">
-                                            <IconPickerModal
-                                                onSelect={(selected) => handleUpdateIcon(selected)}
-                                                onClose={() => setShowIconPicker(false)}
-                                            />
-                                        </div>
                                     </div>
-                                )}
 
-                                <h1
-                                    ref={titleRef}
-                                    contentEditable
-                                    suppressContentEditableWarning={true}
-                                    data-placeholder="Untitled"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            editor?.chain().focus().run();
-                                        }
-                                    }}
-                                    onInput={(e) => {
-                                        const text = e.currentTarget.innerText;
-                                        saveContent(editor?.getJSON(), text);
-                                    }}
-                                    onBlur={(e) => {
-                                        const text = e.currentTarget.innerText.trim();
-                                        if (text === "") {
-                                            const fallback = "Untitled";
-                                            e.currentTarget.innerText = fallback;
-                                            saveContent(editor?.getJSON(), fallback);
-                                        }
-                                    }}
-                                    className="-ml-45 text-5xl font-bold mb-8 outline-none text-slate-800 dark:text-slate-100 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300 dark:empty:before:text-[#474747]"
-                                />
+                                    {/* Page Title: Removed -ml-45 so it lines up with the icon and text column */}
+                                    <h1
+                                        ref={titleRef}
+                                        contentEditable
+                                        suppressContentEditableWarning={true}
+                                        data-placeholder="Untitled"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                editor?.chain().focus().run();
+                                            }
+                                        }}
+                                        onInput={(e) => {
+                                            const text = e.currentTarget.innerText;
+                                            saveContent(editor?.getJSON(), text);
+                                        }}
+                                        onBlur={(e) => {
+                                            const text = e.currentTarget.innerText.trim();
+                                            if (text === "") {
+                                                const fallback = "Untitled";
+                                                e.currentTarget.innerText = fallback;
+                                                saveContent(editor?.getJSON(), fallback);
+                                            }
+                                        }}
+                                        className="w-full text-4xl sm:text-5xl font-bold mb-6 outline-none text-slate-800 dark:text-slate-100 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300 dark:empty:before:text-[#474747]"
+                                    />
 
                                 {editor && (
                                     <BubbleMenu
