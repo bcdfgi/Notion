@@ -88,7 +88,56 @@ const NOTION_COVERS = [
     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop"
 ]
+
+const NOTION_BUBBLE_COLORS = {
+    text: [
+        { key: 'default', label: 'Default text', color: null, preview: '#37352F' },
+        { key: 'gray', label: 'Gray text', color: '#787774', preview: '#787774' },
+        { key: 'brown', label: 'Brown text', color: '#9F6B53', preview: '#9F6B53' },
+        { key: 'orange', label: 'Orange text', color: '#D9730D', preview: '#D9730D' },
+        { key: 'yellow', label: 'Yellow text', color: '#CB912F', preview: '#CB912F' },
+        { key: 'green', label: 'Green text', color: '#448361', preview: '#448361' },
+        { key: 'blue', label: 'Blue text', color: '#337EA9', preview: '#337EA9' },
+        { key: 'purple', label: 'Purple text', color: '#9065B0', preview: '#9065B0' },
+        { key: 'pink', label: 'Pink text', color: '#C14C8A', preview: '#C14C8A' },
+        { key: 'red', label: 'Red text', color: '#D44C47', preview: '#D44C47' },
+    ],
+    bg: [
+        { key: 'default', label: 'Default background', color: null, preview: '#FFFFFF', border: true },
+        { key: 'gray', label: 'Gray background', color: '#F1F1EF', preview: '#F1F1EF' },
+        { key: 'brown', label: 'Brown background', color: '#F4EEEE', preview: '#F4EEEE' },
+        { key: 'orange', label: 'Orange background', color: '#FBECDD', preview: '#FBECDD' },
+        { key: 'yellow', label: 'Yellow background', color: '#FBF3DB', preview: '#FBF3DB' },
+        { key: 'green', label: 'Green background', color: '#EDF3EC', preview: '#EDF3EC' },
+        { key: 'blue', label: 'Blue background', color: '#E7F3F8', preview: '#E7F3F8' },
+        { key: 'purple', label: 'Purple background', color: '#F4EEF8', preview: '#F4EEF8' },
+        { key: 'pink', label: 'Pink background', color: '#F9EEF3', preview: '#F9EEF3' },
+        { key: 'red', label: 'Red background', color: '#FDEBEC', preview: '#FDEBEC' },
+    ],
+};
 const MAX_FILE_SIZE = 1024 * 1024;
+
+function detectColumnType(values) {
+    const nonEmpties = values.filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+    if (nonEmpties.length === 0) return 'text';
+
+    // Check Boolean / Checkbox
+    const isBool = nonEmpties.every(v => ['true', 'false', 'yes', 'no', '1', '0'].includes(String(v).trim().toLowerCase()));
+    if (isBool) return 'checkbox';
+
+    // Check Number
+    const isNum = nonEmpties.every(v => !isNaN(Number(String(v).trim())));
+    if (isNum) return 'number';
+
+    // Check Date (ISO or common date patterns)
+    const isDate = nonEmpties.every(v => {
+        const str = String(v).trim();
+        return str.length >= 8 && !isNaN(Date.parse(str));
+    });
+    if (isDate) return 'date';
+
+    return 'text';
+}
 
 const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const isMounted = useIsMounted();
@@ -141,6 +190,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [isDraggingRowCover, setIsDraggingRowCover] = useState(false);
     const rowDragRef = useRef({ startY: 0, startPos: 50 });
     const [theme, setTheme] = useState('Light');
+    const [showColorPopover, setShowColorPopover] = useState(false);
+    const colorPopoverRef = useRef(null);
 
 
 
@@ -827,22 +878,17 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     };
     useEffect(() => {
         const handleClickOutside = (e) => {
-            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) {
-                setShowPlusMenu(false);
-            }
-            if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) {
-                setShowBlockMenu(false);
-            }
-            if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
-                setShowMoreMenu(false);
-            }
+            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) setShowPlusMenu(false);
+            if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) setShowBlockMenu(false);
+            if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setShowMoreMenu(false);
+            if (colorPopoverRef.current && !colorPopoverRef.current.contains(e.target)) setShowColorPopover(false);
         };
-
-        if (showPlusMenu || showBlockMenu || showMoreMenu) {
+        if (showPlusMenu || showBlockMenu || showMoreMenu || showColorPopover) {
             document.addEventListener('mousedown', handleClickOutside);
         }
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showPlusMenu, showBlockMenu, showMoreMenu]);
+    }, [showPlusMenu, showBlockMenu, showMoreMenu, showColorPopover]);
+
 
     const handleDeletePage = async (e, pageId) => {
         e.stopPropagation();
@@ -1349,36 +1395,101 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         const file = e.target.files?.[0];
         if (!file || !editor) return;
 
-        // --- CSV IMPORT (Converted to TipTap Table) ---
+
+
+        // --- CSV IMPORT (New Notion Database) ---
         if (importType === 'csv') {
             Papa.parse(file, {
-                skipEmptyLines: true,
+                skipEmptyLines: 'greedy',
                 complete: (results) => {
-                    const rows = results.data;
-                    if (!rows || rows.length === 0) return;
+                    const data = results.data;
+                    if (!data || data.length === 0) return;
 
-                    const tableContent = rows.map((row, rowIndex) => {
-                        const isHeader = rowIndex === 0;
+                    const headers = data[0];
+                    const dataRows = data.slice(1);
+
+                    // 1. Construct Properties from Header Row & Sample Values
+                    const properties = headers.map((header, idx) => {
+                        const cleanName = String(header || '').trim() || `Column ${idx + 1}`;
+
+                        // First column is always the primary title
+                        if (idx === 0) {
+                            return { id: 'prop-title', name: cleanName, type: 'title' };
+                        }
+
+                        // Auto-detect type from this column's sample values
+                        const colValues = dataRows.map(r => r[idx]);
+                        const colType = detectColumnType(colValues);
+
                         return {
-                            type: 'tableRow',
-                            content: row.map((cellText) => ({
-                                type: isHeader ? 'tableHeader' : 'tableCell',
-                                content: [{ type: 'paragraph', content: [{ type: 'text', text: String(cellText || '').trim() }] }],
-                            })),
+                            id: `prop-${Date.now()}-${idx}`,
+                            name: cleanName,
+                            type: colType,
                         };
                     });
 
-                    editor.chain().focus().insertContent({ type: 'table', content: tableContent }).run();
+                    // 2. Map Rows to Database Records
+                    const rows = dataRows.map((rowArr, rIdx) => {
+                        const values = {};
+                        properties.forEach((prop, cIdx) => {
+                            const raw = String(rowArr[cIdx] ?? '').trim();
+                            if (prop.type === 'number') {
+                                values[prop.id] = raw !== '' && !isNaN(Number(raw)) ? Number(raw) : '';
+                            } else if (prop.type === 'checkbox') {
+                                values[prop.id] = ['true', 'yes', '1'].includes(raw.toLowerCase());
+                            } else {
+                                values[prop.id] = raw;
+                            }
+                        });
+
+                        return {
+                            id: `row-${Date.now()}-${rIdx}`,
+                            icon: { type: 'emoji', value: '♡' },
+                            cover: '',
+                            coverPosition: 50,
+                            date: (() => {
+                                const d = new Date();
+                                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            })(),
+                            isFavorite: false,
+                            values,
+                            content: { type: 'doc', content: [{ type: 'paragraph' }] },
+                        };
+                    });
+
+                    // 3. Clean filename to use as Database Title
+                    const dbTitle = file.name.replace(/\.[^/.]+$/, '').trim() || 'Imported Database';
+
+                    // 4. Insert directly as an interactive databaseBlock
+                    editor
+                        .chain()
+                        .focus()
+                        .insertContent({
+                            type: 'databaseBlock',
+                            attrs: {
+                                title: dbTitle,
+                                activeViewId: 'view-table',
+                                views: [
+                                    { id: 'view-table', name: 'Table', type: 'table' },
+                                    { id: 'view-board', name: 'Board', type: 'board' },
+                                ],
+                                properties,
+                                rows,
+                            },
+                        })
+                        .run();
+
+                    // 5. Force auto-save
+                    const updatedJson = editor.getJSON();
+                    const currentTitle = titleRef.current?.innerText?.trim() || 'Untitled';
+                    saveContent(updatedJson, currentTitle);
+                },
+                error: (err) => {
+                    console.error('CSV Parsing Error:', err);
                 },
             });
         }
 
-        // --- MARKDOWN & TEXT IMPORT ---
-        else if (importType === 'markdown') {
-            const text = await file.text();
-            const html = marked.parse(text);
-            editor.chain().focus().insertContent(html).run();
-        }
 
         // --- PDF TEXT IMPORT (Smart Line & Structure Extraction) ---
         else if (importType === 'pdf') {
@@ -2465,78 +2576,91 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                         }}
                                         className="w-64 bg-white dark:bg-[#222222] border border-gray-200/80 dark:border-[#333333] shadow-2xl rounded-2xl p-2.5 flex flex-col gap-2 z-50 text-slate-700 dark:text-slate-200 select-none animate-in fade-in zoom-in-95 duration-100"
                                     >
-                                        <div className="relative group/type">
-                                            <button
-                                                type="button"
-                                                className="w-full flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-100/80 rounded-lg text-[13px] font-medium transition-colors"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-serif text-[15px] font-semibold text-slate-600 leading-none">T</span>
-                                                    <span className="text-slate-700">
-                                                        {editor.isActive('heading', { level: 1 })
-                                                            ? 'Heading 1'
-                                                            : editor.isActive('heading', { level: 2 })
-                                                                ? 'Heading 2'
-                                                                : editor.isActive('heading', { level: 3 })
-                                                                    ? 'Heading 3'
-                                                                    : 'Normal text'}
-                                                    </span>
-                                                </div>
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-400">
-                                                    <polyline points="9 18 15 12 9 6" />
-                                                </svg>
-                                            </button>
-
-                                            <div className="hidden group-hover/type:flex flex-col absolute left-0 top-full mt-1 w-44 bg-white border border-gray-200 shadow-xl rounded-xl p-1 z-50">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => editor.chain().focus().setParagraph().run()}
-                                                    className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
-                                                >
-                                                    Normal text
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => editor.chain().focus().setNode('heading', { level: 1 }).run()}
-                                                    className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
-                                                >
-                                                    Heading 1
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => editor.chain().focus().setNode('heading', { level: 2 }).run()}
-                                                    className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
-                                                >
-                                                    Heading 2
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => editor.chain().focus().setNode('heading', { level: 3 }).run()}
-                                                    className="w-full text-left px-2 py-1.5 text-xs font-medium hover:bg-gray-100 rounded-md"
-                                                >
-                                                    Heading 3
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="h-px bg-gray-100 mx-1" />
-
                                         <div className="flex items-center justify-between px-0.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const color = window.prompt('Enter hex color or leave empty to clear:', '#2563eb');
-                                                    if (color) editor.chain().focus().setColor(color).run();
-                                                    else editor.chain().focus().unsetColor().run();
-                                                }}
-                                                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
-                                                title="Text Color"
-                                            >
-                                                <div className="flex flex-col items-center justify-center leading-none">
-                                                    <span className="font-semibold text-xs text-slate-700">A</span>
-                                                    <span className="w-3 h-0.5 bg-blue-500 rounded-full mt-0.5" />
-                                                </div>
-                                            </button>
+                                            {/* 🔽 PLACE YOUR SNIPPET RIGHT HERE 🔽 */}
+                                            <div ref={colorPopoverRef} className="relative">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowColorPopover((prev) => !prev)}
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors"
+                                                    title="Text & Background Color"
+                                                >
+                                                    <div className="flex flex-col items-center justify-center leading-none">
+                                                        <span className="font-semibold text-xs text-slate-700 dark:text-slate-200">A</span>
+                                                        <span className="w-3 h-0.5 bg-blue-500 rounded-full mt-0.5" />
+                                                    </div>
+                                                </button>
+
+                                                {showColorPopover && (
+                                                    <div
+                                                        className="absolute left-0 top-full mt-1.5 z-50 w-52 bg-white dark:bg-[#202020] border border-gray-200/90 dark:border-[#2F2F2F] shadow-2xl rounded-2xl p-3 animate-in fade-in zoom-in-95 duration-100 select-none text-left"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        {/* Text Color Grid */}
+                                                        <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-2 px-0.5">
+                                                            Text colour
+                                                        </div>
+                                                        <div className="grid grid-cols-5 gap-1.5 mb-3">
+                                                            {NOTION_BUBBLE_COLORS.text.map((item) => (
+                                                                <button
+                                                                    key={item.key}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (item.color) {
+                                                                            editor.chain().focus().setColor(item.color).run();
+                                                                        } else {
+                                                                            editor.chain().focus().unsetColor().run();
+                                                                        }
+                                                                        setShowColorPopover(false);
+                                                                    }}
+                                                                    className="w-8 h-8 rounded-lg border border-gray-200 dark:border-[#333] hover:border-gray-400 dark:hover:border-gray-500 hover:scale-105 transition-all flex items-center justify-center bg-white dark:bg-[#262626]"
+                                                                    title={item.label}
+                                                                >
+                                    <span
+                                        className="font-bold text-sm leading-none"
+                                        style={{ color: item.preview }}
+                                    >
+                                        A
+                                    </span>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+
+                                                        {/* Background Color Grid */}
+                                                        <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-2 px-0.5">
+                                                            Background colour
+                                                        </div>
+                                                        <div className="grid grid-cols-5 gap-1.5">
+                                                            {NOTION_BUBBLE_COLORS.bg.map((item) => (
+                                                                <button
+                                                                    key={item.key}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (item.color) {
+                                                                            editor.chain().focus().setHighlight({ color: item.color }).run();
+                                                                        } else {
+                                                                            editor.chain().focus().unsetHighlight().run();
+                                                                        }
+                                                                        setShowColorPopover(false);
+                                                                    }}
+                                                                    className={`w-8 h-8 rounded-lg hover:scale-105 transition-all flex items-center justify-center ${
+                                                                        item.border
+                                                                            ? 'border border-gray-300 dark:border-[#444]'
+                                                                            : 'border border-transparent'
+                                                                    }`}
+                                                                    style={{ backgroundColor: item.preview }}
+                                                                    title={item.label}
+                                                                >
+                                                                    {item.border && (
+                                                                        <span className="w-4 h-0.5 bg-red-400 rotate-45 rounded-full" />
+                                                                    )}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {/* 🔼 END OF SNIPPET 🔼 */}
 
                                             <button
                                                 type="button"

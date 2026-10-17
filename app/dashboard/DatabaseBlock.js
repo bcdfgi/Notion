@@ -421,7 +421,13 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             icon: { type: 'emoji', value: '♡' },
             cover: '',
             coverPosition: 50,
-            date: dateStr || new Date().toISOString().split('T')[0],
+            date: dateStr || (() => {
+                const d = new Date();
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            })(),
             isFavorite: false,
             values: {
                 'prop-title': '',

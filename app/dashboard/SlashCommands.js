@@ -439,16 +439,7 @@ export const slashItems = [
             window.dispatchEvent(new CustomEvent('notion:trigger-import', { detail: { type: 'csv' } }));
         },
     },
-    {
-        title: 'Text and Markdown',
-        description: 'Brings Data from Text and Markdown into Notion',
-        icon: '¶',
-        group: 'Import',
-        command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).run();
-            window.dispatchEvent(new CustomEvent('notion:trigger-import', { detail: { type: 'markdown' } }));
-        },
-    },
+
     {
         title: 'PDF',
         description: 'Bring data from PDF into Notion',
