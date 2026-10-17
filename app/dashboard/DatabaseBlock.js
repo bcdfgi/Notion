@@ -110,7 +110,7 @@ const ALLOWED_VIEW_DEFINITIONS = [
 ];
 
 const PROPERTY_TYPES = [
-    // Section 1
+
     { type: 'text', label: 'Text', icon: AlignLeft, section: 1 },
     { type: 'number', label: 'Number', icon: Hash, section: 1 },
     { type: 'select', label: 'Select', icon: ChevronDownCircle, section: 1 },
@@ -122,10 +122,10 @@ const PROPERTY_TYPES = [
     { type: 'url', label: 'URL', icon: Link, section: 1 },
 
 
-    // Section 2
+
     { type: 'formula', label: 'Formula', icon: Sigma, section: 2 },
 
-    // Section 3
+
     { type: 'created_time', label: 'Created time', icon: Clock, section: 3 },
     { type: 'last_edited_time', label: 'Last edited time', icon: Clock, section: 3 },
 
@@ -399,7 +399,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     };
 
     const handleAddRow = (dateStr = null, tagValue = '') => {
-        const nowFormatted = formatCurrentDateTime(); // <-- Declare it here first
+        const nowFormatted = formatCurrentDateTime();
 
         const statusDefaults = {};
         properties.filter(p => p.type === 'status').forEach(p => {
@@ -461,7 +461,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const handleUpdateCell = (rowId, propId, val) => {
         const nowFormatted = formatCurrentDateTime();
 
-        // Collect all last_edited_time property updates
+
         const lastEditedUpdates = {};
         properties.filter(p => p.type === 'last_edited_time').forEach(p => {
             lastEditedUpdates[p.id] = nowFormatted;
@@ -523,7 +523,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
         const updatedProperties = properties.map((p) => {
             if (p.id !== propId) return p;
 
-            // ✅ Clean: Preserves existing user options if they exist, otherwise initializes an empty array []
+
             let options = p.options;
             if (newType === 'select' || newType === 'multi-select') {
                 options = Array.isArray(p.options) ? p.options : [];
@@ -1020,7 +1020,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 const pct = totalRows === 0 ? 0 : Math.round((notEmptyCount / totalRows) * 100);
                 return { label: 'PERCENT NOT EMPTY', value: `${pct}%` };
             }
-            // --- Number Calculations ---
+
             case 'sum': {
                 const sum = numbers.reduce((a, b) => a + b, 0);
                 return { label: 'SUM', value: Math.round(sum * 100) / 100 };
@@ -1057,13 +1057,13 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     const handleOpenFileOrDownload = (fileData) => {
         if (!fileData) return;
 
-        // External Link -> open in new tab
+
         if (fileData.type === 'link') {
             window.open(fileData.url, '_blank', 'noopener,noreferrer');
             return;
         }
 
-        // Uploaded File -> trigger direct browser download
+
         if (fileData.dataUrl) {
             const link = document.createElement('a');
             link.href = fileData.dataUrl;
@@ -1075,7 +1075,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
     };
     return (
         <NodeViewWrapper className="my-6 not-prose font-sans group/db w-full">
-            {/* Title */}
+
             <div className="flex items-center justify-between group/title mb-4">
                 <input
                     type="text"
@@ -1095,7 +1095,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 </button>
             </div>
 
-            {/* View Tabs & Action Bar */}
+
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4 select-none">
                 <div className="flex items-center gap-1 relative">
                     {views.map((view) => {
@@ -1234,16 +1234,15 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
             </div>
 
 
-            {/* --- 1. TABLE VIEW --- */}
-            {/* --- 1. TABLE VIEW --- */}
+
             {currentActiveView?.type === 'table' && (
                 <div className="w-full flex flex-col">
-                    {/* Table container with native overflow enabled */}
+
                     <div
                         ref={tableContainerRef}
                         className="w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden text-[13px]"
                     >
-                        {/* table-auto and whitespace-nowrap prevent squishing */}
+
                         <table className="min-w-full w-max text-left border-collapse table-auto">
                             <thead>
                             <tr className="border-b border-gray-200/70 text-gray-400 text-xs select-none">
@@ -1305,7 +1304,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     {properties.map((prop, idx) => {
                                         const cellVal = row.values?.[prop.id];
 
-                                        // --- Column 0: Title / Primary Name Column ---
+
                                         if (idx === 0) {
                                             return (
                                                 <td key={prop.id} className="py-1.5 px-2.5">
@@ -1340,7 +1339,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                 </td>
                                             );
                                         }
-                                        // --- Files & Media Column ---
+
                                         if (prop.type === 'files') {
                                             const fileData = typeof cellVal === 'object' ? cellVal : null;
 
@@ -1373,7 +1372,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- Checkbox / Tickbox ---
+
                                         if (prop.type === 'checkbox') {
                                             const isChecked = cellVal === true || cellVal === 'true';
                                             return (
@@ -1389,7 +1388,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- Number ---
+
                                         if (prop.type === 'number') {
                                             return (
                                                 <td key={prop.id} className="py-1.5 px-2.5">
@@ -1427,7 +1426,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- Select ---
+
                                         if (prop.type === 'select') {
                                             const currentOpt = (prop.options || []).find((o) => o.id === cellVal);
                                             const theme = currentOpt ? NOTION_COLORS[currentOpt.color || 'default'] : null;
@@ -1460,7 +1459,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- Multi-Select ---
+
                                         if (prop.type === 'multi-select') {
                                             const selectedIds = Array.isArray(cellVal) ? cellVal : cellVal ? [cellVal] : [];
                                             const selectedOpts = (prop.options || []).filter((o) => selectedIds.includes(o.id));
@@ -1496,7 +1495,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- Status Column ---
+
                                         if (prop.type === 'status') {
                                             const statusVal = cellVal || 'not_started';
                                             return (
@@ -1517,7 +1516,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- URL ---
+
                                         if (prop.type === 'url') {
                                             return (
                                                 <td key={prop.id} className="py-1.5 px-2.5">
@@ -1537,7 +1536,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- Formula Column ---
+
                                         if (prop.type === 'formula') {
                                             const calculatedValue = evaluateFormula(prop.formula, row.values || {}, properties);
                                             return (
@@ -1554,7 +1553,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- Phone & Email ---
+
                                         if (prop.type === 'phone' || prop.type === 'email') {
                                             return (
                                                 <td key={prop.id} className="py-1.5 px-2.5">
@@ -1570,7 +1569,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- Created Time & Last Edited Time Columns (Single Line, Read-Only) ---
+
                                         if (prop.type === 'created_time' || prop.type === 'last_edited_time' || (prop.id === 'prop-created' && prop.type !== 'date')) {
                                             const displayVal = cellVal || formatCurrentDateTime();
                                             return (
@@ -1602,7 +1601,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                             );
                                         }
 
-                                        // --- Text / Fallback Default ---
+
                                         return (
                                             <td key={prop.id} className="py-1.5 px-2.5">
                                                 <input
@@ -1630,7 +1629,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             ))}
                             </tbody>
 
-                            {/* --- CALCULATION FOOTER --- */}
+
                             {Object.values(calculations).some((c) => c && c !== 'none') && (
                                 <tfoot className="group/footer border-t border-gray-100">
                                 <tr className="text-gray-400 text-xs">
@@ -1702,13 +1701,13 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                         </button>
                     </div>
 
-                    {/* Floating Scrollbar Component */}
+
                     <NotionScrollBar targetRef={tableContainerRef} />
                 </div>
             )}
 
 
-            {/* --- 2. BOARD VIEW --- */}
+
             {currentActiveView?.type === 'board' && (
                 <div className="flex items-start gap-4 overflow-x-auto pb-4">
                     {boardGroups.map((group) => (
@@ -1819,7 +1818,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 </div>
             )}
 
-            {/* --- 3. GALLERY VIEW --- */}
+
             {currentActiveView?.type === 'gallery' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
                     {filteredRows.map((row) => (
@@ -1898,7 +1897,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 </div>
             )}
 
-            {/* --- 4. LIST VIEW --- */}
+
             {currentActiveView?.type === 'list' && (
                 <div className="flex flex-col py-1">
                     {filteredRows.map((row) => (
@@ -1963,7 +1962,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 </div>
             )}
 
-            {/* --- 5. CALENDAR VIEW --- */}
+
             {currentActiveView?.type === 'calendar' && (
                 <div className="w-full flex flex-col select-none">
                     <div className="flex items-center justify-between mb-3 px-1">
@@ -2065,7 +2064,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                 </div>
             )}
 
-            {/* --- PORTALIZED MODALS OUTSIDE PROSEMIRROR --- */}
+
             {mounted && createPortal(
                 <>
                     {activeStatusMenu && (
@@ -2089,7 +2088,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             onClose={() => setActiveDateMenu(null)}
                         />
                     )}
-                    {/* Files & Media Popover */}
+
                     {activeFilesMenu && (
                         <FilesCellPopover
                             anchorRect={activeFilesMenu.rect}
@@ -2099,7 +2098,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             onClose={() => setActiveFilesMenu(null)}
                         />
                     )}
-                    {/* Formula Editor Modal */}
+
                     {activeFormulaProp && (
                         <FormulaEditorModal
                             property={activeFormulaProp}
@@ -2109,7 +2108,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             onClose={() => setActiveFormulaProp(null)}
                         />
                     )}
-                    {/* Active Select / Multi-Select Popover */}
+
                     {activeSelectMenu && (() => {
                         const targetProp = properties.find(p => p.id === activeSelectMenu.propId);
                         const currentRow = rows.find(r => r.id === activeSelectMenu.rowId);
@@ -2150,7 +2149,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                         );
                     })()}
 
-                    {/* --- PROPERTY COLUMN HEADER MENU (NOTION EXACT UI) --- */}
+
                     {activeColumnMenu && (
                         <div
                             ref={columnMenuRef}
@@ -2160,7 +2159,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                             }}
                             className="fixed z-50 w-[240px] bg-white border border-gray-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 text-xs text-slate-700 select-none animate-in fade-in zoom-in-95 duration-100"
                         >
-                            {/* Top: Property Name Input */}
+
                             <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[#F7F7F5] border border-gray-200/70 rounded-xl mb-1.5">
                                 <div className="text-gray-500 shrink-0">
                                     {getPropIcon(activeColumnMenu.prop.type)}
@@ -2179,7 +2178,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 />
                             </div>
 
-                            {/* Change type with Flyout */}
+
                             <div
                                 className="relative"
                                 onMouseEnter={() => setShowTypeSubmenu(true)}
@@ -2202,7 +2201,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                     </span>
                                 </button>
 
-                                {/* Change Type Submenu Flyout */}
+
                                 {showTypeSubmenu && (
                                     <div
                                         className="absolute left-full top-0 pl-1 z-50"
@@ -2239,7 +2238,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
 
 
 
-                            {/* Sort Row & Flyout Submenu */}
+
                             <div
                                 className="relative"
                                 onMouseEnter={() => setShowSortSubmenu(true)}
@@ -2318,7 +2317,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 )}
                             </div>
 
-                            {/* Calculate with Cascading Nested Flyouts */}
+
                             <div
                                 className="relative"
                                 onMouseEnter={() => setShowCalculateSubmenu(true)}
@@ -2341,7 +2340,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                 </button>
 
                                 {showCalculateSubmenu && (() => {
-                                    // Only include "More options" if the column is a number
+
                                     const isNumberProp = activeColumnMenu.prop.type === 'number';
                                     const visibleGroups = isNumberProp
                                         ? [...CALCULATE_GROUPS, NUMBER_CALCULATE_GROUP]
@@ -2485,7 +2484,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                         </div>
                     )}
 
-                    {/* View Picker Modal */}
+
                     {showViewPicker && (
                         <div
                             ref={modalRef}
@@ -2526,7 +2525,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                         </div>
                     )}
 
-                    {/* Add Property Popover */}
+
                     {showAddProperty && (
                         <div
                             ref={addPropRef}
@@ -2610,7 +2609,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                         </div>
                     )}
 
-                    {/* Global Icon Picker Modal */}
+
                     {iconPickerTargetRowId && (
                         <div
                             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]"
@@ -2626,7 +2625,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                         </div>
                     )}
 
-                    {/* Side Peek Drawer */}
+
                     {activeRow && (
                         <div className="fixed inset-0 z-50 flex justify-end bg-black/20 backdrop-blur-[1px]">
                             <div className="fixed inset-0" onClick={() => setActiveRow(null)} />
@@ -2910,7 +2909,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         </div>
                                     )}
 
-                                    {/* Page Title & Icon inside Inspector */}
+
                                     <div className="flex items-center gap-3 mb-6">
                                         {activeRow.icon && (
                                             <button
@@ -2933,10 +2932,10 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                         />
                                     </div>
 
-                                    {/* Properties list */}
+
                                     <div className="space-y-3 pb-8 border-b border-gray-100 text-xs">
                                         {properties.filter(p => p.type !== 'title').map((prop) => {
-                                            // --- Status Property ---
+
                                             if (prop.type === 'status') {
                                                 const currentVal = activeRow.values?.[prop.id] || 'not_started';
                                                 return (
@@ -2988,7 +2987,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                     </div>
                                                 );
                                             }
-                                            // --- Files & media in Side Peek Drawer ---
+
                                             if (prop.type === 'files') {
                                                 const fileData = typeof activeRow.values?.[prop.id] === 'object' ? activeRow.values?.[prop.id] : null;
                                                 return (
@@ -3023,7 +3022,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                     </div>
                                                 );
                                             }
-                                            // --- Formula in Side Peek Drawer ---
+
                                             if (prop.type === 'formula') {
                                                 const calculatedValue = evaluateFormula(prop.formula, activeRow.values || {}, properties);
                                                 return (
@@ -3042,7 +3041,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                     </div>
                                                 );
                                             }
-                                            // --- Created Time in Side Peek Drawer ---
+
 
                                             if (prop.type === 'created_time') {
                                                 const currentVal = activeRow.values?.[prop.id] || formatCurrentDateTime();
@@ -3058,7 +3057,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                     </div>
                                                 );
                                             }
-                                            // --- Last Edited Time in Side Peek Drawer ---
+
                                             if (prop.type === 'last_edited_time') {
                                                 const currentVal = activeRow.values?.[prop.id] || formatCurrentDateTime();
                                                 return (
@@ -3074,7 +3073,7 @@ export default function DatabaseBlock({ node, updateAttributes, deleteNode }) {
                                                 );
                                             }
 
-                                            // --- All other properties (fallback to standard input) ---
+
                                             return (
                                                 <div key={prop.id} className="flex items-center">
                                                     <div className="w-32 flex items-center gap-1.5 text-gray-400 select-none">

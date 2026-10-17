@@ -1,4 +1,4 @@
-// DatabaseExtension.js
+
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import DatabaseBlock from './DatabaseBlock';
@@ -12,8 +12,8 @@ const DEFAULT_PROPERTIES = [
 export const DatabaseExtension = Node.create({
     name: 'databaseBlock',
     group: 'block',
-    atom: false,        // <-- MUST BE FALSE so ProseMirror does not lock child inputs
-    selectable: false,  // <-- Prevents ProseMirror NodeSelection from hijacking clicks
+    atom: false,
+    selectable: false,
     draggable: false,
 
     addAttributes() {
@@ -69,7 +69,7 @@ export const DatabaseExtension = Node.create({
 
     addNodeView() {
         return ReactNodeViewRenderer(DatabaseBlock, {
-            stopEvent: () => true, // Stops ProseMirror from intercepting any keyboard or mouse events
+            stopEvent: () => true,
         });
     },
 

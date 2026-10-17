@@ -1,24 +1,24 @@
-// AdvancedNodes.jsx
+
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
-// Notion-style Block Equation Component
+
 const BlockEquationComponent = ({ node, updateAttributes }) => {
     const rawLatex = node.attrs.latex || '';
-    const [isEditing, setIsEditing] = useState(!rawLatex); // automatically open editor if empty
+    const [isEditing, setIsEditing] = useState(!rawLatex);
     const [latex, setLatex] = useState(rawLatex);
     const popoverRef = useRef(null);
     const textareaRef = useRef(null);
 
-    // Keep local state in sync if node attributes change
+
     useEffect(() => {
         setLatex(node.attrs.latex || '');
     }, [node.attrs.latex]);
 
-    // Auto-focus and resize textarea on edit open
+
     useEffect(() => {
         if (isEditing && textareaRef.current) {
             textareaRef.current.focus();
@@ -26,7 +26,7 @@ const BlockEquationComponent = ({ node, updateAttributes }) => {
         }
     }, [isEditing]);
 
-    // Close when clicking outside the editor popover and block
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (popoverRef.current && !popoverRef.current.contains(e.target)) {
@@ -52,7 +52,7 @@ const BlockEquationComponent = ({ node, updateAttributes }) => {
         setIsEditing(false);
     };
 
-    // Render LaTeX using KaTeX safely
+
     const renderedMath = useMemo(() => {
         const contentToRender = (isEditing ? latex : rawLatex).trim();
         if (!contentToRender) return null;
@@ -69,7 +69,7 @@ const BlockEquationComponent = ({ node, updateAttributes }) => {
 
     return (
         <NodeViewWrapper className="relative my-2 select-none group font-sans">
-            {/* --- Block Area --- */}
+
             <div
                 onClick={() => setIsEditing(true)}
                 className={`w-full min-h-[44px] py-2 px-3 rounded-md cursor-pointer transition-all flex items-center justify-center ${
@@ -80,7 +80,7 @@ const BlockEquationComponent = ({ node, updateAttributes }) => {
                             : 'bg-[#f4f4f3] hover:bg-[#ebebe9]'
                 }`}
             >
-                {/* When LaTeX is present: show the rendered equation */}
+
                 {rawLatex || (isEditing && latex) ? (
                     <div
                         className="overflow-x-auto text-slate-900 py-1"
@@ -99,7 +99,7 @@ const BlockEquationComponent = ({ node, updateAttributes }) => {
                 )}
             </div>
 
-            {/* --- Notion Floating Editor Popover --- */}
+
             {isEditing && (
                 <div
                     ref={popoverRef}
@@ -129,7 +129,7 @@ const BlockEquationComponent = ({ node, updateAttributes }) => {
                             className="flex-1 bg-transparent resize-none text-[13px] font-mono leading-relaxed text-slate-800 placeholder-gray-400 border-none outline-none p-1 focus:ring-0"
                         />
 
-                        {/* Notion Done Button */}
+
                         <button
                             type="button"
                             onClick={handleSave}
@@ -165,7 +165,7 @@ export const BlockEquationExtension = Node.create({
     },
 });
 
-// Interactive Button Component
+
 const ButtonBlockComponent = ({ node, updateAttributes }) => {
     const [isEditing, setIsEditing] = useState(false);
     const label = node.attrs.label || 'Click me';

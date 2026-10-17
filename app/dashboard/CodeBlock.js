@@ -51,7 +51,7 @@ export const CodeBlockComponent = (props) => {
         );
     }, [langSearchQuery]);
 
-    // Close menus when clicking outside
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (quickMenuRef.current && !quickMenuRef.current.contains(e.target) && !e.target.closest('.lang-quick-btn')) {
@@ -126,14 +126,14 @@ export const CodeBlockComponent = (props) => {
 
     return (
         <NodeViewWrapper className="relative my-4 group/code select-none not-prose">
-            {/* Notion Code Block Container */}
+
             <div className="rounded-md bg-[#F7F6F3] border border-neutral-200/60 p-4 pt-8 transition-colors relative">
-                {/* Floating Top-Right Controls Bar */}
+
                 <div
                     contentEditable={false}
                     className="absolute top-2 right-2 flex items-center gap-0.5 opacity-0 group-hover/code:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm border border-neutral-200/80 rounded-md shadow-sm p-0.5 text-neutral-600 z-20"
                 >
-                    {/* Quick Language Selector Button */}
+
                     <button
                         type="button"
                         onClick={() => {
@@ -146,7 +146,7 @@ export const CodeBlockComponent = (props) => {
                         <ChevronDown size={13} className="text-neutral-400" />
                     </button>
 
-                    {/* Copy Button */}
+
                     <button
                         type="button"
                         onClick={handleCopy}
@@ -156,7 +156,7 @@ export const CodeBlockComponent = (props) => {
                         {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                     </button>
 
-                    {/* Word Wrap Quick Button */}
+
                     <button
                         type="button"
                         onClick={handleToggleWrap}
@@ -168,7 +168,7 @@ export const CodeBlockComponent = (props) => {
                         <CornerDownLeft size={14} />
                     </button>
 
-                    {/* Notion More Options Trigger */}
+
                     <button
                         type="button"
                         onClick={() => {
@@ -183,7 +183,7 @@ export const CodeBlockComponent = (props) => {
                     </button>
                 </div>
 
-                {/* Quick Language Dropdown */}
+
                 {showLanguageQuickMenu && (
                     <div
                         ref={quickMenuRef}
@@ -219,14 +219,14 @@ export const CodeBlockComponent = (props) => {
                     </div>
                 )}
 
-                {/* --- Notion Action Context Menu --- */}
+
                 {showActionMenu && (
                     <div
                         ref={actionMenuRef}
                         contentEditable={false}
                         className="absolute right-2 top-10 w-60 bg-white rounded-xl shadow-2xl border border-neutral-200 p-1.5 z-40 text-neutral-700 select-none animate-in fade-in zoom-in-95 duration-75"
                     >
-                        {/* Search Actions Input */}
+
                         <div className="px-2 py-1 mb-1 border-b border-gray-100">
                             <input
                                 autoFocus
@@ -242,7 +242,7 @@ export const CodeBlockComponent = (props) => {
                             Code
                         </div>
 
-                        {/* Caption */}
+
                         <button
                             type="button"
                             onClick={handleAddCaption}
@@ -255,7 +255,7 @@ export const CodeBlockComponent = (props) => {
                             <span className="text-[10px] text-gray-400 font-mono">⌘⌥M</span>
                         </button>
 
-                        {/* Copy Code */}
+
                         <button
                             type="button"
                             onClick={() => {
@@ -268,7 +268,7 @@ export const CodeBlockComponent = (props) => {
                             <span>Copy code</span>
                         </button>
 
-                        {/* Wrap Code Toggle */}
+
                         <div
                             onClick={handleToggleWrap}
                             className="w-full flex items-center justify-between px-2 py-1.5 text-xs rounded hover:bg-gray-100 cursor-pointer transition-colors"
@@ -286,7 +286,7 @@ export const CodeBlockComponent = (props) => {
                             </div>
                         </div>
 
-                        {/* Language Nested Submenu Trigger */}
+
                         <div className="relative">
                             <button
                                 type="button"
@@ -305,7 +305,7 @@ export const CodeBlockComponent = (props) => {
                                 </div>
                             </button>
 
-                            {/* Nested Language List (opens to the left) */}
+
                             {showLanguageSubmenu && (
                                 <div className="absolute right-full top-0 mr-1 w-52 bg-white rounded-xl shadow-2xl border border-gray-200 p-2 z-50">
                                     <input
@@ -338,7 +338,7 @@ export const CodeBlockComponent = (props) => {
 
 
 
-                        {/* Duplicate */}
+
                         <button
                             type="button"
                             onClick={handleDuplicate}
@@ -351,7 +351,7 @@ export const CodeBlockComponent = (props) => {
                             <span className="text-[10px] text-gray-400 font-mono">⌘D</span>
                         </button>
 
-                        {/* Delete */}
+
                         <button
                             type="button"
                             onClick={deleteNode}
@@ -366,7 +366,7 @@ export const CodeBlockComponent = (props) => {
                     </div>
                 )}
 
-                {/* Actual Editable Content */}
+
                 <pre
                     className={`font-mono text-sm leading-relaxed text-neutral-800 outline-none select-text ${
                         isWordWrap ? 'whitespace-pre-wrap break-words' : 'overflow-x-auto whitespace-pre'
@@ -376,7 +376,7 @@ export const CodeBlockComponent = (props) => {
                 </pre>
             </div>
 
-            {/* Notion Caption Field */}
+
             {showCaption && (
                 <div className="mt-1.5 w-full px-1">
                     <input

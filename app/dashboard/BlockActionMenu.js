@@ -41,10 +41,10 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User", o
         const { selection } = editor.state;
         const node = selection.$from.parent;
 
-        // 1. Get plain text of the block
+
         const textContent = node.textContent || '';
 
-        // 2. Get HTML representation using DOMSerializer
+
         let htmlContent = '';
         try {
             const schema = editor.schema;
@@ -68,7 +68,7 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User", o
                 await navigator.clipboard.writeText(textContent);
             }
         } catch {
-            // Fallback for older browsers or restricted clipboard permissions
+
             await navigator.clipboard.writeText(textContent);
         }
 
@@ -105,7 +105,7 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User", o
 
                 <div className="px-2 py-1 text-[11px] font-medium text-gray-400">Text</div>
 
-                {/* Turn into Menu */}
+
                 <div
                     className="relative"
                     onMouseEnter={() => setSubmenu('turnInto')}
@@ -142,7 +142,7 @@ export default function BlockActionMenu({ editor, onClose, userEmail = "User", o
                     )}
                 </div>
 
-                {/* Color Menu */}
+
                 <div
                     className="relative"
                     onMouseEnter={() => setSubmenu('color')}

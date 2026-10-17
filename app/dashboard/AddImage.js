@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import PageIcon from './PageIcon';
 
-const MAX_FILE_SIZE = 1024 * 1024; // 1 MB
+const MAX_FILE_SIZE = 1024 * 1024;
 
 const ImageBlockView = (props) => {
     const { node, updateAttributes, editor, deleteNode } = props;
@@ -39,11 +39,11 @@ const ImageBlockView = (props) => {
     const fileInputRef = useRef(null);
     const replaceInputRef = useRef(null);
 
-    // Resizing state
+
     const [isResizing, setIsResizing] = useState(false);
     const containerRef = useRef(null);
 
-    // Action Menu state
+
     const [showMenu, setShowMenu] = useState(false);
     const [showMoreSubmenu, setShowMoreSubmenu] = useState(false);
     const [showAlignSubmenu, setShowAlignSubmenu] = useState(false);
@@ -51,7 +51,7 @@ const ImageBlockView = (props) => {
     const [showCaption, setShowCaption] = useState(Boolean(node.attrs.caption));
     const [isFullScreen, setIsFullScreen] = useState(false);
 
-    // Available Notion Pages
+
     const [pages, setPages] = useState(() => {
         if (typeof window !== 'undefined' && window.__NOTION_PAGES__) {
             return window.__NOTION_PAGES__;
@@ -67,7 +67,7 @@ const ImageBlockView = (props) => {
         return () => window.removeEventListener('notion:pages-updated', handlePagesUpdate);
     }, []);
 
-    // Crop Modal State
+
     const [isCropping, setIsCropping] = useState(false);
     const [cropRect, setCropRect] = useState({ x: 5, y: 5, width: 90, height: 90 });
     const cropImgRef = useRef(null);
@@ -158,14 +158,14 @@ const ImageBlockView = (props) => {
         reader.readAsDataURL(file);
     };
 
-    // --- Image Click Destination ---
+
     const handleImageClick = (e) => {
         if (isResizing) return;
 
         if (pageId) {
             e.preventDefault();
             e.stopPropagation();
-            // Trigger internal page navigation
+
             const pillTarget = document.createElement('div');
             pillTarget.setAttribute('data-page-id', pageId);
             const clickEvt = new MouseEvent('click', { bubbles: true, cancelable: true });
@@ -176,7 +176,7 @@ const ImageBlockView = (props) => {
         }
     };
 
-    // --- Actions ---
+
     const handleCopyImage = async () => {
         setShowMenu(false);
         try {
@@ -252,7 +252,6 @@ const ImageBlockView = (props) => {
         setShowAlignSubmenu(false);
     };
 
-    // --- Crop Execution ---
     const handleSaveCrop = () => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -355,7 +354,7 @@ const ImageBlockView = (props) => {
         window.addEventListener('mouseup', onMouseUp);
     };
 
-    // --- Drag Resizing ---
+
     const startResize = useCallback((e, direction) => {
         e.preventDefault();
         e.stopPropagation();
@@ -393,15 +392,15 @@ const ImageBlockView = (props) => {
         window.addEventListener('mouseup', onMouseUp);
     }, [updateAttributes]);
 
-    // Filter pages for Notion Link search
+
     const filteredPages = pages.filter((p) =>
         (p.title || 'Untitled').toLowerCase().includes(searchQuery.toLowerCase().trim())
     );
 
-    // Linked page object if connected to internal page
+
     const linkedPageObj = pages.find((p) => String(p._id) === String(pageId));
 
-    // RENDER: Image with Notion Action Menu & Resizing
+
     if (src && typeof src === 'string' && src.trim() !== '') {
         return (
             <NodeViewWrapper
@@ -419,7 +418,7 @@ const ImageBlockView = (props) => {
                     style={{ width: `${widthPercent}%` }}
                     className="relative group/image flex flex-col items-center"
                 >
-                    {/* Clickable Image or Link Wrapped */}
+
                     <div
                         onClick={handleImageClick}
                         className={`relative w-full overflow-hidden rounded-md ${
@@ -434,7 +433,6 @@ const ImageBlockView = (props) => {
                             }`}
                         />
 
-                        {/* Top-Right Notion Options Button */}
                         <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/image:opacity-100 transition-opacity z-20">
                             <button
                                 type="button"
@@ -453,7 +451,7 @@ const ImageBlockView = (props) => {
                         </div>
                     </div>
 
-                    {/* Resizing Handles */}
+
                     <div
                         contentEditable={false}
                         onMouseDown={(e) => startResize(e, 'left')}
@@ -478,7 +476,7 @@ const ImageBlockView = (props) => {
                         </div>
                     </div>
 
-                    {/* Caption Field */}
+
                     {showCaption && (
                         <div className="mt-2 w-full px-1">
                             <input
@@ -494,7 +492,7 @@ const ImageBlockView = (props) => {
                         </div>
                     )}
 
-                    {/* --- Notion Image Context Menu --- */}
+
                     {showMenu && (
                         <div
                             contentEditable={false}
@@ -514,7 +512,7 @@ const ImageBlockView = (props) => {
                                 Image
                             </div>
 
-                            {/* Replace */}
+
                             <button
                                 type="button"
                                 onClick={() => {
@@ -529,7 +527,7 @@ const ImageBlockView = (props) => {
                                 <span>Replace</span>
                             </button>
 
-                            {/* Copy Image */}
+
                             <button
                                 type="button"
                                 onClick={handleCopyImage}
@@ -539,7 +537,7 @@ const ImageBlockView = (props) => {
                                 <span>Copy image</span>
                             </button>
 
-                            {/* Download */}
+
                             <button
                                 type="button"
                                 onClick={handleDownload}
@@ -549,7 +547,7 @@ const ImageBlockView = (props) => {
                                 <span>Download</span>
                             </button>
 
-                            {/* Caption */}
+
                             <button
                                 type="button"
                                 onClick={() => {
@@ -564,7 +562,7 @@ const ImageBlockView = (props) => {
                                 </div>
                             </button>
 
-                            {/* More Options Nested Trigger */}
+
                             <div className="relative">
                                 <button
                                     type="button"
@@ -580,7 +578,7 @@ const ImageBlockView = (props) => {
 
                                 {showMoreSubmenu && (
                                     <div className="absolute right-full top-0 mr-1 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 p-1.5 z-50 animate-in fade-in duration-75">
-                                        {/* Crop Image */}
+
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -595,7 +593,7 @@ const ImageBlockView = (props) => {
                                             <span>Crop image</span>
                                         </button>
 
-                                        {/* Align Trigger */}
+
                                         <div className="relative">
                                             <button
                                                 type="button"
@@ -660,7 +658,6 @@ const ImageBlockView = (props) => {
                                             )}
                                         </div>
 
-                                        {/* Add link to image trigger */}
                                         <button
                                             type="button"
                                             onClick={handleOpenLinkPopover}
@@ -675,7 +672,7 @@ const ImageBlockView = (props) => {
 
 
 
-                                        {/* Full screen */}
+
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -701,7 +698,7 @@ const ImageBlockView = (props) => {
 
 
 
-                            {/* Duplicate */}
+
                             <button
                                 type="button"
                                 onClick={handleDuplicate}
@@ -714,7 +711,7 @@ const ImageBlockView = (props) => {
                                 <span className="text-[10px] text-gray-400">⌘D</span>
                             </button>
 
-                            {/* Delete */}
+
                             <button
                                 type="button"
                                 onClick={() => deleteNode()}
@@ -729,13 +726,13 @@ const ImageBlockView = (props) => {
                         </div>
                     )}
 
-                    {/* --- Notion "Paste link or search pages" Popover --- */}
+
                     {showLinkPopover && (
                         <div
                             contentEditable={false}
                             className="image-link-popover absolute left-2 bottom-full mb-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200/90 p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100"
                         >
-                            {/* Input Form */}
+
                             <form
                                 onSubmit={(e) => {
                                     e.preventDefault();
@@ -755,7 +752,7 @@ const ImageBlockView = (props) => {
                                 />
                             </form>
 
-                            {/* Existing Link Notice with Remove Option */}
+
                             {(link || pageId) && (
                                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 text-[11px]">
                                     <span className="text-gray-500 truncate max-w-[200px]">
@@ -775,7 +772,7 @@ const ImageBlockView = (props) => {
                                 </div>
                             )}
 
-                            {/* Workspace Subpages List */}
+
                             <div className="px-1 py-1 text-[11px] font-semibold text-gray-400">
                                 {searchQuery ? 'Matching pages' : 'Recents'}
                             </div>
@@ -810,7 +807,7 @@ const ImageBlockView = (props) => {
                         </div>
                     )}
 
-                    {/* --- Replace Popover --- */}
+
                     {showReplaceModal && (
                         <>
                             <div
@@ -935,7 +932,7 @@ const ImageBlockView = (props) => {
                     )}
                 </div>
 
-                {/* --- Notion Crop Image Modal --- */}
+
                 {isCropping && (
                     <div
                         className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 select-none"
@@ -1041,7 +1038,7 @@ const ImageBlockView = (props) => {
                     </div>
                 )}
 
-                {/* --- Fullscreen Lightbox Modal --- */}
+
                 {isFullScreen && (
                     <div
                         className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-8 select-none"
@@ -1066,7 +1063,7 @@ const ImageBlockView = (props) => {
         );
     }
 
-    // RENDER: Placeholder Upload Area
+
     return (
         <NodeViewWrapper className="my-3 select-none relative block">
             <div

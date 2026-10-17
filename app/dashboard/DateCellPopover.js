@@ -23,7 +23,7 @@ export function formatDateToNumeric(dateObj) {
 
 export function parseDateString(str) {
     if (!str) return null;
-    // Check DD/MM/YYYY
+
     const dmyMatch = String(str).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
     if (dmyMatch) {
         const d = parseInt(dmyMatch[1], 10);
@@ -32,7 +32,7 @@ export function parseDateString(str) {
         const dt = new Date(y, m, d);
         if (!isNaN(dt.getTime())) return dt;
     }
-    // Check standard JS parsable strings (e.g., "15 October 2026")
+
     const parsed = new Date(str);
     if (!isNaN(parsed.getTime())) return parsed;
     return null;
@@ -41,7 +41,7 @@ export function parseDateString(str) {
 export default function DateCellPopover({ anchorRect, currentDate, onSelect, onClose }) {
     const popoverRef = useRef(null);
 
-    // Initial selected date
+
     const initialDate = useMemo(() => parseDateString(currentDate) || new Date(), [currentDate]);
     const [selectedDate, setSelectedDate] = useState(initialDate);
     const [viewDate, setViewDate] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
@@ -62,7 +62,7 @@ export default function DateCellPopover({ anchorRect, currentDate, onSelect, onC
         };
     }, [onClose]);
 
-    // Calendar grid calculations (Monday - Sunday)
+
     const calendarDays = useMemo(() => {
         const year = viewDate.getFullYear();
         const month = viewDate.getMonth();
@@ -70,15 +70,15 @@ export default function DateCellPopover({ anchorRect, currentDate, onSelect, onC
         const firstDay = new Date(year, month, 1);
         const lastDay = new Date(year, month + 1, 0);
 
-        let startDay = firstDay.getDay(); // 0 is Sunday, 1 is Monday
-        startDay = startDay === 0 ? 6 : startDay - 1; // Convert so Monday = 0
+        let startDay = firstDay.getDay();
+        startDay = startDay === 0 ? 6 : startDay - 1;
 
         const prevMonthLastDate = new Date(year, month, 0).getDate();
         const daysInMonth = lastDay.getDate();
 
         const days = [];
 
-        // Previous month days
+
         for (let i = startDay - 1; i >= 0; i--) {
             const dayNum = prevMonthLastDate - i;
             const prevDate = new Date(year, month - 1, dayNum);
@@ -89,7 +89,7 @@ export default function DateCellPopover({ anchorRect, currentDate, onSelect, onC
             });
         }
 
-        // Current month days
+
         for (let d = 1; d <= daysInMonth; d++) {
             const currDate = new Date(year, month, d);
             days.push({
@@ -99,7 +99,7 @@ export default function DateCellPopover({ anchorRect, currentDate, onSelect, onC
             });
         }
 
-        // Next month days to fill 5 or 6 rows (35 or 42 cells)
+
         const totalSlots = days.length <= 35 ? 35 : 42;
         const remaining = totalSlots - days.length;
         for (let d = 1; d <= remaining; d++) {
@@ -149,7 +149,7 @@ export default function DateCellPopover({ anchorRect, currentDate, onSelect, onC
             className="fixed z-[60] w-[270px] bg-white border border-gray-200/90 shadow-[0_14px_36px_rgba(0,0,0,0.14)] rounded-xl p-3 text-xs font-sans text-slate-700 animate-in fade-in zoom-in-95 duration-100 select-none"
             onMouseDown={(e) => e.stopPropagation()}
         >
-            {/* Top Text Input (DD/MM/YYYY) */}
+
             <div className="mb-3">
                 <input
                     type="text"
@@ -162,7 +162,7 @@ export default function DateCellPopover({ anchorRect, currentDate, onSelect, onC
                 />
             </div>
 
-            {/* Month & Year Navigation */}
+
             <div className="flex items-center justify-between mb-2 px-1">
                 <span className="font-semibold text-slate-800 text-[13px]">
                     {MONTH_NAMES_SHORT[viewDate.getMonth()]} {viewDate.getFullYear()}
@@ -193,7 +193,7 @@ export default function DateCellPopover({ anchorRect, currentDate, onSelect, onC
                 </div>
             </div>
 
-            {/* Weekdays Row */}
+
             <div className="grid grid-cols-7 text-center text-[11px] font-medium text-gray-400 mb-1">
                 {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
                     <div key={day} className="py-1">
@@ -202,7 +202,7 @@ export default function DateCellPopover({ anchorRect, currentDate, onSelect, onC
                 ))}
             </div>
 
-            {/* Calendar Grid */}
+
             <div className="grid grid-cols-7 gap-y-0.5 text-center text-xs">
                 {calendarDays.map((item, idx) => {
                     const isSelected =

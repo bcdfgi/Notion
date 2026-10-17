@@ -24,7 +24,7 @@ export function getEmbedDetails(url) {
         if (srcMatch) url = srcMatch[1];
     }
 
-    // --- GOOGLE MAPS ---
+
     if (
         url.includes('google.com/maps') ||
         url.includes('maps.google.com') ||
@@ -72,7 +72,7 @@ export function getEmbedDetails(url) {
         };
     }
 
-    // --- FIGMA ---
+
     if (url.includes('figma.com')) {
         let finalSrc = url;
         if (!url.includes('figma.com/embed')) {
@@ -94,11 +94,11 @@ export function getEmbedDetails(url) {
         };
     }
 
-    // --- SPOTIFY ---
+
     const spotifyMatch = url.match(/spotify\.com\/(track|album|playlist|episode|artist|show)\/([a-zA-Z0-9]+)/);
     if (spotifyMatch) {
         const itemType = spotifyMatch[1];
-        // Tracks and individual episodes use 152px compact layout; playlists/albums/shows use 352px
+
         const defaultHeight = (itemType === 'track' || itemType === 'episode') ? 152 : 352;
 
         return {
@@ -111,7 +111,7 @@ export function getEmbedDetails(url) {
         };
     }
 
-    // --- LOOM ---
+
     const loomMatch = url.match(/loom\.com\/share\/([a-zA-Z0-9]+)/);
     if (loomMatch) {
         return {
@@ -133,8 +133,6 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
     const [meta, setMeta] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-
-    // Notion Action Bars & Menus
     const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [showAlignSubmenu, setShowAlignSubmenu] = useState(false);
     const [actionSearch, setActionSearch] = useState('');
@@ -194,7 +192,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showMoreMenu]);
 
-    // Live Resizing Handler
+
     useEffect(() => {
         const handleMouseMove = (e) => {
             if (!dragInfo.current.handle) return;
@@ -437,7 +435,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
         <NodeViewWrapper className="my-4 not-prose w-full block clear-both">
             {isDragging && <div className="fixed inset-0 z-[9999] bg-transparent pointer-events-auto" />}
 
-            {/* FULLSCREEN MODAL */}
+
             {isFullScreen && (
                 <div className="fixed inset-0 z-[100] bg-black/80 flex flex-col p-6 backdrop-blur-sm animate-in fade-in duration-150">
                     <div className="flex justify-between items-center text-white pb-3">
@@ -472,10 +470,10 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                 style={{ width: `${width}%` }}
                 className={`relative group transition-[width] duration-75 max-w-full ${alignmentClasses}`}
             >
-                {/* --- NOTION FLOATING ACTION BAR --- */}
+
                 {isInteractiveEmbed && (
                     <div className="absolute top-2.5 right-2.5 z-30 opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-sm shadow-md border border-gray-200/80 rounded-lg flex items-center p-0.5 gap-0.5 select-none">
-                        {/* Caption Toggle */}
+
                         <button
                             type="button"
                             onClick={() => setShowCaptionInput((prev) => !prev)}

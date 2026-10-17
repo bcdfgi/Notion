@@ -15,14 +15,14 @@ const BookmarkBlockComponent = (props) => {
     const popoverRef = useRef(null);
     const inputRef = useRef(null);
 
-    // Auto-focus input when popover opens
+
     useEffect(() => {
         if (showPopover) {
             setTimeout(() => inputRef.current?.focus(), 50);
         }
     }, [showPopover]);
 
-    // Handle clicks outside popover and context menu
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (
@@ -81,7 +81,7 @@ const BookmarkBlockComponent = (props) => {
         }
     };
 
-    // --- RENDER 1: VISUAL BOOKMARK CARD ---
+
     if (url) {
         let domain = '';
         try {
@@ -93,7 +93,7 @@ const BookmarkBlockComponent = (props) => {
         return (
             <NodeViewWrapper className="my-3 not-prose select-none relative group/bookmark">
                 <div className="relative flex items-stretch justify-between w-full max-w-3xl rounded-md border border-neutral-200/80 bg-white hover:bg-neutral-50/60 transition-colors overflow-hidden shadow-xs">
-                    {/* Left text & metadata */}
+
                     <a
                         href={url}
                         target="_blank"
@@ -111,7 +111,7 @@ const BookmarkBlockComponent = (props) => {
                             )}
                         </div>
 
-                        {/* Favicon & domain */}
+
                         <div className="flex items-center gap-1.5 pt-2 text-[11px] text-slate-400 truncate">
                             {favicon ? (
                                 <img src={favicon} alt="" className="w-3.5 h-3.5 rounded-xs shrink-0" />
@@ -122,7 +122,7 @@ const BookmarkBlockComponent = (props) => {
                         </div>
                     </a>
 
-                    {/* Right preview thumbnail image */}
+
                     {image && (
                         <a
                             href={url}
@@ -138,7 +138,7 @@ const BookmarkBlockComponent = (props) => {
                         </a>
                     )}
 
-                    {/* Top right floating options button */}
+
                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/bookmark:opacity-100 transition-opacity z-20">
                         <button
                             type="button"
@@ -154,7 +154,7 @@ const BookmarkBlockComponent = (props) => {
                         </button>
                     </div>
 
-                    {/* Context menu */}
+
                     {showMenu && (
                         <div
                             contentEditable={false}
@@ -214,10 +214,10 @@ const BookmarkBlockComponent = (props) => {
         );
     }
 
-    // --- RENDER 2: EMPTY PLACEHOLDER WITH POPUP (Notion style) ---
+
     return (
         <NodeViewWrapper className="my-2.5 not-prose select-none relative">
-            {/* The grey banner placeholder */}
+
             <div
                 onClick={() => setShowPopover(true)}
                 className="bookmark-placeholder-row w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-md bg-[#F7F6F5] hover:bg-[#EFEFEF] text-slate-500 hover:text-slate-700 cursor-pointer transition-colors"
@@ -226,7 +226,7 @@ const BookmarkBlockComponent = (props) => {
                 <span className="text-xs font-normal text-slate-600">Add a web bookmark</span>
             </div>
 
-            {/* Notion floating popup */}
+
             {showPopover && (
                 <>
                     <div
@@ -239,7 +239,7 @@ const BookmarkBlockComponent = (props) => {
                         className="absolute left-6 top-full mt-1.5 w-76 bg-white rounded-xl shadow-2xl border border-gray-200/90 p-3 z-50 animate-in fade-in zoom-in-95 duration-100 select-none"
                     >
                         <form onSubmit={handleCreateBookmark} className="space-y-2.5">
-                            {/* Blue focused border text input */}
+
                             <input
                                 ref={inputRef}
                                 type="text"
@@ -250,7 +250,7 @@ const BookmarkBlockComponent = (props) => {
                                 className="w-full px-2.5 py-1.5 text-xs text-slate-800 placeholder-gray-400 bg-white border border-blue-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-xs disabled:opacity-50"
                             />
 
-                            {/* Solid Blue Button */}
+
                             <button
                                 type="submit"
                                 disabled={!inputUrl.trim() || loading}
@@ -260,7 +260,7 @@ const BookmarkBlockComponent = (props) => {
                             </button>
                         </form>
 
-                        {/* Helper caption text */}
+
                         <p className="mt-2 text-center text-[11px] text-gray-400 select-none">
                             Create a visual bookmark from a link.
                         </p>
