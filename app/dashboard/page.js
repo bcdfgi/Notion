@@ -192,6 +192,9 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const [theme, setTheme] = useState('Light');
     const [showColorPopover, setShowColorPopover] = useState(false);
     const colorPopoverRef = useRef(null);
+    const [showLinkPopover, setShowLinkPopover] = useState(false);
+    const [linkInputQuery, setLinkInputQuery] = useState('');
+    const linkPopoverRef = useRef(null);
 
 
 
@@ -425,6 +428,42 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         });
     }, []);
 
+    const handleApplyWebLink = (url) => {
+        if (!editor) return;
+        const clean = url?.trim();
+        if (!clean) {
+            editor.chain().focus().extendMarkRange('link').unsetLink().run();
+            setShowLinkPopover(false);
+            setLinkInputQuery('');
+            return;
+        }
+
+        let finalHref = clean;
+        if (!/^https?:\/\//i.test(finalHref) && !finalHref.startsWith('#') && !finalHref.startsWith('mailto:')) {
+            finalHref = `https://${finalHref}`;
+        }
+
+        editor.chain().focus().extendMarkRange('link').setLink({ href: finalHref }).run();
+        setShowLinkPopover(false);
+        setLinkInputQuery('');
+
+        const updatedJson = editor.getJSON();
+        const currentTitle = titleRef.current?.innerText?.trim() || 'Untitled';
+        saveContent(updatedJson, currentTitle);
+    };
+
+    const handleApplyPageLink = (page) => {
+        if (!editor || !page) return;
+        const pageId = String(page._id || page.id);
+        editor.chain().focus().extendMarkRange('link').setLink({ href: `#${pageId}` }).run();
+        setShowLinkPopover(false);
+        setLinkInputQuery('');
+
+        const updatedJson = editor.getJSON();
+        const currentTitle = titleRef.current?.innerText?.trim() || 'Untitled';
+        saveContent(updatedJson, currentTitle);
+    };
+
 
 
 
@@ -605,22 +644,37 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     }, [isMounted, editor, userEmail]);
 
     useEffect(() => {
-        const handlePageMentionClick = (e) => {
+        const handleDocumentClick = (e) => {
+            // 1. Page Mention Pills
             const pill = e.target.closest('[data-page-id]');
             if (pill) {
                 e.preventDefault();
                 e.stopPropagation();
                 const targetPageId = pill.getAttribute('data-page-id');
-                if (targetPageId) {
-                    loadPage(targetPageId);
+                if (targetPageId) loadPage(targetPageId);
+                return;
+            }
+
+            // 2. Regular Links (Both internal #pageId and external web URLs)
+            const anchor = e.target.closest('a');
+            if (anchor && editor?.view?.dom.contains(anchor)) {
+                const href = anchor.getAttribute('href') || '';
+                if (href.startsWith('#')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const targetPageId = href.replace(/^#/, '');
+                    if (targetPageId) loadPage(targetPageId);
+                } else if (href) {
+                    e.preventDefault();
+                    window.open(href, '_blank', 'noopener,noreferrer');
                 }
             }
         };
 
         const dom = editor?.view?.dom;
         if (dom) {
-            dom.addEventListener('click', handlePageMentionClick);
-            return () => dom.removeEventListener('click', handlePageMentionClick);
+            dom.addEventListener('click', handleDocumentClick);
+            return () => dom.removeEventListener('click', handleDocumentClick);
         }
     }, [editor, loadPage]);
 
@@ -882,12 +936,16 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) setShowBlockMenu(false);
             if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setShowMoreMenu(false);
             if (colorPopoverRef.current && !colorPopoverRef.current.contains(e.target)) setShowColorPopover(false);
+            if (linkPopoverRef.current && !linkPopoverRef.current.contains(e.target)) {
+                setShowLinkPopover(false);
+                setLinkInputQuery('');
+            }
         };
-        if (showPlusMenu || showBlockMenu || showMoreMenu || showColorPopover) {
+        if (showPlusMenu || showBlockMenu || showMoreMenu || showColorPopover || showLinkPopover) {
             document.addEventListener('mousedown', handleClickOutside);
         }
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showPlusMenu, showBlockMenu, showMoreMenu, showColorPopover]);
+    }, [showPlusMenu, showBlockMenu, showMoreMenu, showColorPopover, showLinkPopover]);
 
 
     const handleDeletePage = async (e, pageId) => {
@@ -2711,28 +2769,138 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                         </div>
 
                                         <div className="flex items-center justify-between px-0.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const prevUrl = editor.getAttributes('link').href;
-                                                    const url = window.prompt('Enter URL:', prevUrl || '');
-                                                    if (url === null) return;
-                                                    if (url === '') {
-                                                        editor.chain().focus().extendMarkRange('link').unsetLink().run();
-                                                        return;
-                                                    }
-                                                    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-                                                }}
-                                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                                                    editor.isActive('link') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
-                                                }`}
-                                                title="Link"
-                                            >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                                </svg>
-                                            </button>
+                                            {/* Notion-Style Link & Page Search Popover */}
+                                            <div ref={linkPopoverRef} className="relative">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowColorPopover(false);
+                                                        const currentHref = editor.getAttributes('link').href || '';
+                                                        setLinkInputQuery(currentHref.startsWith('#') ? '' : currentHref);
+                                                        setShowLinkPopover((prev) => !prev);
+                                                    }}
+                                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                        editor.isActive('link')
+                                                            ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-semibold'
+                                                            : 'text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#2C2C2C]'
+                                                    }`}
+                                                    title="Add Link or Link to Page"
+                                                >
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                                    </svg>
+                                                </button>
+
+                                                {showLinkPopover && (
+                                                    <div
+                                                        className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-[#202020] border border-gray-200/90 dark:border-[#2F2F2F] shadow-2xl rounded-2xl p-2.5 animate-in fade-in zoom-in-95 duration-100 select-none text-left"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        {/* Input Header */}
+                                                        <div className="relative mb-2">
+                                                            <input
+                                                                type="text"
+                                                                value={linkInputQuery}
+                                                                autoFocus
+                                                                placeholder="Paste link or search pages"
+                                                                onChange={(e) => setLinkInputQuery(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        handleApplyWebLink(linkInputQuery);
+                                                                    }
+                                                                }}
+                                                                className="w-full text-xs bg-transparent border border-blue-500 rounded-lg px-2.5 py-1.5 focus:outline-none text-slate-800 dark:text-slate-100 placeholder:text-gray-400"
+                                                            />
+                                                        </div>
+
+                                                        {/* Quick action when web URL typed */}
+                                                        {linkInputQuery.trim() && (
+                                                            <div className="mb-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleApplyWebLink(linkInputQuery)}
+                                                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs hover:bg-gray-100 dark:hover:bg-[#2C2C2C] text-blue-600 dark:text-blue-400 font-medium text-left truncate"
+                                                                >
+                                                                    <span className="shrink-0 text-gray-400">🔗</span>
+                                                                    <span className="truncate">Link to web page: <span className="underline">{linkInputQuery}</span></span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Recents / Filtered Pages List */}
+                                                        <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">
+                                                            {linkInputQuery.trim() ? 'Matching Pages' : 'Recents'}
+                                                        </div>
+
+                                                        <div className="max-h-48 overflow-y-auto space-y-0.5">
+                                                            {(() => {
+                                                                const sourcePages = (recentsList && recentsList.length > 0) ? recentsList : pages;
+                                                                const filtered = sourcePages.filter((p) => {
+                                                                    const name = (p.title || 'Untitled').toLowerCase();
+                                                                    return name.includes(linkInputQuery.trim().toLowerCase());
+                                                                });
+
+                                                                if (filtered.length === 0) {
+                                                                    return (
+                                                                        <div className="px-2 py-2 text-xs text-gray-400 text-center">
+                                                                            No pages found
+                                                                        </div>
+                                                                    );
+                                                                }
+
+                                                                return filtered.map((p) => {
+                                                                    const pageId = String(p._id || p.id);
+                                                                    return (
+                                                                        <button
+                                                                            key={`link-page-${pageId}`}
+                                                                            type="button"
+                                                                            onClick={() => handleApplyPageLink(p)}
+                                                                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#2C2C2C] text-xs text-slate-700 dark:text-slate-200 transition-colors text-left"
+                                                                        >
+                                <span className="shrink-0 flex items-center justify-center text-sm">
+                                    {p.icon ? (
+                                        typeof p.icon === 'string' ? (
+                                            p.icon
+                                        ) : (
+                                            <PageIcon icon={p.icon} size={14} />
+                                        )
+                                    ) : (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                            <polyline points="14 2 14 8 20 8" />
+                                        </svg>
+                                    )}
+                                </span>
+                                                                            <span className="truncate font-medium">{p.title || 'Untitled'}</span>
+                                                                        </button>
+                                                                    );
+                                                                });
+                                                            })()}
+                                                        </div>
+
+                                                        {/* Unlink button if link is already applied */}
+                                                        {editor.isActive('link') && (
+                                                            <div className="pt-1.5 mt-1.5 border-t border-gray-100 dark:border-[#2F2F2F]">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                                                                        setShowLinkPopover(false);
+                                                                        setLinkInputQuery('');
+                                                                        const updatedJson = editor.getJSON();
+                                                                        saveContent(updatedJson, titleRef.current?.innerText?.trim() || 'Untitled');
+                                                                    }}
+                                                                    className="w-full text-left px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors"
+                                                                >
+                                                                    Remove link
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
 
                                             <button
                                                 type="button"
