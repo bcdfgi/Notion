@@ -1,9 +1,8 @@
-// ToggleExtension.js
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import React from 'react';
 
-// Notion-style Toggle Component
+
 const ToggleHeadingComponent = ({ node, updateAttributes }) => {
     const isOpen = node.attrs.open ?? true;
     const level = node.attrs.level ?? 1;
@@ -21,7 +20,7 @@ const ToggleHeadingComponent = ({ node, updateAttributes }) => {
             data-open={isOpen ? 'true' : 'false'}
             data-level={level}
         >
-            {/* Notion Caret (Button floats over the heading row) */}
+
             <button
                 type="button"
                 contentEditable={false}
@@ -40,7 +39,7 @@ const ToggleHeadingComponent = ({ node, updateAttributes }) => {
                 </svg>
             </button>
 
-            {/* ProseMirror Content Outlet */}
+
             <NodeViewContent className={`notion-toggle-inner ${isOpen ? 'is-open' : 'is-closed'}`} />
         </NodeViewWrapper>
     );
@@ -128,7 +127,7 @@ export const Details = Node.create({
 
     addKeyboardShortcuts() {
         return {
-            // Pressing Enter in the heading drops cursor directly into the body
+
             Enter: ({ editor }) => {
                 const { state } = editor;
                 const { $from } = state.selection;
@@ -136,7 +135,6 @@ export const Details = Node.create({
                 if ($from.parent.type.name === 'detailsSummary') {
                     const detailsNode = $from.node(-1);
                     if (detailsNode && detailsNode.type.name === 'details') {
-                        // Position of the detailsContent
                         const contentPos = $from.after();
                         return editor.chain().focus(contentPos + 1).run();
                     }

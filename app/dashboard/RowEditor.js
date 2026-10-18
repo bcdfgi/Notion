@@ -17,8 +17,6 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import Highlight from '@tiptap/extension-highlight';
 import CodeBlock from '@tiptap/extension-code-block';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-
-// Menus and extensions
 import { SlashCommands, plusMenuItems } from './SlashCommands';
 import { SlashCommandList } from './SlashCommandList';
 import BlockActionMenu from './BlockActionMenu';
@@ -39,7 +37,7 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
     const isUpdatingRef = useRef(false);
     const containerRef = useRef(null);
 
-    // Hover handle states
+
     const [handlePos, setHandlePos] = useState({ top: 14, opacity: 1 });
     const [showPlusMenu, setShowPlusMenu] = useState(false);
     const [showBlockMenu, setShowBlockMenu] = useState(false);
@@ -154,7 +152,7 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
         },
     });
 
-    // Detect hovered block inside this editor
+
     const handleMouseMove = (e) => {
         if (!containerRef.current) return;
         const element = document.elementFromPoint(e.clientX, e.clientY);
@@ -164,7 +162,7 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
         }
     };
 
-    // Close popups on click outside
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) {
@@ -181,7 +179,7 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showPlusMenu, showBlockMenu]);
 
-    // Synchronize content if row selection changes
+
     useEffect(() => {
         if (!editor || isUpdatingRef.current) return;
         const currentJson = JSON.stringify(editor.getJSON());
@@ -211,7 +209,7 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
             onMouseMove={handleMouseMove}
             className="w-full relative group/roweditor mt-2 pl-4"
         >
-            {/* Hover Action Handle (+ and 6-dots) */}
+
             <div
                 className="absolute -left-7 sm:-left-8 flex items-center gap-0.5 z-40 transition-opacity duration-150"
                 style={{
@@ -220,7 +218,7 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
                     pointerEvents: handlePos.opacity ? 'auto' : 'none',
                 }}
             >
-                {/* Plus (+) Button & Menu */}
+
                 <div ref={plusMenuRef} className="relative">
                     <button
                         type="button"
@@ -254,7 +252,7 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
                     )}
                 </div>
 
-                {/* 6-dots Drag/Block Menu Button & Menu */}
+
                 <div ref={blockMenuRef} className="relative">
                     <button
                         type="button"
@@ -288,7 +286,7 @@ export default function RowEditor({ initialContent, onChange, userEmail = "User"
                 </div>
             </div>
 
-            {/* TipTap Editor Content */}
+
             <EditorContent editor={editor} />
         </div>
     );

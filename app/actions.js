@@ -181,7 +181,7 @@ export async function updatePageContent(pageId, rawData) {
 
         if (rawData.title !== undefined) updateData.title = rawData.title || "Untitled";
 
-        // ✅ Clean BSON conversion: strips symbols, functions, and invalid prototype references
+
         if (rawData.content !== undefined) {
             const rawString = typeof rawData.content === 'string'
                 ? rawData.content

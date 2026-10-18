@@ -14,30 +14,30 @@ import {
     CopyPlus,
 } from 'lucide-react';
 
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 
 function getVideoEmbedUrl(url) {
     if (!url) return null;
 
-    // YouTube
+
     const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
     if (ytMatch) {
         return { type: 'iframe', src: `https://www.youtube.com/embed/${ytMatch[1]}` };
     }
 
-    // Loom
+
     const loomMatch = url.match(/loom\.com\/share\/([a-zA-Z0-9]+)/);
     if (loomMatch) {
         return { type: 'iframe', src: `https://www.loom.com/embed/${loomMatch[1]}` };
     }
 
-    // Vimeo
+
     const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
     if (vimeoMatch) {
         return { type: 'iframe', src: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
     }
 
-    // Direct video file (mp4, webm, etc.) or blob / data URL
+
     return { type: 'video', src: url };
 }
 
@@ -47,7 +47,7 @@ const VideoBlockComponent = (props) => {
     const caption = node.attrs.caption || '';
 
     const [showPopover, setShowPopover] = useState(!src);
-    const [activeTab, setActiveTab] = useState('upload'); // 'upload' | 'link'
+    const [activeTab, setActiveTab] = useState('upload');
     const [linkInput, setLinkInput] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [showMenu, setShowMenu] = useState(false);
@@ -58,7 +58,7 @@ const VideoBlockComponent = (props) => {
     const popoverRef = useRef(null);
     const captionInputRef = useRef(null);
 
-    // Close popover and menu when clicking outside
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (
@@ -108,7 +108,7 @@ const VideoBlockComponent = (props) => {
         setLinkInput('');
     };
 
-    // --- Action Handlers ---
+
     const handleViewOriginal = () => {
         setShowMenu(false);
         if (!src) return;
@@ -159,7 +159,7 @@ const VideoBlockComponent = (props) => {
 
     const embed = getVideoEmbedUrl(src);
 
-    // --- RENDER 1: VIDEO ALREADY EMBEDDED ---
+
     if (src) {
         return (
             <NodeViewWrapper className="my-4 not-prose relative group/video flex flex-col items-center w-full select-none">
@@ -179,7 +179,7 @@ const VideoBlockComponent = (props) => {
                         />
                     )}
 
-                    {/* Top right floating options button */}
+
                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/video:opacity-100 transition-opacity z-20">
                         <button
                             type="button"
@@ -192,13 +192,13 @@ const VideoBlockComponent = (props) => {
                         </button>
                     </div>
 
-                    {/* --- Notion Video Context Menu --- */}
+
                     {showMenu && (
                         <div
                             contentEditable={false}
                             className="video-action-menu absolute right-2 top-10 w-60 bg-white rounded-xl shadow-2xl border border-gray-200 p-1.5 z-30 text-slate-700 animate-in fade-in zoom-in-95 duration-75 select-none"
                         >
-                            {/* Search Header */}
+
                             <div className="px-2 py-1 mb-1 border-b border-gray-100">
                                 <input
                                     type="text"
@@ -213,7 +213,7 @@ const VideoBlockComponent = (props) => {
                                 Video
                             </div>
 
-                            {/* Replace */}
+
                             <button
                                 type="button"
                                 onClick={() => {
@@ -226,7 +226,7 @@ const VideoBlockComponent = (props) => {
                                 <span>Replace</span>
                             </button>
 
-                            {/* Caption */}
+
                             <button
                                 type="button"
                                 onClick={handleToggleCaption}
@@ -239,7 +239,7 @@ const VideoBlockComponent = (props) => {
                                 <span className="text-[10px] text-gray-400 font-mono">⌘⌥M</span>
                             </button>
 
-                            {/* View original */}
+
                             <button
                                 type="button"
                                 onClick={handleViewOriginal}
@@ -251,7 +251,7 @@ const VideoBlockComponent = (props) => {
 
                             <div className="h-px bg-gray-100 my-1" />
 
-                            {/* Copy link to original */}
+
                             <button
                                 type="button"
                                 onClick={handleCopyLinkToOriginal}
@@ -263,7 +263,8 @@ const VideoBlockComponent = (props) => {
 
 
 
-                            {/* Duplicate */}
+
+
                             <button
                                 type="button"
                                 onClick={handleDuplicate}
@@ -276,7 +277,7 @@ const VideoBlockComponent = (props) => {
                                 <span className="text-[10px] text-gray-400 font-mono">⌘D</span>
                             </button>
 
-                            {/* Delete */}
+
                             <button
                                 type="button"
                                 onClick={deleteNode}
@@ -292,7 +293,7 @@ const VideoBlockComponent = (props) => {
                     )}
                 </div>
 
-                {/* Notion Caption Field */}
+
                 {showCaption && (
                     <div className="mt-2 w-full px-1">
                         <input
@@ -309,7 +310,7 @@ const VideoBlockComponent = (props) => {
                     </div>
                 )}
 
-                {/* Replace Popover over existing video */}
+
                 {showPopover && (
                     <div
                         ref={popoverRef}
@@ -411,7 +412,7 @@ const VideoBlockComponent = (props) => {
         );
     }
 
-    // --- RENDER 2: EMPTY NOTION PLACEHOLDER ---
+
     return (
         <NodeViewWrapper className="my-3 select-none relative not-prose">
             <div

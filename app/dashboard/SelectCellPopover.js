@@ -33,9 +33,9 @@ const COLOR_OPTIONS = [
 export default function SelectCellPopover({
                                               anchorRect,
                                               property,
-                                              selectedValue, // string for select, array for multi-select
-                                              onSelect,      // (optId) => void
-                                              onRemove,      // (optId) => void
+                                              selectedValue,
+                                              onSelect,
+                                              onRemove,
                                               onClose,
                                               onUpdatePropertyOptions,
                                           }) {
@@ -49,7 +49,7 @@ export default function SelectCellPopover({
 
     const options = property?.options || [];
 
-    // Normalize selected IDs into an array for easy checking
+
     const selectedIds = Array.isArray(selectedValue)
         ? selectedValue
         : selectedValue ? [selectedValue] : [];
@@ -81,12 +81,12 @@ export default function SelectCellPopover({
         };
     }, [onClose]);
 
-    // Create a new option and toggle it on
+
     const handleCreateOption = () => {
         const trimmed = searchQuery.trim();
         if (!trimmed) return;
 
-        // Auto color assignment from 0..9 wrapping around
+
         const nextColorIndex = options.length % COLOR_PALETTE.length;
         const assignedColor = COLOR_PALETTE[nextColorIndex];
 
@@ -152,7 +152,7 @@ export default function SelectCellPopover({
                 className="fixed z-[60] w-[300px] bg-white border border-gray-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.12)] rounded-xl p-2 text-xs font-sans text-slate-700 animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-[420px]"
                 onMouseDown={(e) => e.stopPropagation()}
             >
-                {/* Notion-style combined Tag Box & Inline Input */}
+
                 <div
                     onClick={() => inputRef.current?.focus()}
                     className="flex flex-wrap items-center gap-1.5 p-1.5 min-h-[34px] border border-gray-200/90 rounded-lg bg-gray-50/40 focus-within:border-blue-500 focus-within:bg-white transition-colors cursor-text mb-2 shrink-0"
@@ -191,7 +191,7 @@ export default function SelectCellPopover({
                             if (e.key === 'Enter' && searchQuery.trim()) {
                                 handleCreateOption();
                             } else if (e.key === 'Backspace' && !searchQuery && selectedOptionsList.length > 0) {
-                                // Pressing backspace removes the last added pill
+
                                 onRemove(selectedOptionsList[selectedOptionsList.length - 1].id);
                             }
                         }}
@@ -199,7 +199,7 @@ export default function SelectCellPopover({
                     />
                 </div>
 
-                {/* Always-available Create Button */}
+
                 {searchQuery.trim().length > 0 && (
                     <button
                         type="button"
@@ -219,7 +219,7 @@ export default function SelectCellPopover({
                     Select an option or create one
                 </div>
 
-                {/* Options List */}
+
                 <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 min-h-[50px]">
                     {filteredOptions.length > 0 ? (
                         filteredOptions.map((opt) => {
@@ -282,7 +282,7 @@ export default function SelectCellPopover({
                 </div>
             </div>
 
-            {/* Option Configuration Submenu (Color Picker & Rename) */}
+
             {editingOption && (
                 <div
                     ref={configMenuRef}

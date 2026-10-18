@@ -48,7 +48,7 @@ export default function SettingsModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
             <div className="relative flex w-full max-w-4xl h-[600px] bg-white dark:bg-[#202020] rounded-xl shadow-2xl overflow-hidden border border-gray-200 dark:border-[#2F2F2F] transition-colors">
-                {/* Close Button */}
+
                 <button
                     onClick={onClose}
                     className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 hover:bg-gray-100 dark:hover:bg-[#2F2F2F] rounded-md transition-colors"
@@ -56,10 +56,10 @@ export default function SettingsModal({
                     <X size={18} />
                 </button>
 
-                {/* Left Sidebar */}
+
                 <div className="w-56 bg-[#FBFBFA] dark:bg-[#191919] border-r border-gray-200 dark:border-[#2F2F2F] p-3 flex flex-col justify-between shrink-0">
                     <div>
-                        {/* Search Input */}
+
                         <div className="relative mb-3">
                             <Search size={14} className="absolute left-2.5 top-2 text-gray-400" />
                             <input
@@ -69,7 +69,7 @@ export default function SettingsModal({
                             />
                         </div>
 
-                        {/* User Account Info */}
+
                         <div className="px-2 mb-3">
                             <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">
                                 Account
@@ -84,7 +84,7 @@ export default function SettingsModal({
                             </div>
                         </div>
 
-                        {/* Nav Items */}
+
                         <div className="space-y-4">
                             <div>
                                 <button
@@ -122,14 +122,14 @@ export default function SettingsModal({
                     </div>
                 </div>
 
-                {/* Right Content Area */}
+
                 <div className="flex-1 overflow-y-auto p-8 text-slate-800 dark:text-[#EBEBEB]">
                     {activeTab === 'preferences' && (
                         <div>
                             <h2 className="text-2xl font-bold tracking-tight mb-1">Preferences</h2>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">Choose how you want Notion to look and behave</p>
 
-                            {/* Theme Selector */}
+
                             <div className="pb-5">
                                 <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Appearance</h3>
 
@@ -163,7 +163,7 @@ export default function SettingsModal({
                                 Manage your workspace name, domains and more
                             </p>
 
-                            {/* Section Heading */}
+
                             <div className="border-b border-gray-100 dark:border-[#2F2F2F] pb-2 mb-6">
                                 <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                     Workspace settings
@@ -171,7 +171,7 @@ export default function SettingsModal({
                             </div>
 
                             <div className="space-y-6">
-                                {/* Workspace Name Input */}
+
                                 <div>
                                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-200 mb-0.5">
                                         Workspace name
@@ -196,7 +196,7 @@ export default function SettingsModal({
                                             className="w-full text-xs px-3 py-2 pr-16 bg-gray-50/60 dark:bg-[#262626] border border-gray-200 dark:border-[#383838] rounded-lg text-slate-800 dark:text-[#EBEBEB] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors shadow-xs"
                                         />
 
-                                        {/* Inline Save button when modified */}
+
                                         {nameDraft !== workspaceName && nameDraft.trim().length > 0 && (
                                             <button
                                                 type="button"
@@ -213,7 +213,7 @@ export default function SettingsModal({
                                     )}
                                 </div>
 
-                                {/* Workspace Icon Selector */}
+
                                 <div>
                                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-200 mb-0.5">
                                         Icon

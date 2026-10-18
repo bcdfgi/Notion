@@ -9,7 +9,7 @@ const PageMentionComponent = ({ node, editor }) => {
     const { pageId, title, icon } = node.attrs;
     const isMountedRef = useRef(false);
 
-    // Track only this specific pill's resolved title and icon
+
     const [pageInfo, setPageInfo] = useState(() => {
         if (!pageId) return { title: title || 'Untitled', icon };
 

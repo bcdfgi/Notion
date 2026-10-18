@@ -76,7 +76,7 @@ export default function StatusCellPopover({ anchorRect, currentStatusId = 'not_s
             className="fixed z-[60] w-[210px] bg-white border border-gray-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.14)] rounded-xl p-2 text-xs font-sans text-slate-700 animate-in fade-in zoom-in-95 duration-100 select-none"
             onMouseDown={(e) => e.stopPropagation()}
         >
-            {/* Top: Current active status preview */}
+
             <div className="px-2 py-1.5 bg-gray-50/70 rounded-lg mb-2">
                 <StatusBadge statusId={currentStatusId} />
             </div>

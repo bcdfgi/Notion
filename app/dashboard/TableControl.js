@@ -129,7 +129,7 @@ export const TableControlsOverlay = ({ editor }) => {
         const { doc, selection, schema } = state;
         const $pos = selection.$from;
 
-        // 1. Locate the table and the active cell
+
         let tableDepth = -1;
         let cellDepth = -1;
 
@@ -146,7 +146,7 @@ export const TableControlsOverlay = ({ editor }) => {
 
         if (tableDepth === -1 || cellDepth === -1) return;
 
-        // 2. Determine target column index (accounting for colspan of preceding siblings)
+
         const currentRow = $pos.node(cellDepth - 1);
         const cellIndexInRow = $pos.index(cellDepth - 1);
         let targetCol = 0;
@@ -157,21 +157,21 @@ export const TableControlsOverlay = ({ editor }) => {
         const table = $pos.node(tableDepth);
         const tableStart = $pos.start(tableDepth);
 
-        // 3. Find the cell in every row belonging to targetCol
+
         const cellsToClear = [];
         let currentPos = tableStart;
 
         table.forEach((row) => {
             let col = 0;
-            let cellPos = currentPos + 1; // +1 to step inside the row
+            let cellPos = currentPos + 1;
 
             row.forEach((cell) => {
                 const colspan = cell.attrs.colspan || 1;
-                // If this cell covers our target column
+
                 if (col <= targetCol && targetCol < col + colspan) {
                     cellsToClear.push({
-                        start: cellPos + 1, // inside cell
-                        end: cellPos + cell.nodeSize - 1, // end of cell content
+                        start: cellPos + 1,
+                        end: cellPos + cell.nodeSize - 1,
                     });
                 }
                 col += colspan;
@@ -181,8 +181,7 @@ export const TableControlsOverlay = ({ editor }) => {
             currentPos += row.nodeSize;
         });
 
-        // 4. Dispatch transaction replacing cell contents with an empty paragraph
-        // (traversing backwards so positions do not shift)
+
         const tr = state.tr;
         for (let i = cellsToClear.length - 1; i >= 0; i--) {
             const { start, end } = cellsToClear[i];
@@ -208,7 +207,7 @@ export const TableControlsOverlay = ({ editor }) => {
         <div ref={containerRef} className="pointer-events-none absolute inset-0 z-20 overflow-visible">
             {tablePos && (
                 <>
-                    {/* Add Column Button */}
+
                     <div
                         style={{
                             top: `${tablePos.top}px`,
@@ -230,7 +229,7 @@ export const TableControlsOverlay = ({ editor }) => {
                         </button>
                     </div>
 
-                    {/* Add Row Button */}
+
                     <div
                         style={{
                             top: `${tablePos.top + tablePos.height + 4}px`,
@@ -252,7 +251,7 @@ export const TableControlsOverlay = ({ editor }) => {
                         </button>
                     </div>
 
-                    {/* Column Grip Handle */}
+
                     {activeColPos && (
                         <div
                             style={{
@@ -273,7 +272,7 @@ export const TableControlsOverlay = ({ editor }) => {
                                 <GripHorizontal size={10} strokeWidth={3} />
                             </button>
 
-                            {/* Main Dropdown Menu */}
+
                             {showMenu && (
                                 <div
                                     ref={menuRef}
@@ -289,7 +288,7 @@ export const TableControlsOverlay = ({ editor }) => {
                                         />
                                     </div>
 
-                                    {/* Colour Flyout Toggle */}
+
                                     <div
                                         className="relative"
                                         onMouseEnter={() => setShowColorSubmenu(true)}
@@ -305,7 +304,7 @@ export const TableControlsOverlay = ({ editor }) => {
                                             <ChevronRight size={13} className="text-gray-400" />
                                         </button>
 
-                                        {/* Nested Colour Submenu */}
+
                                         {showColorSubmenu && (
                                             <div
                                                 onMouseLeave={() => setShowColorSubmenu(false)}

@@ -1,4 +1,3 @@
-// TableOfContentsExtension.jsx
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import React, { useMemo } from 'react';

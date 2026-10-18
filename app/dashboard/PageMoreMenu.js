@@ -60,7 +60,7 @@ export default function PageMoreMenu({
 
     return (
         <div className="w-64 rounded-xl border border-gray-200 bg-white shadow-2xl p-2 text-xs text-slate-700 animate-in fade-in zoom-in-95 duration-100 select-none">
-            {/* Search Input */}
+
             <div className="relative mb-2">
                 <Search size={14} className="absolute left-2.5 top-2 text-gray-400" />
                 <input
@@ -72,7 +72,7 @@ export default function PageMoreMenu({
                 />
             </div>
 
-            {/* Font Style Switcher */}
+
             <div className="grid grid-cols-3 gap-1.5 p-1 mb-2 bg-gray-50 rounded-lg">
                 <button
                     type="button"
@@ -106,7 +106,7 @@ export default function PageMoreMenu({
                 </button>
             </div>
 
-            {/* Core Actions */}
+
             <div className="space-y-0.5">
                 <button
                     type="button"
@@ -156,7 +156,7 @@ export default function PageMoreMenu({
 
             <div className="my-1.5 border-t border-gray-100" />
 
-            {/* Layout Toggles */}
+
             <div className="space-y-0.5">
                 <div className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
                     <span className="text-slate-600">Small text</span>
@@ -215,7 +215,7 @@ export default function PageMoreMenu({
                 </button>
             </div>
 
-            {/* Footer Word Count & Edit Info */}
+
             <div className="mt-2 pt-2 border-t border-gray-100 px-2 text-[10px] text-gray-400 space-y-0.5">
                 <div>{wordCount} words</div>
                 <div>Last edited by {userEmail.split('@')[0]}</div>
