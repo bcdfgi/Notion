@@ -42,7 +42,7 @@ export function FileBadge({ fileData, onDownloadOrOpen, onRemove }) {
 }
 
 export default function FilesCellPopover({ anchorRect, onSelectFile, onClose }) {
-    const [activeTab, setActiveTab] = useState('upload'); // 'upload' | 'link'
+    const [activeTab, setActiveTab] = useState('upload');
     const [linkUrl, setLinkUrl] = useState('');
     const fileInputRef = useRef(null);
     const popoverRef = useRef(null);
@@ -62,7 +62,7 @@ export default function FilesCellPopover({ anchorRect, onSelectFile, onClose }) 
         };
     }, [onClose]);
 
-    // Handle File Upload from disk
+
     const handleFileChange = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -74,14 +74,14 @@ export default function FilesCellPopover({ anchorRect, onSelectFile, onClose }) 
                 name: file.name,
                 size: file.size,
                 fileType: file.type,
-                dataUrl: reader.result, // base64 representation for download
+                dataUrl: reader.result,
             });
             onClose();
         };
         reader.readAsDataURL(file);
     };
 
-    // Handle Link Attachment
+
     const handleSubmitLink = (e) => {
         e?.preventDefault();
         const trimmed = linkUrl.trim();
@@ -101,7 +101,7 @@ export default function FilesCellPopover({ anchorRect, onSelectFile, onClose }) 
             });
             onClose();
         } catch {
-            // invalid URL fallback
+
             onSelectFile({
                 type: 'link',
                 name: trimmed,
@@ -121,7 +121,7 @@ export default function FilesCellPopover({ anchorRect, onSelectFile, onClose }) 
             className="fixed z-[60] w-[270px] bg-white border border-gray-200/90 shadow-[0_14px_36px_rgba(0,0,0,0.14)] rounded-xl p-3 text-xs font-sans text-slate-700 animate-in fade-in zoom-in-95 duration-100 select-none"
             onMouseDown={(e) => e.stopPropagation()}
         >
-            {/* Tabs: Upload / Link */}
+
             <div className="flex items-center gap-3 border-b border-gray-100 pb-2 mb-3">
                 <button
                     type="button"
@@ -150,7 +150,7 @@ export default function FilesCellPopover({ anchorRect, onSelectFile, onClose }) 
                 </button>
             </div>
 
-            {/* TAB 1: Upload */}
+
             {activeTab === 'upload' && (
                 <div className="space-y-2">
                     <input
@@ -175,7 +175,7 @@ export default function FilesCellPopover({ anchorRect, onSelectFile, onClose }) 
                 </div>
             )}
 
-            {/* TAB 2: Link */}
+
             {activeTab === 'link' && (
                 <form onSubmit={handleSubmitLink} className="space-y-2.5">
                     <input

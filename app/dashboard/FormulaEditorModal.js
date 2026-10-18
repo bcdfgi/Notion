@@ -23,7 +23,7 @@ export function evaluateFormula(expression, rowValues = {}, properties = []) {
             sanitized = sanitized.replace(regex, rawVal);
         });
 
-        // 2. Safely evaluate arithmetic and common math functions
+
         const mathScope = {
             abs: Math.abs,
             ceil: Math.ceil,
@@ -35,7 +35,7 @@ export function evaluateFormula(expression, rowValues = {}, properties = []) {
             pow: Math.pow,
         };
 
-        // Function constructor isolated scope
+
         const result = new Function(
             ...Object.keys(mathScope),
             `"use strict"; return (${sanitized});`
@@ -58,7 +58,7 @@ export default function FormulaEditorModal({
     const [formulaText, setFormulaText] = useState(property?.formula || '');
     const textareaRef = useRef(null);
 
-    // Live preview based on the first row's data
+
     const previewRow = rows[0] || {};
     const livePreviewResult = evaluateFormula(formulaText, previewRow.values || {}, properties);
 
@@ -80,7 +80,7 @@ export default function FormulaEditorModal({
                 className="relative w-full max-w-lg bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] border border-gray-200/90 overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150"
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Header */}
+
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 select-none">
                     <span className="font-semibold text-sm text-slate-800">Edit formula</span>
                     <button
@@ -92,7 +92,7 @@ export default function FormulaEditorModal({
                     </button>
                 </div>
 
-                {/* Formula Text Area */}
+
                 <div className="p-4">
                     <div className="border border-blue-500 rounded-xl p-3 focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
                         <textarea
@@ -111,7 +111,7 @@ export default function FormulaEditorModal({
                     </div>
                 </div>
 
-                {/* Footer / Preview Strip */}
+
                 <div className="px-4 py-3 bg-[#FBFBFA] border-t border-gray-100 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs">
                         <span className="text-gray-400 font-medium">Output:</span>

@@ -1,4 +1,3 @@
-// NotionScrollBar.jsx
 'use client';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 

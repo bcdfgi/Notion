@@ -8,7 +8,7 @@ export default function MoveToModal({ isOpen, onClose, pages = [], currentPageId
 
     const filteredPages = useMemo(() => {
         return pages
-            .filter((p) => p._id !== currentPageId) // Exclude current page
+            .filter((p) => p._id !== currentPageId)
             .filter((p) => {
                 const title = p.title || 'Untitled';
                 return title.toLowerCase().includes(search.toLowerCase());
@@ -19,11 +19,11 @@ export default function MoveToModal({ isOpen, onClose, pages = [], currentPageId
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
-            {/* Click outside backdrop */}
+
             <div className="fixed inset-0" onClick={onClose} />
 
             <div className="relative z-10 w-[300px] rounded-xl border border-gray-200/90 bg-white shadow-2xl p-2.5 text-xs text-slate-700 animate-in fade-in zoom-in-95 duration-100">
-                {/* Search Input */}
+
                 <div className="relative flex items-center mb-2">
                     <Search size={14} className="absolute left-2.5 text-gray-400 pointer-events-none" />
                     <input
@@ -36,12 +36,12 @@ export default function MoveToModal({ isOpen, onClose, pages = [], currentPageId
                     />
                 </div>
 
-                {/* Section Header */}
+
                 <div className="px-2 py-1 text-[11px] font-medium text-gray-400 select-none">
                     Suggested
                 </div>
 
-                {/* Page List */}
+
                 <div className="max-h-64 overflow-y-auto space-y-0.5 mt-1">
                     {filteredPages.length === 0 ? (
                         <div className="py-6 text-center text-gray-400 select-none">

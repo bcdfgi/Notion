@@ -485,7 +485,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                             <Type size={15} />
                         </button>
 
-                        {/* Alignment Quick Cycle */}
+
                         <button
                             type="button"
                             onClick={() => {
@@ -498,7 +498,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                             {align === 'left' ? <AlignLeft size={15} /> : align === 'right' ? <AlignRight size={15} /> : <AlignCenter size={15} />}
                         </button>
 
-                        {/* Full Screen (Maps & Figma) */}
+
                         {embedInfo?.type !== 'spotify' && (
                             <button
                                 type="button"
@@ -510,7 +510,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                             </button>
                         )}
 
-                        {/* More Menu (...) */}
+
                         <div className="relative group/more">
                             <button
                                 type="button"
@@ -533,7 +533,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                     </div>
                 )}
 
-                {/* --- NOTION MORE DROPDOWN MENU --- */}
+
                 {showMoreMenu && (
                     <div
                         ref={menuRef}
@@ -631,7 +631,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                     </div>
                 )}
 
-                {/* --- EMBED CONTAINERS (Maps, Figma, Spotify) --- */}
+
                 {embedInfo?.type === 'maps' ? (
                     <div
                         className="relative rounded-xl border border-gray-200/90 shadow-sm bg-white overflow-hidden"
@@ -737,7 +737,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                     </div>
                 )}
 
-                {/* --- EDITABLE CAPTION --- */}
+
                 {showCaptionInput && (
                     <div className="mt-1.5 text-center">
                         <input
@@ -750,10 +750,10 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                     </div>
                 )}
 
-                {/* --- NOTION RESIZE HANDLES --- */}
+
                 {isInteractiveEmbed && (
                     <>
-                        {/* Left edge handle (Width Resize) */}
+
                         <div
                             onMouseDown={(e) => startResize(e, 'left')}
                             className={`absolute -left-2.5 top-0 bottom-0 w-5 flex items-center justify-center cursor-ew-resize z-20 transition-opacity ${
@@ -763,7 +763,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                             <div className="w-1.5 h-12 bg-gray-400/80 hover:bg-blue-500 rounded-full shadow transition-colors" />
                         </div>
 
-                        {/* Right edge handle (Width Resize) */}
+
                         <div
                             onMouseDown={(e) => startResize(e, 'right')}
                             className={`absolute -right-2.5 top-0 bottom-0 w-5 flex items-center justify-center cursor-ew-resize z-20 transition-opacity ${
@@ -773,7 +773,7 @@ const EmbedComponent = ({ node, updateAttributes, deleteNode, editor, getPos }) 
                             <div className="w-1.5 h-12 bg-gray-400/80 hover:bg-blue-500 rounded-full shadow transition-colors" />
                         </div>
 
-                        {/* Bottom bar handle (Only for Maps and Figma; Spotify uses its dedicated embed height) */}
+
                         {embedInfo?.type !== 'spotify' && (
                             <div
                                 onMouseDown={(e) => startResize(e, 'bottom')}

@@ -47,7 +47,7 @@ import { BlockEquationExtension } from './AdvancedNodes';
 import { VideoExtension } from './VideoExtension';
 import { BookmarkExtension } from './BookmarkExtension';
 import { Smile, MoreHorizontal, Star, Plus, ChevronDown, ChevronRight, Lock, Link2, Maximize2, Settings } from 'lucide-react';
-import RowEditor from './RowEditor'; // (or './RowEditor', matching your filename)
+import RowEditor from './RowEditor';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -121,15 +121,15 @@ function detectColumnType(values) {
     const nonEmpties = values.filter(v => v !== undefined && v !== null && String(v).trim() !== '');
     if (nonEmpties.length === 0) return 'text';
 
-    // Check Boolean / Checkbox
+
     const isBool = nonEmpties.every(v => ['true', 'false', 'yes', 'no', '1', '0'].includes(String(v).trim().toLowerCase()));
     if (isBool) return 'checkbox';
 
-    // Check Number
+
     const isNum = nonEmpties.every(v => !isNaN(Number(String(v).trim())));
     if (isNum) return 'number';
 
-    // Check Date (ISO or common date patterns)
+
     const isDate = nonEmpties.every(v => {
         const str = String(v).trim();
         return str.length >= 8 && !isNaN(Date.parse(str));
@@ -378,7 +378,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setSavingStatus("Saving...");
 
             try {
-                // Ensure content is stored as stringified JSON so nested attributes (attrs.level) are NEVER lost
+
                 const contentPayload = typeof json === 'string' ? json : JSON.stringify(json);
 
                 const result = await updatePageContent(pageId, {
@@ -467,7 +467,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
 
-    // Add a ref to track the latest pages synchronously & broadcast to NodeViews
+
     const pagesRef = useRef(pages);
 
     const isHydratedRef = useRef(false);
@@ -478,12 +478,12 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         if (!pageId || (pageId === currentPageId && !forceData)) return;
         setActiveDatabaseRowItem(null);
 
-        // 1. Flush any pending save for current page before switching
+
         if (editor && currentPageId && isHydratedRef.current) {
             debouncedSave.flush();
         }
 
-        // Lock hydration during transition
+
         isHydratedRef.current = false;
         isSwitchingPageRef.current = true;
         setCurrentPageId(pageId);
@@ -544,7 +544,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         setIsLoading(false);
     }, [currentPageId, editor, userEmail, debouncedSave]);
 
-    // Initialize theme from localStorage and toggle .dark on <html>
+
     useEffect(() => {
         const savedTheme = localStorage.getItem('app-theme') || 'Light';
         setTheme(savedTheme);
@@ -609,7 +609,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     const rawContent = firstPage.content;
                     const parsedContent = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
 
-// 1. Lock saving before setting content
+
                     isSwitchingPageRef.current = true;
                     isHydratedRef.current = false;
                     debouncedSave.cancel();
@@ -626,7 +626,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         isHydratedRef.current = true;
                     }, 100);
 
-                    // Allow TipTap's NodeViews to finish mounting then immediately enable saving
+
                 } else if (result.success && result.pages.length === 0) {
                     setIsLoading(false);
                     isSwitchingPageRef.current = false;
@@ -645,7 +645,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
     useEffect(() => {
         const handleDocumentClick = (e) => {
-            // 1. Page Mention Pills
+
             const pill = e.target.closest('[data-page-id]');
             if (pill) {
                 e.preventDefault();
@@ -655,7 +655,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 return;
             }
 
-            // 2. Regular Links (Both internal #pageId and external web URLs)
+
             const anchor = e.target.closest('a');
             if (anchor && editor?.view?.dom.contains(anchor)) {
                 const href = anchor.getAttribute('href') || '';
@@ -712,7 +712,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             });
         };
 
-        //  NEW: Listen for title & icon edits from the database
+
         const handleRowUpdated = (e) => {
             const { rowId, title, icon } = e.detail;
             setRecentsList((prev) =>
@@ -810,7 +810,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             return { ...prev, row: updatedRow };
         });
 
-        // 1. Notify DatabaseBlock to sync into TipTap doc attributes
+
         window.dispatchEvent(new CustomEvent('notion:update-row-field', {
             detail: { rowId, field, value }
         }));
@@ -825,7 +825,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }));
         }
 
-        // 2. 🔥 FORCE TIP TAP TO PERSIST THE DATABASE ATTRIBUTES TO MONGODB 🔥
+
         setTimeout(() => {
             if (editor && currentPageId) {
                 const updatedJson = editor.getJSON();
@@ -838,7 +838,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const allFavorites = useMemo(() => {
         const list = [];
 
-        // 1. Regular pages that are favorited
+
         pages.filter(p => p.isFavorite).forEach(page => {
             list.push({
                 id: page._id,
@@ -849,7 +849,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             });
         });
 
-        // 2. Collect favorited rows from any database blocks in open pages
+
         pages.forEach(p => {
             const doc = typeof p.content === 'string' ? JSON.parse(p.content || '{}') : p.content;
             const findDatabaseRows = (node) => {
@@ -928,7 +928,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
             const newPage = sidebarResult.pages.find(p => p._id === result.pageId);
             if (newPage) {
-                // Prepend new page to recents list directly
+
                 touchRecent({
                     id: newPage._id,
                     _id: newPage._id,
@@ -984,13 +984,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         const rowId = activeDatabaseRowItem.row.id;
 
         if (confirm("Are you sure you want to delete this page?")) {
-            // 1. Close full-screen view
+
             setActiveDatabaseRowItem(null);
 
-            // 2. Remove from sidebar recents
+
             setRecentsList(prev => prev.filter(item => String(item.id || item._id) !== String(rowId)));
 
-            // 3. Notify DatabaseBlock to remove row from document attributes
+
             window.dispatchEvent(new CustomEvent('notion:row-deleted', {
                 detail: { rowId }
             }));
@@ -1027,7 +1027,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         setShowInlineEmojiPicker(false);
         if (!editor || !selected) return;
 
-        // 1. Resolve string value whether from emoji-picker-react or custom object
+
         let charToInsert = '';
         if (typeof selected === 'string') {
             charToInsert = selected;
@@ -1042,20 +1042,20 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             return;
         }
 
-        // 2. Use setTimeout to allow the modal backdrop to unmount and return DOM focus
+
         setTimeout(() => {
             if (!editor || editor.isDestroyed) return;
 
             editor.chain().focus().run();
 
-            // 3. Insert text directly via ProseMirror transaction at the current cursor
+
             const { state, view } = editor;
             const { from, to } = state.selection;
 
             const tr = state.tr.insertText(`${charToInsert} `, from, to);
             view.dispatch(tr);
 
-            // 4. Force synchronous state sync and save
+
             const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
             saveContent(editor.getJSON(), currentTitle);
         }, 50);
@@ -1065,7 +1065,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
         console.log("Inserting page link for:", selectedPage);
 
-        // 1. Robust ID resolution across all common Mongo/Modal formats
+
         const targetId = String(
             selectedPage._id?.$oid ||
             selectedPage._id ||
@@ -1075,21 +1075,21 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             ''
         ).trim();
 
-        // If no valid ID could be resolved, abort immediately to prevent inserting a null node
+
         if (!targetId || targetId === 'null' || targetId === 'undefined') {
             console.error("Failed to insert page link: no valid page ID found on object:", selectedPage);
             return;
         }
 
-        // 2. Resolve title and icon cleanly
+
         const rawTitle = selectedPage.title || (selectedPage.page && selectedPage.page.title) || 'Untitled';
         const pageTitle = typeof rawTitle === 'string' ? rawTitle.trim() : 'Untitled';
         const pageIconVal = selectedPage.icon !== undefined ? selectedPage.icon : (selectedPage.page?.icon || null);
 
-        // 3. Close the modal if open
+
         setShowPageLinkModal(false);
 
-        // 4. Restore saved position
+
         const insertPos = typeof window !== 'undefined' && window.__PAGE_LINK_POS__
             ? window.__PAGE_LINK_POS__
             : editor.state.selection.from;
@@ -1098,7 +1098,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             delete window.__PAGE_LINK_POS__;
         }
 
-        // 5. Insert node with validated attributes
+
         editor
             .chain()
             .focus()
@@ -1114,7 +1114,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             .insertContent(' ')
             .run();
 
-        // 6. Immediately sync and save
+
         const updatedJson = editor.getJSON();
         const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
 
@@ -1244,7 +1244,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const handleOpenMoveTo = () => {
         if (!editor) return;
         const { selection } = editor.state;
-        // Capture the top-level block node
         const node = selection.$from.parent;
         setBlockToMove(node.toJSON());
         setShowMoveToModal(true);
@@ -1254,18 +1253,18 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         setShowMoveToModal(false);
         if (!blockToMove || !editor || !currentPageId) return;
 
-        // 1. Delete the block from the current editor
+
         const { selection } = editor.state;
         const from = selection.$from.before(1);
         const to = selection.$from.after(1);
         editor.chain().focus().deleteRange({ from, to }).run();
 
-        // 2. Save current page changes
+
         const updatedContent = editor.getJSON();
         const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
         saveContent(updatedContent, currentTitle);
 
-        // 3. Append block to target page JSON
+
         let targetContent = targetPage.content;
         if (typeof targetContent === 'string') {
             try {
@@ -1284,14 +1283,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             content: [...targetContent.content, blockToMove],
         };
 
-        // 4. Persist target page update
+
         await updatePageContent(targetPage._id, {
             title: targetPage.title || "Untitled",
             content: nextTargetDoc,
             userEmail: userEmailRef.current,
         });
 
-        // Update in-memory pages state
+
         setPages((prev) =>
             prev.map((p) =>
                 p._id === targetPage._id ? { ...p, content: nextTargetDoc } : p
@@ -1301,14 +1300,14 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         setBlockToMove(null);
     };
     const handleToggleFavorite = async () => {
-        // 1. If viewing a database row full-page, toggle favorite on the row
+
         if (activeDatabaseRowItem?.row) {
             const nextFav = !activeDatabaseRowItem.row.isFavorite;
             handleUpdateActiveRowField('isFavorite', nextFav);
             return;
         }
 
-        // 2. Standard page favorite toggle
+
         if (!currentPageId) return;
         const newFavoriteStatus = !isFavorite;
         setIsFavorite(newFavoriteStatus);
@@ -1426,7 +1425,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
     const saveContent = useCallback((json, title) => {
-        // Only prevent saves if explicitly switching pages to avoid overwriting page A with page B's content
+
         if (isSwitchingPageRef.current) return;
 
         const currentActivePage = pagesRef.current.find(p => p._id === currentPageId);
@@ -1465,7 +1464,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
 
-        // --- CSV IMPORT (New Notion Database) ---
+
         if (importType === 'csv') {
             Papa.parse(file, {
                 skipEmptyLines: 'greedy',
@@ -1476,16 +1475,16 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     const headers = data[0];
                     const dataRows = data.slice(1);
 
-                    // 1. Construct Properties from Header Row & Sample Values
+
                     const properties = headers.map((header, idx) => {
                         const cleanName = String(header || '').trim() || `Column ${idx + 1}`;
 
-                        // First column is always the primary title
+
                         if (idx === 0) {
                             return { id: 'prop-title', name: cleanName, type: 'title' };
                         }
 
-                        // Auto-detect type from this column's sample values
+
                         const colValues = dataRows.map(r => r[idx]);
                         const colType = detectColumnType(colValues);
 
@@ -1496,7 +1495,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         };
                     });
 
-                    // 2. Map Rows to Database Records
+
                     const rows = dataRows.map((rowArr, rIdx) => {
                         const values = {};
                         properties.forEach((prop, cIdx) => {
@@ -1525,10 +1524,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         };
                     });
 
-                    // 3. Clean filename to use as Database Title
+
                     const dbTitle = file.name.replace(/\.[^/.]+$/, '').trim() || 'Imported Database';
 
-                    // 4. Insert directly as an interactive databaseBlock
+
                     editor
                         .chain()
                         .focus()
@@ -1547,7 +1546,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                         })
                         .run();
 
-                    // 5. Force auto-save
+
                     const updatedJson = editor.getJSON();
                     const currentTitle = titleRef.current?.innerText?.trim() || 'Untitled';
                     saveContent(updatedJson, currentTitle);
@@ -1559,7 +1558,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
 
 
-        // --- PDF TEXT IMPORT (Smart Line & Structure Extraction) ---
+
         else if (importType === 'pdf') {
             try {
                 const arrayBuffer = await file.arrayBuffer();
@@ -1573,8 +1572,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                     if (!items || items.length === 0) continue;
 
-                    // Group tokens by vertical (Y) coordinate
-                    // In PDF coordinate space, Y = transform[5]
+
                     let currentY = null;
                     let currentLine = '';
 
@@ -1584,7 +1582,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                         const y = Math.round(item.transform[5]);
 
-                        // Threshold of ~4-6px indicates a new line
+
                         if (currentY !== null && Math.abs(currentY - y) > 5) {
                             if (currentLine.trim()) {
                                 extractedLines.push(currentLine.trim());
@@ -1593,7 +1591,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             currentY = y;
                         } else {
                             if (currentY === null) currentY = y;
-                            // Add spacing if not punctuation
+
                             if (currentLine && !currentLine.endsWith(' ') && !str.startsWith(' ')) {
                                 currentLine += ' ' + str;
                             } else {
@@ -1606,7 +1604,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     }
                 }
 
-                // 2. Re-combine hyphenated word splits across line breaks
+
                 const mergedLines = [];
                 for (let i = 0; i < extractedLines.length; i++) {
                     let line = extractedLines[i];
@@ -1620,14 +1618,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     if (line.trim()) mergedLines.push(line.trim());
                 }
 
-                // 3. Convert lines into structured TipTap Blocks
+
                 const nodes = [];
 
                 for (const rawLine of mergedLines) {
                     const line = rawLine.trim();
                     if (!line) continue;
 
-                    // Detect Main Page Titles
                     if (/^(Complexity Proof|Practice Questions|Midterm|Exam|Assignment|Homework)/i.test(line) && line.length < 60) {
                         nodes.push({
                             type: 'heading',
@@ -1635,7 +1632,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             content: [{ type: 'text', text: line }],
                         });
                     }
-                    // Detect Section / Part Headings (e.g., "Part 1: Big-O Bounds")
+
                     else if (/^(Part\s+\d+|Section\s+\d+|Chapter\s+\d+):?/i.test(line)) {
                         nodes.push({
                             type: 'heading',
@@ -1643,7 +1640,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             content: [{ type: 'text', text: line }],
                         });
                     }
-                    // Detect Numbered Questions (e.g., "1. Prove that...", "2. Show that...")
+
                     else if (/^\d+[\.\)]\s+/.test(line)) {
                         nodes.push({
                             type: 'paragraph',
@@ -1660,7 +1657,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             ],
                         });
                     }
-                    // Standard Paragraph
+
                     else {
                         nodes.push({
                             type: 'paragraph',
@@ -1702,16 +1699,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
 
 
-    // useEffect(() => {
-    //     if (!editor || !currentPageId) return;
-    //
-    //     editor.setOptions({
-    //         onUpdate: ({ editor }) => {
-    //             const currentTitle = titleRef.current?.innerText || "Untitled";
-    //             saveContent(editor.getJSON(), currentTitle);
-    //         },
-    //     });
-    // }, [editor, currentPageId, saveContent]);
+
     useEffect(() => {
         const currentPage = pages.find(p => p._id === currentPageId);
 
@@ -1744,17 +1732,17 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             );
         }
 
-        // Direct image URL or Data URI
+
         if (typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('data:'))) {
             return <img src={icon} alt="Workspace" className="w-full h-full object-cover rounded" />;
         }
 
-        // Direct emoji string
+
         if (typeof icon === 'string') {
             return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{icon}</span>;
         }
 
-        // Object from IconPicker (e.g., { type: 'emoji', value: '🌹' } or { emoji: '🌹' })
+
         if (icon.type === 'emoji' && icon.value) {
             return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{icon.value}</span>;
         }
@@ -1762,7 +1750,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{icon.emoji}</span>;
         }
 
-        // PageIcon component for Lucide / custom icon structures
+
         return <PageIcon icon={icon} size={size} />;
     };
     return (
@@ -1772,7 +1760,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 ease-in-out bg-[#FBFBFA] dark:bg-[#202020] border-r border-gray-200 dark:border-[#2F2F2F] flex flex-col z-20 overflow-hidden`}
             >
                 <div className="p-4 flex flex-col h-full min-w-[256px]">
-                    {/* ONLY ONE WORKSPACE HEADER ITEM */}
+
                     <div
                         onClick={() => setIsSettingsOpen(true)}
                         className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg cursor-pointer transition-colors"
@@ -1797,8 +1785,8 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             Library
                         </button>
 
-                        {/* FAVORITES SECTION (Shows only when pages are favorited) */}
-                        {/* FAVORITES SECTION */}
+
+
                         {allFavorites.length > 0 && (
                             <div className="mt-6">
                                 <div className="px-3 mb-1">
@@ -1808,7 +1796,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     {allFavorites.map((item) => {
                                         const isRow = item.isDatabaseRow;
                                         const itemId = item.id || item._id;
-                                        // Only highlight if it matches the current row or current page
+
                                         const isSelected = isRow
                                             ? activeDatabaseRowItem?.row?.id === itemId
                                             : currentPageId === itemId && !activeDatabaseRowItem;
@@ -1867,10 +1855,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
 
                             <div className="space-y-0.5">
                                 {(() => {
-                                    // Collect IDs already present in recentsList
+
                                     const recentIds = new Set(recentsList.map(r => r.id || r._id));
 
-                                    // Remaining pages that haven't been visited yet
+
                                     const unvisitedPages = pages
                                         .filter(p => !recentIds.has(p._id))
                                         .map(p => ({
@@ -1972,7 +1960,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             </svg>
                         </button>
 
-                        {/* Breadcrumb when viewing a database row as full page */}
+
                         {activeDatabaseRowItem && (
                             <div className="flex items-center gap-1.5 text-xs text-gray-500">
                                 <button
@@ -1990,7 +1978,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                     </div>
 
                     <div className="flex items-center gap-1.5 text-slate-500">
-                        {/* Status with dynamic relative time */}
+
                         <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 select-none">
                             <div
                                 className={`w-2 h-2 rounded-full ${
@@ -2010,7 +1998,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             </span>
                         </div>
 
-                        {/* Favorite (Star) Button */}
+
                         <button
                             type="button"
                             onClick={handleToggleFavorite}
@@ -2031,7 +2019,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                             />
                         </button>
 
-                        {/* More options menu (...) */}
+
                         <div ref={moreMenuRef} className="relative">
                             <button
                                 type="button"
@@ -2070,7 +2058,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 <div className="flex-1 overflow-y-auto">
                     {activeDatabaseRowItem ? (
                         <div className="w-full">
-                            {/* Row Cover Banner */}
+
                             {activeDatabaseRowItem.row?.cover && (
                                 <div
                                     className={`relative z-0 w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
@@ -2150,7 +2138,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     isSmallText ? 'text-xs' : 'text-base'
                                 }`}
                             >
-                                {/* Top Actions: Add Icon & Add Cover (Always visible on hover if missing) */}
+
                                 <div className="flex items-center gap-2 min-h-[28px] mb-1 select-none">
                                     <div className="flex items-center gap-1.5 opacity-0 group-hover/rowpage:opacity-100 transition-opacity duration-150">
                                         {!activeDatabaseRowItem.row?.icon && (
@@ -2183,7 +2171,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     </div>
                                 </div>
 
-                                {/* Icon Picker Popover */}
+
                                 {showIconPicker && (
                                     <div className="relative z-50">
                                         <div className="absolute top-0 left-0">
@@ -2199,7 +2187,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     </div>
                                 )}
 
-                                {/* Row Cover Picker Popover */}
+
                                 {showRowCoverPicker && (
                                     <div className="relative z-50 mb-4">
                                         <div className="absolute top-0 left-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-72 z-50 select-none">
@@ -2273,7 +2261,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 )}
 
 
-                                {/* Row Icon with integrated hover action */}
+
                                 {activeDatabaseRowItem.row?.icon && (
                                     <div className={`relative z-10 flex items-center gap-3 mb-2 ${
                                         activeDatabaseRowItem.row?.cover ? '-mt-16 sm:-mt-20' : ''
@@ -2298,7 +2286,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                             )}
                                         </button>
 
-                                        {/* "Add cover" button visible right next to the icon on hover */}
+
                                         {!activeDatabaseRowItem.row?.cover && (
                                             <button
                                                 type="button"
@@ -2316,7 +2304,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     </div>
                                 )}
 
-                                {/* Row Page Title */}
+
                                 <input
                                     type="text"
                                     value={activeDatabaseRowItem.row?.values?.['prop-title'] || ''}
@@ -2325,7 +2313,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     className="text-4xl sm:text-5xl font-bold mb-6 outline-none text-slate-800 tracking-tight leading-tight w-full bg-transparent placeholder:text-gray-300"
                                 />
 
-                                {/* Row Properties list */}
+
                                 <div className="space-y-3 pb-8 mb-6 border-b border-gray-100 text-xs">
                                     {(activeDatabaseRowItem.properties || [])
                                         .filter(p => p.type !== 'title')
@@ -2345,13 +2333,13 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                         ))}
                                 </div>
 
-                                {/* Row Inner TipTap Content */}
+
                                 <div className="min-h-[400px]">
                                     <RowEditor
                                         key={activeDatabaseRowItem.row.id}
                                         initialContent={activeDatabaseRowItem.row.content}
                                         onChange={handleUpdateActiveRowContent}
-                                        userEmail={userEmail} // <-- Add this prop
+                                        userEmail={userEmail}
                                     />
                                 </div>
                             </main>
@@ -2472,7 +2460,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                         )}
                                     </div>
 
-                                    {/* Six-dots handle with action menu */}
+
                                     <div ref={blockMenuRef} className="relative">
                                         <button
                                             type="button"
@@ -2580,7 +2568,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                 )}
 
                                 <div className="flex items-center gap-2 mb-2">
-                                    {/* Page Icon (Notion Style: Overlaps cover seam, aligns with title) */}
+
                                     {pageIcon ? (
                                         <div className={`relative z-10 inline-block select-none ${coverImage ? '-mt-12 sm:-mt-14 mb-2' : 'mt-4 mb-3'}`}>
                                             <button
@@ -2635,7 +2623,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                     )}
                                     </div>
 
-                                    {/* Page Title: Removed -ml-45 so it lines up with the icon and text column */}
+
                                     <h1
                                         ref={titleRef}
                                         contentEditable
@@ -2673,7 +2661,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                         className="w-64 bg-white dark:bg-[#222222] border border-gray-200/80 dark:border-[#333333] shadow-2xl rounded-2xl p-2.5 flex flex-col gap-2 z-50 text-slate-700 dark:text-slate-200 select-none animate-in fade-in zoom-in-95 duration-100"
                                     >
                                         <div className="flex items-center justify-between px-0.5">
-                                            {/* 🔽 PLACE YOUR SNIPPET RIGHT HERE 🔽 */}
+
                                             <div ref={colorPopoverRef} className="relative">
                                                 <button
                                                     type="button"
@@ -2692,7 +2680,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                         className="absolute left-0 top-full mt-1.5 z-50 w-52 bg-white dark:bg-[#202020] border border-gray-200/90 dark:border-[#2F2F2F] shadow-2xl rounded-2xl p-3 animate-in fade-in zoom-in-95 duration-100 select-none text-left"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
-                                                        {/* Text Color Grid */}
+
                                                         <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-2 px-0.5">
                                                             Text colour
                                                         </div>
@@ -2722,7 +2710,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                             ))}
                                                         </div>
 
-                                                        {/* Background Color Grid */}
+
                                                         <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-2 px-0.5">
                                                             Background colour
                                                         </div>
@@ -2756,7 +2744,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                     </div>
                                                 )}
                                             </div>
-                                            {/* 🔼 END OF SNIPPET 🔼 */}
+
 
                                             <button
                                                 type="button"
@@ -2807,7 +2795,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                         </div>
 
                                         <div className="flex items-center justify-between px-0.5">
-                                            {/* Notion-Style Link & Page Search Popover */}
+
                                             <div ref={linkPopoverRef} className="relative">
                                                 <button
                                                     type="button"
@@ -2835,7 +2823,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                         className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-[#202020] border border-gray-200/90 dark:border-[#2F2F2F] shadow-2xl rounded-2xl p-2.5 animate-in fade-in zoom-in-95 duration-100 select-none text-left"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
-                                                        {/* Input Header */}
+
                                                         <div className="relative mb-2">
                                                             <input
                                                                 type="text"
@@ -2853,7 +2841,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                             />
                                                         </div>
 
-                                                        {/* Quick action when web URL typed */}
+
                                                         {linkInputQuery.trim() && (
                                                             <div className="mb-2">
                                                                 <button
@@ -2867,7 +2855,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                             </div>
                                                         )}
 
-                                                        {/* Recents / Filtered Pages List */}
+
                                                         <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">
                                                             {linkInputQuery.trim() ? 'Matching Pages' : 'Recents'}
                                                         </div>
@@ -2918,7 +2906,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                                                             })()}
                                                         </div>
 
-                                                        {/* Unlink button if link is already applied */}
+
                                                         {editor.isActive('link') && (
                                                             <div className="pt-1.5 mt-1.5 border-t border-gray-100 dark:border-[#2F2F2F]">
                                                                 <button

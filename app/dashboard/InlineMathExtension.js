@@ -5,7 +5,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
 const InlineMathComponent = ({ node, updateAttributes, selected }) => {
-    // Open editor popover if newly created (latex is empty)
+
     const [isEditing, setIsEditing] = useState(!node.attrs.latex);
     const [val, setVal] = useState(node.attrs.latex || '');
 
@@ -13,7 +13,7 @@ const InlineMathComponent = ({ node, updateAttributes, selected }) => {
     const popoverRef = useRef(null);
     const inputRef = useRef(null);
 
-    // Render KaTeX live preview whenever value changes
+
     useEffect(() => {
         if (previewRef.current && val.trim()) {
             katex.render(val, previewRef.current, {
@@ -23,7 +23,7 @@ const InlineMathComponent = ({ node, updateAttributes, selected }) => {
         }
     }, [val, isEditing]);
 
-    // Handle outside clicks to close the popover and commit
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (popoverRef.current && !popoverRef.current.contains(e.target)) {
@@ -47,7 +47,7 @@ const InlineMathComponent = ({ node, updateAttributes, selected }) => {
 
     return (
         <NodeViewWrapper as="span" className="relative inline-block align-baseline mx-0.5 select-none">
-            {/* The Equation Pill / Badge */}
+
             {val.trim() ? (
                 <span
                     onClick={() => {
@@ -80,7 +80,7 @@ const InlineMathComponent = ({ node, updateAttributes, selected }) => {
                 </span>
             )}
 
-            {/* Notion Floating Input Popover */}
+
             {isEditing && (
                 <div
                     ref={popoverRef}
@@ -110,7 +110,7 @@ const InlineMathComponent = ({ node, updateAttributes, selected }) => {
                         className="flex-1 bg-transparent text-[13px] text-slate-800 placeholder:text-gray-400 focus:outline-none pr-3 font-mono"
                     />
 
-                    {/* Blue "Done ↵" Button */}
+
                     <button
                         type="button"
                         onClick={finishEditing}

@@ -27,7 +27,7 @@ export const PageLinkModal = ({ isOpen, onClose, pages = [], currentPageId, onSe
 
     if (!isOpen) return null;
 
-    // Filter out current page and match search query
+
     const filteredPages = pages.filter((p) =>
         p._id !== currentPageId &&
         (p.title || 'Untitled').toLowerCase().includes(search.toLowerCase())
@@ -39,7 +39,7 @@ export const PageLinkModal = ({ isOpen, onClose, pages = [], currentPageId, onSe
                 ref={modalRef}
                 className="w-80 max-h-[380px] bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100"
             >
-                {/* Search Input Bar */}
+
                 <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
                     <Search size={14} className="text-gray-400 shrink-0" />
                     <input
@@ -52,12 +52,12 @@ export const PageLinkModal = ({ isOpen, onClose, pages = [], currentPageId, onSe
                     />
                 </div>
 
-                {/* Subtitle */}
+
                 <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                     Select a page
                 </div>
 
-                {/* Page List */}
+
                 <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
                     {filteredPages.length === 0 ? (
                         <div className="px-3 py-6 text-center text-xs text-gray-400">

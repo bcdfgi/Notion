@@ -17,14 +17,14 @@ const NOTION_COLORS = [
     { name: 'Red', value: '#E03E3E' },
 ];
 
-// Change:
+
 export default function IconPickerModal({ onSelect, onClose, initialTab = 'icons' }) {
     const [activeTab, setActiveTab] = useState(initialTab);
     const [search, setSearch] = useState('');
     const [activeColorPopover, setActiveColorPopover] = useState(null);
-    const [uploadError, setUploadError] = useState(''); // Added error state
+    const [uploadError, setUploadError] = useState('');
     const gridContainerRef = useRef(null);
-    const fileInputRef = useRef(null); // Added input ref
+    const fileInputRef = useRef(null);
 
     const iconList = useMemo(() => {
         return Object.keys(LucideIcons).filter(
