@@ -45,3 +45,6 @@ package.json
 package-lock.json
 
 .idea
+CLAUDE.md
+AGENTS.md
+

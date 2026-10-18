@@ -86,19 +86,8 @@ export default function SettingsModal({
 
 
                         <div className="space-y-4">
-                            <div>
-                                <button
-                                    onClick={() => setActiveTab('preferences')}
-                                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                                        activeTab === 'preferences'
-                                            ? 'bg-gray-200 dark:bg-[#2C2C2C] text-slate-900 dark:text-white'
-                                            : 'text-slate-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C]/50'
-                                    }`}
-                                >
-                                    <Sliders size={14} />
-                                    Preferences
-                                </button>
-                            </div>
+
+
 
                             <div>
                                 <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 block mb-1">
@@ -124,35 +113,8 @@ export default function SettingsModal({
 
 
                 <div className="flex-1 overflow-y-auto p-8 text-slate-800 dark:text-[#EBEBEB]">
-                    {activeTab === 'preferences' && (
-                        <div>
-                            <h2 className="text-2xl font-bold tracking-tight mb-1">Preferences</h2>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">Choose how you want Notion to look and behave</p>
 
 
-                            <div className="pb-5">
-                                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Appearance</h3>
-
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <div className="text-sm font-medium text-slate-700 dark:text-slate-200">Theme</div>
-                                        <div className="text-xs text-gray-400">Choose a theme for Notion on this device</div>
-                                    </div>
-                                    <div className="relative">
-                                        <select
-                                            value={theme}
-                                            onChange={(e) => onThemeChange?.(e.target.value)}
-                                            className="appearance-none bg-white dark:bg-[#262626] border border-gray-200 dark:border-[#383838] rounded-md px-3 py-1.5 pr-8 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
-                                        >
-                                            <option value="Light">Light</option>
-                                            <option value="Dark">Dark</option>
-                                        </select>
-                                        <ChevronDown size={14} className="absolute right-2.5 top-2.5 text-gray-400 pointer-events-none" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {activeTab === 'general' && (
                         <div className="max-w-xl">
