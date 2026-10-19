@@ -4,8 +4,8 @@ A production-grade, modular workspace and rich-text publishing platform inspired
 
 ### 🔗 Quick Links
 
-- **Live Demo:** Workspace Demo
-- **GitHub Repository:** Source Code
+- **Live Demo:** [notion-rose.vercel.app](https://notion-rose.vercel.app)
+- **GitHub Repository:** [Source Code](https://github.com/bcdfgi/Notion)
 
 ### 🚀 Key Features
 
