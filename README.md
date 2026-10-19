@@ -10,12 +10,12 @@ A production-grade, modular workspace and rich-text publishing platform inspired
 ### 🚀 Key Features
 
 - **Block-Based Rich-Text Engine:** Built on TipTap with custom node views, draggable handles, callouts, toggles, multi-column layouts, and interactive task lists.
-- **Database Views & Relational Data:** Inline databases supporting Table, Board/Kanban, and Gallery views with custom property schemas (Select, Status, Dates, Files, Formulas, and Relations).
+- **Database Views & Relational Data:** Inline databases supporting Table,  Calendar, List, Board, and Gallery views with custom property schemas (Select, Status, Dates, Files, Formulas,etc.).
 - **Interactive Slash Commands (`/`):** Floating keyboard-driven command palette implemented with Tippy.js to spawn blocks, embeds, tables, and formatting tools instantly.
 - **Math & Media Integrations:** Live LaTeX equation rendering (via KaTeX inline and block nodes), client-side PDF document parsing (`pdfjs-dist`), CSV data import/export (`PapaParse`), and responsive image/video embedding.
 - **Web Bookmarks & Rich Previews:** Server-side metadata extraction (`Cheerio`) to generate rich bookmark cards for external URLs.
 - **Dual Authentication Flow:** Flexible user onboarding with Google OAuth 2.0 and passwordless Magic Link emails via Resend.
-- **Workspace Personalization:** Per-page icon picker (native emojis + Lucide icons), cover assets, breadcrumbs, document trees, and full Dark/Light theme switching.
+- **Workspace Personalization:** Per-page icon picker (native emojis + Lucide icons), cover assets.
 
 ### 🏗 Architectural Overview
 
@@ -94,6 +94,7 @@ Open http://localhost:3000 to access your workspace.
 - **Full-Text Workspace Search:** Implement MongoDB Atlas Search with fuzzy matching across nested document trees, block contents, and database properties.
 - **Expanded Database Automations:** Support rollup properties, recurring database tasks, and cross-database relation lookups.
 - **Real-Time Collaboration:** Multi-user editing and live cursors using WebSockets and Yjs / CRDTs.
+- **Personalized Themes:** Adding personalized themes like Light and Dark themes, Adjusting contrast, etc.
 
 ---
 
