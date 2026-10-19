@@ -17,13 +17,14 @@ const NOTION_COLORS = [
     { name: 'Red', value: '#E03E3E' },
 ];
 
-export default function IconPickerModal({ onSelect, onClose }) {
-    const [activeTab, setActiveTab] = useState('icons');
+
+export default function IconPickerModal({ onSelect, onClose, initialTab = 'icons' }) {
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [search, setSearch] = useState('');
     const [activeColorPopover, setActiveColorPopover] = useState(null);
-    const [uploadError, setUploadError] = useState(''); // Added error state
+    const [uploadError, setUploadError] = useState('');
     const gridContainerRef = useRef(null);
-    const fileInputRef = useRef(null); // Added input ref
+    const fileInputRef = useRef(null);
 
     const iconList = useMemo(() => {
         return Object.keys(LucideIcons).filter(
@@ -103,7 +104,7 @@ export default function IconPickerModal({ onSelect, onClose }) {
     };
 
     return (
-        <div className="absolute z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-96 p-3 text-slate-800 animate-in fade-in zoom-in-95">
+        <div className="relative z-50 bg-white border border-gray-200 rounded-xl shadow-2xl w-96 p-3 text-slate-800 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
                 <div className="flex gap-2">
                     {['emoji', 'icons', 'upload'].map((tab) => (

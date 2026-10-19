@@ -7,6 +7,15 @@ import { SlashCommandList } from './SlashCommandList';
 export const slashItems = [
     // --- Basic blocks ---
     {
+        title: 'Text',
+        description: 'Normal plain text paragraph',
+        icon: 'T',
+        group: 'Basic blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setParagraph().run();
+        },
+    },
+    {
         title: 'Heading 1',
         description: 'Big section heading',
         icon: 'H1',
@@ -71,7 +80,7 @@ export const slashItems = [
     },
     {
         title: 'Quote',
-        description: 'Creates a quote',
+        description: 'Capture a quote',
         icon: '“ ”',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
@@ -80,7 +89,7 @@ export const slashItems = [
     },
     {
         title: 'Divider',
-        description: 'Creates a divider',
+        description: 'Visually divide sections',
         icon: '⸺',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
@@ -89,51 +98,214 @@ export const slashItems = [
     },
     {
         title: 'Table',
-        description: 'Creates a table',
+        description: 'Insert a simple 3x3 table',
         icon: '▦',
         group: 'Basic blocks',
         command: ({ editor, range }) => {
             editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
         },
     },
+    {
+        title: 'Callout',
+        description: 'Make writing stand out',
+        icon: '💡',
+        group: 'Basic blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertContent({
+                type: 'blockquote',
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: "💡" }] }]
+            }).run();
+        },
+    },
+    {
+        title: 'Link to a Page',
+        description: 'Link an existing page in this workspace',
+        icon: '↗',
+        group: 'Basic blocks',
+        command: ({ editor, range }) => {
+            if (range) {
+                editor.chain().focus().deleteRange(range).run();
+            }
+
+            window.__PAGE_LINK_POS__ = editor.state.selection.from;
+            window.dispatchEvent(new CustomEvent('notion:open-page-linker'));
+        },
+    },
+
+    //---Advanced Blocks
+    {
+        title: 'Table of Contents',
+        description: 'Shows an outline of your page',
+        icon: '☰',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertContent({ type: 'tableOfContents' }).run();
+        },
+    },
+    {
+        title: 'Block Equation',
+        description: 'Displays a standalone math equation',
+        icon: '∑',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'blockEquation',
+                    attrs: { latex: '' },
+                })
+                .run();
+        },
+    },
+
+    {
+        title: 'Toggle Heading 1',
+        description: 'Large section heading with a collapsible toggle',
+        icon: '▶',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertToggleHeading(1).run();
+        },
+    },
+    {
+        title: 'Toggle Heading 2',
+        description: 'Medium section heading with a collapsible toggle',
+        icon: '▶',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertToggleHeading(2).run();
+        },
+    },
+    {
+        title: 'Toggle Heading 3',
+        description: 'Small section heading with a collapsible toggle',
+        icon: '▶',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertToggleHeading(3).run();
+        },
+    },
+    {
+        title: '2 Columns',
+        description: 'Creates a 2 column block',
+        icon: '❚️❚️',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColumns(2).run();
+        },
+    },
+    {
+        title: '3 Columns',
+        description: 'Creates a 3 column block',
+        icon: '❚️❚️❚️',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColumns(3).run();
+        },
+    },
+    {
+        title: '4 Columns',
+        description: 'Creates a 4 column block',
+        icon: '❚️❚️❚️❚️',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColumns(4).run();
+        },
+    },
+    {
+        title: '5 Columns',
+        description: 'Creates a 5 column block',
+        icon: '❚️❚️❚️❚️❚️',
+        group: 'Advanced Blocks',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColumns(5).run();
+        },
+    },
 
     // --- Media ---
     {
-        title: 'Web Bookmark / Embed',
+        title: 'Image',
+        description: 'Upload an image or embed with a link',
+        icon: '🖼️',
+        group: 'Media',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'imageBlock',
+                    attrs: { src: null },
+                })
+                .run();
+        },
+    },
+
+
+    {
+        title: 'Video',
+        description: 'Embed or upload a video',
+        icon: '🎥',
+        group: 'Media',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'videoBlock',
+                    attrs: { src: null },
+                })
+                .run();
+        },
+    },
+    {
+        title: 'Code Block',
+        description: 'Insert a code snippet block',
+        icon: '</>',
+        group: 'Media',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .setCodeBlock()
+                .run();
+        },
+    },
+    {
+        title: 'Web Bookmark',
         description: 'Embed any link or web card',
         icon: '🔗',
         group: 'Media',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'default' }).run();
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'bookmarkBlock',
+                    attrs: { url: null },
+                })
+                .run();
         },
     },
+    // --- Embeds---
 
-    // --- Embeds ---
     {
         title: 'Google Maps',
         description: 'Embed an interactive Google Map',
         icon: '📍',
         group: 'Embeds',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'maps' }).run();
-        },
-    },
-    {
-        title: 'YouTube',
-        description: 'Embed a YouTube video player',
-        icon: '▶',
-        group: 'Embeds',
-        command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'youtube' }).run();
-        },
-    },
-    {
-        title: 'Spotify',
-        description: 'Embed Spotify song or playlist',
-        icon: '🎵',
-        group: 'Embeds',
-        command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'spotify' }).run();
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .setEmbed({ src: null, embedType: 'maps' })
+                .run();
         },
     },
     {
@@ -142,10 +314,417 @@ export const slashItems = [
         icon: '🎨',
         group: 'Embeds',
         command: ({ editor, range }) => {
-            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'figma' }).run();
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .setEmbed({ src: null, embedType: 'figma' })
+                .run();
         },
     },
+    {
+        title: 'Spotify',
+        description: 'Embed an interactive spotify playlist',
+        icon: '🎶',
+        group: 'Embeds',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setEmbed({ src: null, embedType: 'spotify' }).run();
+        },
+    },
+    // -----Databases----
+    {
+        title: 'Table View',
+        description: 'Creates a table database',
+        icon: '⊞',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'table' }).run();
+        },
+    },
+    {
+        title: 'Board View',
+        description: 'Creates a Kanban board database',
+        icon: '❚❚❚',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'board' }).run();
+        },
+    },
+    {
+        title: 'Gallery View',
+        description: 'Creates a visual gallery database',
+        icon: '⊞',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'gallery' }).run();
+        },
+    },
+    {
+        title: 'List View',
+        description: 'Creates a list database',
+        icon: '☷',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'list' }).run();
+        },
+    },
+    {
+        title: 'Calendar View',
+        description: 'Creates a monthly calendar view',
+        icon: '🗓️',
+        group: 'Database',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertDatabase({ initialType: 'calendar' }).run();
+        },
+    },
+    // ---Database Inline
+    {
+        title: 'Date or Reminder',
+        description: 'Mention a date or reminder in text',
+        icon: '📅',
+        group: 'Inline',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'dateMention',
+                    attrs: { date: new Date().toISOString().split('T')[0] },
+                })
+                .insertContent(' ')
+                .run();
+        },
+    },
+    {
+        title: 'Emoji',
+        description: 'Search for an emoji to place in text',
+        icon: '☺',
+        group: 'Inline',
+        command: ({ editor, range }) => {
+            if (range) {
+                editor.chain().focus().deleteRange(range).run();
+            }
+            window.dispatchEvent(new CustomEvent('notion:open-inline-emoji'));
+        },
+    },
+    {
+        title: 'Inline Equation',
+        description: 'Adds mathematical symbols in text',
+        icon: '√x',
+        group: 'Inline',
+        command: ({ editor, range }) => {
+            editor
+                .chain()
+                .focus()
+                .deleteRange(range)
+                .insertContent({
+                    type: 'inlineMath',
+                    attrs: { latex: '' },
+                })
+                .insertContent(' ')
+                .run();
+        },
+    },
+
+
+    // ---- Import ---
+    {
+        title: 'CSV',
+        description: 'Bring Data from CSV into Notion file',
+        icon: '▦',
+        group: 'Import',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).run();
+            window.dispatchEvent(new CustomEvent('notion:trigger-import', { detail: { type: 'csv' } }));
+        },
+    },
+
+    {
+        title: 'PDF',
+        description: 'Bring data from PDF into Notion',
+        icon: '📄',
+        group: 'Import',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).run();
+            window.dispatchEvent(new CustomEvent('notion:trigger-import', { detail: { type: 'pdf' } }));
+        },
+    },
+
+
+
+    // --- Turn into ---
+    {
+        title: 'Text',
+        description: 'Turn block into regular text',
+        icon: 'T',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).clearNodes().setParagraph().run();
+        },
+    },
+    {
+        title: 'Heading 1',
+        description: 'Turn into Heading 1',
+        icon: 'H1',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).clearNodes().setNode('heading', { level: 1 }).run();
+        },
+    },
+    {
+        title: 'Heading 2',
+        description: 'Turn into Heading 2',
+        icon: 'H2',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).clearNodes().setNode('heading', { level: 2 }).run();
+        },
+    },
+    {
+        title: 'Heading 3',
+        description: 'Turn into Heading 3',
+        icon: 'H3',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).clearNodes().setNode('heading', { level: 3 }).run();
+        },
+    },
+    {
+        title: 'Bullet List',
+        description: 'Turn into a bulleted list',
+        icon: '•',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).toggleBulletList().run();
+        },
+    },
+    {
+        title: 'Numbered List',
+        description: 'Turn into a numbered list',
+        icon: '1.',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).toggleOrderedList().run();
+        },
+    },
+    {
+        title: 'Todo List',
+        description: 'Turn into a to-do list',
+        icon: '☑',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).toggleTaskList().run();
+        },
+    },
+    {
+        title: 'Quote',
+        description: 'Turn into a quote block',
+        icon: '“ ”',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).toggleBlockquote().run();
+        },
+    },
+    {
+        title:'CallOut',
+        description:'Make Writing stand out',
+        icon: '📄',
+        group:'Turn into',
+
+    },
+    {
+        title: 'Divider',
+        description: 'Creates a divider',
+        icon: '⸺',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHorizontalRule().run();
+        },
+    },
+    {
+        title: 'Table',
+        description: 'Creates a table',
+        icon: '▦',
+        group: 'Turn into',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+        },
+    },
+    // --- Text color ---
+    {
+        title: 'Default text',
+        icon: '⚫',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).unsetColor().run();
+        },
+    },
+    {
+        title: 'Gray Text',
+        icon: '🔘',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#787774').run();
+        },
+    },
+    {
+        title: 'Brown Text',
+        icon: '🟤',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#9F6B53').run();
+        },
+    },
+    {
+        title: 'Orange Text',
+        icon: '🟠',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#D9730D').run();
+        },
+    },
+    {
+        title: 'Yellow Text',
+        icon: '🟡',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#CB912F').run();
+        },
+    },
+    {
+        title: 'Green Text',
+        icon: '🟢',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#448361').run();
+        },
+    },
+    {
+        title: 'Blue Text',
+        icon: '🔵',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#337EA9').run();
+        },
+    },
+    {
+        title: 'Purple Text',
+        icon: '🟣',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#9065B0').run();
+        },
+    },
+    {
+        title: 'Pink Text',
+        icon: '🩷',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#C14C8A').run();
+        },
+    },
+    {
+        title: 'Red Text',
+        icon: '🔴',
+        group: 'Text color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setColor('#D44C47').run();
+        },
+    },
+
+    // --- Background color ---
+    {
+        title: 'Default Background',
+        icon: '⚪',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).unsetHighlight().run();
+        },
+    },
+    {
+        title: 'Gray Background',
+        icon: '🔘',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#F1F1EF' }).run();
+        },
+    },
+    {
+        title: 'Brown Background',
+        icon: '🟤',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#F4EEEE' }).run();
+        },
+    },
+    {
+        title: 'Orange Background',
+        icon: '🟠',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#FBECDD' }).run();
+        },
+    },
+    {
+        title: 'Yellow Background',
+        icon: '🟡',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#FBF3DB' }).run();
+        },
+    },
+    {
+        title: 'Green Background',
+        icon: '🟢',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#EDF3EC' }).run();
+        },
+    },
+    {
+        title: 'Blue Background',
+        icon: '🔵',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#E7F3F8' }).run();
+        },
+    },
+    {
+        title: 'Purple Background',
+        icon: '🟣',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#F4EEF8' }).run();
+        },
+    },
+    {
+        title: 'Pink Background',
+        icon: '🩷',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#F9EEF3' }).run();
+        },
+    },
+    {
+        title: 'Red Background',
+        icon: '🔴',
+        group: 'Background color',
+        command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).setHighlight({ color: '#FDEBEC' }).run();
+        },
+    },
+
+
 ];
+
+
+
+const EXCLUDED_GROUPS = ['Turn into', 'Text color', 'Background color', 'Actions'];
+
+export const plusMenuItems = slashItems.filter(
+    (item) => !EXCLUDED_GROUPS.includes(item.group)
+);
 
 export const SlashCommands = Extension.create({
     name: 'slashCommands',
@@ -155,7 +734,7 @@ export const SlashCommands = Extension.create({
             suggestion: {
                 char: '/',
                 command: ({ editor, range, props }) => {
-                    props.command({ editor, range });
+                    props.command?.({ editor, range });
                 },
                 items: ({ query }) => {
                     return slashItems.filter((item) =>
@@ -167,6 +746,7 @@ export const SlashCommands = Extension.create({
                     let popup;
 
                     return {
+
                         onStart: (props) => {
                             component = new ReactRenderer(SlashCommandList, {
                                 props,
@@ -175,7 +755,7 @@ export const SlashCommands = Extension.create({
 
                             if (!props.clientRect) return;
 
-                            popup = tippy('body', {
+                            popup = tippy(document.body, {
                                 getReferenceClientRect: props.clientRect,
                                 appendTo: () => document.body,
                                 content: component.element,
@@ -183,6 +763,7 @@ export const SlashCommands = Extension.create({
                                 interactive: true,
                                 trigger: 'manual',
                                 placement: 'bottom-start',
+                                zIndex: 99999,
                             });
                         },
 

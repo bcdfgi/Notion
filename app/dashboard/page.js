@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import { BubbleMenu, FloatingMenu } from '@tiptap/react/menus';
+import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -13,14 +13,63 @@ import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Code } from '@tiptap/extension-code';
 import { Underline } from '@tiptap/extension-underline';
+import {Table} from '@tiptap/extension-table';
+import {TableRow} from '@tiptap/extension-table-row';
+import {TableCell} from '@tiptap/extension-table-cell';
+import {TableHeader} from '@tiptap/extension-table-header';
 import PageIcon from './PageIcon';
 import IconPickerModal from './IconPickerModal';
-import { Image } from '@tiptap/extension-image';
-import { Smile } from 'lucide-react';
-import{ SlashCommands } from './SlashCommands'
+import { SlashCommands, slashItems, plusMenuItems } from './SlashCommands';
+import { SlashCommandList } from './SlashCommandList';
+import BlockActionMenu from './BlockActionMenu';
+import PageMoreMenu from './PageMoreMenu';
+import SettingsModal from './SettingsMenu';
 import {EmbedExtension} from './EmbedExtension';
+import { TableControlsOverlay } from './TableControl';
+import { PageLinkModal } from './LinkPage';
+import { PageMention } from './PageMention';
+import { ImageBlock } from './AddImage';
+import { CodeBlockComponent } from './CodeBlock';
+import CodeBlock from '@tiptap/extension-code-block';
+import { ReactNodeViewRenderer } from '@tiptap/react';
+import Highlight from '@tiptap/extension-highlight';
+import MoveToModal from './MoveToModal';
+import Papa from 'papaparse';
+import { marked } from 'marked';
+import * as pdfjsLib from 'pdfjs-dist';
+import { DatabaseExtension } from './DatabaseExtension';
+import { DateExtension } from './DateExtension';
+import { InlineMathExtension } from './InlineMathExtension';
+import { ColumnGroup, Column } from './ColumnsExtension';
+import { Details, DetailsSummary, DetailsContent } from './ToggleExtension';
+import { TableOfContentsExtension } from './TableOfContentExtension';
+import { BlockEquationExtension } from './AdvancedNodes';
+import { VideoExtension } from './VideoExtension';
+import { BookmarkExtension } from './BookmarkExtension';
+import { Smile, MoreHorizontal, Star, Plus, ChevronDown, ChevronRight, Lock, Link2, Maximize2, Settings } from 'lucide-react';
+import RowEditor from './RowEditor';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 
+function formatRelativeTime(date) {
+    if (!date) return 'Edited just now';
+    const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+
+    if (seconds < 10) return 'Edited just now';
+    if (seconds < 60) return `Edited ${seconds}s ago`;
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `Edited ${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `Edited ${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `Edited ${days}d ago`;
+
+    return new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
 
 
 const useIsMounted = () => {
@@ -31,21 +80,7 @@ const useIsMounted = () => {
     return mounted;
 };
 
-const ToolbarButton = ({ onClick, isActive, children, className = "" }) => (
-    <button
-        type="button"
-        onClick={onClick}
-        className={`h-7 min-w-7 px-1.5 rounded flex items-center justify-center transition-all duration-200 ease-in-out ${
-            isActive
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-        } ${className}`}
-    >
-        {children}
-    </button>
-);
 
-const VerticalDivider = () => <div className="w-px h-4 bg-gray-200 mx-1.5" />;
 
 const NOTION_COVERS = [
     "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1600&auto=format&fit=crop",
@@ -53,7 +88,56 @@ const NOTION_COVERS = [
     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop"
 ]
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+const NOTION_BUBBLE_COLORS = {
+    text: [
+        { key: 'default', label: 'Default text', color: null, preview: '#37352F' },
+        { key: 'gray', label: 'Gray text', color: '#787774', preview: '#787774' },
+        { key: 'brown', label: 'Brown text', color: '#9F6B53', preview: '#9F6B53' },
+        { key: 'orange', label: 'Orange text', color: '#D9730D', preview: '#D9730D' },
+        { key: 'yellow', label: 'Yellow text', color: '#CB912F', preview: '#CB912F' },
+        { key: 'green', label: 'Green text', color: '#448361', preview: '#448361' },
+        { key: 'blue', label: 'Blue text', color: '#337EA9', preview: '#337EA9' },
+        { key: 'purple', label: 'Purple text', color: '#9065B0', preview: '#9065B0' },
+        { key: 'pink', label: 'Pink text', color: '#C14C8A', preview: '#C14C8A' },
+        { key: 'red', label: 'Red text', color: '#D44C47', preview: '#D44C47' },
+    ],
+    bg: [
+        { key: 'default', label: 'Default background', color: null, preview: '#FFFFFF', border: true },
+        { key: 'gray', label: 'Gray background', color: '#F1F1EF', preview: '#F1F1EF' },
+        { key: 'brown', label: 'Brown background', color: '#F4EEEE', preview: '#F4EEEE' },
+        { key: 'orange', label: 'Orange background', color: '#FBECDD', preview: '#FBECDD' },
+        { key: 'yellow', label: 'Yellow background', color: '#FBF3DB', preview: '#FBF3DB' },
+        { key: 'green', label: 'Green background', color: '#EDF3EC', preview: '#EDF3EC' },
+        { key: 'blue', label: 'Blue background', color: '#E7F3F8', preview: '#E7F3F8' },
+        { key: 'purple', label: 'Purple background', color: '#F4EEF8', preview: '#F4EEF8' },
+        { key: 'pink', label: 'Pink background', color: '#F9EEF3', preview: '#F9EEF3' },
+        { key: 'red', label: 'Red background', color: '#FDEBEC', preview: '#FDEBEC' },
+    ],
+};
+const MAX_FILE_SIZE = 1024 * 1024;
+
+function detectColumnType(values) {
+    const nonEmpties = values.filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+    if (nonEmpties.length === 0) return 'text';
+
+
+    const isBool = nonEmpties.every(v => ['true', 'false', 'yes', 'no', '1', '0'].includes(String(v).trim().toLowerCase()));
+    if (isBool) return 'checkbox';
+
+
+    const isNum = nonEmpties.every(v => !isNaN(Number(String(v).trim())));
+    if (isNum) return 'number';
+
+
+    const isDate = nonEmpties.every(v => {
+        const str = String(v).trim();
+        return str.length >= 8 && !isNaN(Date.parse(str));
+    });
+    if (isDate) return 'date';
+
+    return 'text';
+}
 
 const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const isMounted = useIsMounted();
@@ -76,158 +160,175 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const dragRef = useRef({ startY: 0, startPos: 50 });
     const [pageIcon, setPageIcon] = useState(null);
     const [showIconPicker, setShowIconPicker] = useState(false);
+    const [showPlusMenu, setShowPlusMenu] = useState(false);
+    const plusMenuRef = useRef(null);
+    const [showBlockMenu, setShowBlockMenu] = useState(false);
+    const blockMenuRef = useRef(null);
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const moreMenuRef = useRef(null);
+    const [fontStyle, setFontStyle] = useState('default');
+    const [isSmallText, setIsSmallText] = useState(false);
+    const [isFullWidth, setIsFullWidth] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [showPageLinkModal, setShowPageLinkModal] = useState(false);
+    const [showMoveToModal, setShowMoveToModal] = useState(false);
+    const [blockToMove, setBlockToMove] = useState(null);
+    const [lastEditedTime, setLastEditedTime] = useState(null);
+    const [, setTick] = useState(0);
+    const importInputRef = useRef(null);
+    const [importType, setImportType] = useState('markdown');
+    const [showInlineEmojiPicker, setShowInlineEmojiPicker] = useState(false);
+    const [activeDatabaseRowItem, setActiveDatabaseRowItem] = useState(null);
+    const [showRowProps, setShowRowProps] = useState(true);
+    const [recentsList, setRecentsList] = useState([]);
+    const [showRowCoverPicker, setShowRowCoverPicker] = useState(false);
+    const rowFileInputRef = useRef(null);
+    const [rowUploadError, setRowUploadError] = useState("");
+    const [isRowRepositioning, setIsRowRepositioning] = useState(false);
+    const [rowCoverPosition, setRowCoverPosition] = useState(50);
+    const [isDraggingRowCover, setIsDraggingRowCover] = useState(false);
+    const rowDragRef = useRef({ startY: 0, startPos: 50 });
+    const [theme, setTheme] = useState('Light');
+    const [showColorPopover, setShowColorPopover] = useState(false);
+    const colorPopoverRef = useRef(null);
+    const [showLinkPopover, setShowLinkPopover] = useState(false);
+    const [linkInputQuery, setLinkInputQuery] = useState('');
+    const linkPopoverRef = useRef(null);
+
 
 
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
                 code: false,
+                codeBlock: false,
                 link: false,
                 underline: false,
+                heading: {
+                    levels: [1, 2, 3, 4],
+                },
             }),
+            DateExtension,
+            InlineMathExtension,
+            CodeBlock.extend({
+                addAttributes() {
+                    return {
+                        ...this.parent?.(),
+                        language: {
+                            default: 'Plain Text',
+                            parseHTML: element => element.getAttribute('data-language') || 'Plain Text',
+                            renderHTML: attributes => ({
+                                'data-language': attributes.language,
+                            }),
+                        },
+                        caption: {
+                            default: '',
+                            parseHTML: element => element.getAttribute('data-caption') || '',
+                            renderHTML: attributes => ({
+                                'data-caption': attributes.caption,
+                            }),
+                        },
+                        wrap: {
+                            default: false,
+                            parseHTML: element => element.getAttribute('data-wrap') === 'true',
+                            renderHTML: attributes => ({
+                                'data-wrap': attributes.wrap ? 'true' : 'false',
+                            }),
+                        },
+                    };
+                },
+                addNodeView() {
+                    return ReactNodeViewRenderer(CodeBlockComponent);
+                },
+            }),
+            Table.configure({
+                resizable: true,
+            }),
+            ImageBlock,
+            VideoExtension,
+            BookmarkExtension,
+            TableRow,
+            TableHeader.extend({
+                addAttributes() {
+                    return {
+                        ...this.parent?.(),
+                        backgroundColor: {
+                            default: null,
+                            parseHTML: element => element.style.backgroundColor || null,
+                            renderHTML: attributes => {
+                                if (!attributes.backgroundColor) return {};
+                                return {
+                                    style: `background-color: ${attributes.backgroundColor}`,
+                                };
+                            },
+                        },
+                    };
+                },
+            }),
+            TableCell.extend({
+                addAttributes() {
+                    return {
+                        ...this.parent?.(),
+                        backgroundColor: {
+                            default: null,
+                            parseHTML: element => element.style.backgroundColor || null,
+                            renderHTML: attributes => {
+                                if (!attributes.backgroundColor) return {};
+                                return {
+                                    style: `background-color: ${attributes.backgroundColor}`,
+                                };
+                            },
+                        },
+                    };
+                },
+            }),
+            TaskList,
+            TaskItem.configure({ nested: true }),
             Underline,
             TextStyle,
             Color,
+            Highlight.configure({ multicolor: true }),
             Code,
+            ColumnGroup,
+            Column,
+            Details,
+            DetailsSummary,
+            DetailsContent,
+            TableOfContentsExtension,
+            BlockEquationExtension,
+            PageMention,
             Link.configure({
                 openOnClick: false,
                 HTMLAttributes: { class: 'text-blue-500 underline cursor-pointer' }
             }),
-            TaskList,
-            TaskItem.configure({ nested: true }),
-            Placeholder.configure({ placeholder: "Type '/' for commands..." }),
-            EmbedExtension,
-            SlashCommands,
-            Image.extend({
 
-                addAttributes() {
-                    return {
-                        src: {
-                            default: null,
-                            parseHTML: element => element.getAttribute('src'),
-                            renderHTML: attributes => {
-                                if (!attributes.src) return {};
-                                return { src: attributes.src };
-                            },
-                        },
-                        alt: {
-                            default: null,
-                        },
-                        title: {
-                            default: null,
-                        },
-                    };
-                },
-            }).configure({
-                inline: false,
-                allowBase64: true,
-                HTMLAttributes: {
-                    class: 'rounded-lg max-w-full my-4 shadow-sm',
+            Placeholder.configure({
+                includeChildren: true,
+                placeholder: ({ node }) => {
+                    if (node.type.name === 'column') {
+                        return "Type '/' for commands...";
+                    }
+                    return "Type '/' for commands...";
                 },
             }),
+            DatabaseExtension,
+            EmbedExtension,
+            SlashCommands,
+
         ],
         content: '',
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: 'tiptap prose prose-slate max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 -ml-45 ',
-            },
-            handlePaste: (view, event) => {
-                const items = Array.from(event.clipboardData?.items || []);
-                const imageItem = items.find(item => item.type.startsWith('image/'));
-
-                if (!imageItem) return false;
-
-                const file = imageItem.getAsFile();
-                if (!file) return false;
-
-                if (file.size > MAX_FILE_SIZE) {
-                    alert('Image size exceeds 5MB limit.');
-                    return true;
-                }
-
-
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const src = e.target?.result;
-                    if (typeof src === 'string') {
-                        const imageType = view.state.schema.nodes.image;
-                        if (imageType) {
-                            const node = imageType.create({ src });
-                            const transaction = view.state.tr.replaceSelectionWith(node);
-                            view.dispatch(transaction);
-
-                            if (currentPageId) {
-                                const currentTitle = titleRef.current?.innerText || "Untitled";
-                                const json = view.state.doc.toJSON();
-
-
-                                setPages(prev => prev.map(p => p._id === currentPageId ? { ...p, content: json, title: currentTitle } : p));
-
-                                setSavingStatus("Saving...");
-                                const res = await updatePageContent(currentPageId, {
-                                    title: currentTitle,
-                                    content: json,
-                                    userEmail,
-                                });
-                                setSavingStatus(res.success ? "Saved" : "Error");
-                            }
-                        }
-                    }
-                };
-                reader.readAsDataURL(file);
-                return true;
-            },
-            handleDrop: (view, event, slice, moved) => {
-                if (moved || !event.dataTransfer?.files.length) return false;
-
-                const file = event.dataTransfer.files[0];
-                if (!file.type.startsWith('image/')) return false;
-
-                if (file.size > MAX_FILE_SIZE) {
-                    alert('Image size exceeds 5MB limit.');
-                    return true;
-                }
-
-
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const src = e.target?.result;
-                    if (typeof src === 'string') {
-                        const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
-                        const imageType = view.state.schema.nodes.image;
-
-                        if (coordinates && imageType) {
-                            const node = imageType.create({ src });
-                            const transaction = view.state.tr.insert(coordinates.pos, node);
-                            view.dispatch(transaction);
-
-                            if (currentPageId) {
-                                const currentTitle = titleRef.current?.innerText || "Untitled";
-                                const json = view.state.doc.toJSON();
-
-
-                                setPages(prev => prev.map(p => p._id === currentPageId ? { ...p, content: json, title: currentTitle } : p));
-
-                                setSavingStatus("Saving...");
-                                const res = await updatePageContent(currentPageId, {
-                                    title: currentTitle,
-                                    content: json,
-                                    userEmail,
-                                });
-                                setSavingStatus(res.success ? "Saved" : "Error");
-                            }
-                        }
-                    }
-                };
-                reader.readAsDataURL(file);
-                return true;
+                class: 'tiptap prose prose-slate dark:prose-invert max-w-none focus:outline-none min-h-[500px] caret-blue-500 pb-32 text-slate-800 dark:text-[#EBEBEB]',
             },
         },
 
 
         onUpdate: ({ editor }) => {
-            const currentTitle = titleRef.current?.innerText || "Untitled";
+            if (isSwitchingPageRef.current) return;
+            const currentTitle = titleRef.current?.innerText?.trim();
             saveContent(editor.getJSON(), currentTitle);
         },
         onSelectionUpdate: ({ editor }) => {
@@ -243,25 +344,58 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
         },
     });
+    useEffect(() => {
+        if (editor) {
+            window.editor = editor;
+        }
+    }, [editor]);
+
+    useEffect(() => {
+        if (editor && currentPageId) {
+            window.forceSaveNow = async () => {
+                console.log("Forcing direct save to MongoDB...");
+                const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+                const json = editor.getJSON();
+                const contentPayload = JSON.stringify(json);
+                const res = await updatePageContent(currentPageId, {
+                    title: currentTitle,
+                    content: contentPayload,
+                    userEmail: userEmailRef.current,
+                });
+                console.log("Direct MongoDB save result:", res);
+            };
+        }
+    }, [editor, currentPageId]);
+
+    const userEmailRef = useRef(userEmail);
+    useEffect(() => {
+        userEmailRef.current = userEmail;
+    }, [userEmail]);
 
     const debouncedSave = useMemo(
         () => debounce(async (json, currentTitle, pageId) => {
             if (!pageId) return;
             setSavingStatus("Saving...");
+
             try {
+
+                const contentPayload = typeof json === 'string' ? json : JSON.stringify(json);
+
                 const result = await updatePageContent(pageId, {
                     title: currentTitle,
-                    content: json,
-                    userEmail,
+                    content: contentPayload,
+                    userEmail: userEmailRef.current,
                 });
+
                 if (result.success) {
                     setSavingStatus("Saved");
-
-                    setPages(prevPages => {
-                        return prevPages.map(p =>
-                            p._id === pageId ? { ...p, title: currentTitle, content: json } : p
-                        );
-                    });
+                    const now = new Date();
+                    setLastEditedTime(now);
+                    setPages(prevPages =>
+                        prevPages.map(p =>
+                            p._id === pageId ? { ...p, title: currentTitle, content: contentPayload } : p
+                        )
+                    );
                 } else {
                     setSavingStatus("Error");
                 }
@@ -269,22 +403,97 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 setSavingStatus("Error");
             }
         }, 1000),
-        [userEmail]
+        []
     );
+    useEffect(() => {
+        const timer = setInterval(() => setTick((t) => t + 1), 30000);
+        return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        pagesRef.current = pages;
+        if (editor && !editor.isDestroyed) {
+            editor.storage.pageMention = { pages };
+        }
+        if (typeof window !== 'undefined') {
+            window.__NOTION_PAGES__ = pages;
+            window.dispatchEvent(new CustomEvent('notion:pages-updated', { detail: pages }));
+        }
+    }, [pages, editor]);
+
+    const touchRecent = useCallback((item) => {
+        setRecentsList(prev => {
+            const filtered = prev.filter(p => (p.id || p._id) !== (item.id || item._id));
+            return [item, ...filtered].slice(0, 20);
+        });
+    }, []);
+
+    const handleApplyWebLink = (url) => {
+        if (!editor) return;
+        const clean = url?.trim();
+        if (!clean) {
+            editor.chain().focus().extendMarkRange('link').unsetLink().run();
+            setShowLinkPopover(false);
+            setLinkInputQuery('');
+            return;
+        }
+
+        let finalHref = clean;
+        if (!/^https?:\/\//i.test(finalHref) && !finalHref.startsWith('#') && !finalHref.startsWith('mailto:')) {
+            finalHref = `https://${finalHref}`;
+        }
+
+        editor.chain().focus().extendMarkRange('link').setLink({ href: finalHref }).run();
+        setShowLinkPopover(false);
+        setLinkInputQuery('');
+
+        const updatedJson = editor.getJSON();
+        const currentTitle = titleRef.current?.innerText?.trim() || 'Untitled';
+        saveContent(updatedJson, currentTitle);
+    };
+
+    const handleApplyPageLink = (page) => {
+        if (!editor || !page) return;
+        const pageId = String(page._id || page.id);
+        editor.chain().focus().extendMarkRange('link').setLink({ href: `#${pageId}` }).run();
+        setShowLinkPopover(false);
+        setLinkInputQuery('');
+
+        const updatedJson = editor.getJSON();
+        const currentTitle = titleRef.current?.innerText?.trim() || 'Untitled';
+        saveContent(updatedJson, currentTitle);
+    };
 
 
+
+
+
+    const pagesRef = useRef(pages);
+
+    const isHydratedRef = useRef(false);
+
+    const isSwitchingPageRef = useRef(true);
 
     const loadPage = useCallback(async (pageId, forceData = null) => {
         if (!pageId || (pageId === currentPageId && !forceData)) return;
+        setActiveDatabaseRowItem(null);
 
-        debouncedSave.flush();
+
+        if (editor && currentPageId && isHydratedRef.current) {
+            debouncedSave.flush();
+        }
+
+
+        isHydratedRef.current = false;
+        isSwitchingPageRef.current = true;
         setCurrentPageId(pageId);
 
-        let selectedPage = forceData || pages.find(p => p._id === pageId);
+        let selectedPage = forceData || pagesRef.current.find(p => p._id === pageId);
 
         if (!selectedPage) {
             const result = await getPages(userEmail);
             if (result.success && result.pages) {
+                pagesRef.current = result.pages;
                 setPages(result.pages);
                 selectedPage = result.pages.find(p => p._id === pageId);
             }
@@ -295,68 +504,460 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setCoverImage(selectedPage.coverImage || null);
             setCoverPosition(selectedPage.coverPosition ?? 50);
             setPageIcon(selectedPage.icon || null);
+            setIsFavorite(Boolean(selectedPage.isFavorite));
+            setLastEditedTime(selectedPage.updatedAt ? new Date(selectedPage.updatedAt) : new Date());
+
+            touchRecent({
+                id: selectedPage._id,
+                _id: selectedPage._id,
+                title: displayTitle,
+                icon: selectedPage.icon,
+                isDatabaseRow: false,
+            });
 
             if (titleRef.current) {
                 titleRef.current.innerText = displayTitle;
                 titleRef.current._lastValue = displayTitle;
             }
-
-
             if (editor && !editor.isDestroyed) {
-                editor.commands.setContent(selectedPage.content || { type: 'doc', content: [{ type: 'paragraph' }] }, false);
+                const raw = selectedPage.content;
+                const parsedContent = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+                isSwitchingPageRef.current = true;
+                isHydratedRef.current = false;
+                debouncedSave.cancel();
+
+                editor.commands.setContent(
+                    parsedContent && parsedContent.type ? parsedContent : { type: 'doc', content: [{ type: 'paragraph' }] },
+                    { emitUpdate: false }
+                );
+
+                setIsLoading(false);
+
+                setTimeout(() => {
+                    isSwitchingPageRef.current = false;
+                    isHydratedRef.current = true;
+                }, 100);
             }
+
         }
         setIsLoading(false);
-    }, [currentPageId, editor, pages, userEmail, debouncedSave]);
+    }, [currentPageId, editor, userEmail, debouncedSave]);
+
 
     useEffect(() => {
+        const savedTheme = localStorage.getItem('app-theme') || 'Light';
+        setTheme(savedTheme);
+        if (savedTheme === 'Dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, []);
+
+    const handleThemeChange = (newTheme) => {
+        setTheme(newTheme);
+        localStorage.setItem('app-theme', newTheme);
+        if (newTheme === 'Dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    };
+
+
+
+
+
+    useEffect(() => {
+        let isMountedFlag = true;
+
         const initialize = async () => {
             if (isMounted && editor && !currentPageId) {
+                isSwitchingPageRef.current = true;
+                isHydratedRef.current = false;
+
                 const result = await getPages(userEmail);
+                if (!isMountedFlag) return;
+
                 if (result.success && result.pages.length > 0) {
                     setPages(result.pages);
+                    pagesRef.current = result.pages;
+
+                    setRecentsList(result.pages.map(p => ({
+                        id: p._id,
+                        _id: p._id,
+                        title: p.title || "Untitled",
+                        icon: p.icon,
+                        isDatabaseRow: false,
+                    })));
                     const firstPage = result.pages[0];
 
                     setCurrentPageId(firstPage._id);
                     setCoverImage(firstPage.coverImage || null);
                     setCoverPosition(firstPage.coverPosition ?? 50);
                     setPageIcon(firstPage.icon || null);
+                    setIsFavorite(Boolean(firstPage.isFavorite));
+                    setLastEditedTime(firstPage.updatedAt ? new Date(firstPage.updatedAt) : new Date());
 
+                    const initialTitle = firstPage.title || "Untitled";
                     if (titleRef.current) {
-                        const initialTitle = firstPage.title || "Untitled";
                         titleRef.current.innerText = initialTitle;
                         titleRef.current._lastValue = initialTitle;
                     }
 
-
                     const rawContent = firstPage.content;
                     const parsedContent = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
 
+
+                    isSwitchingPageRef.current = true;
+                    isHydratedRef.current = false;
+                    debouncedSave.cancel();
+
                     editor.commands.setContent(
                         parsedContent && parsedContent.type ? parsedContent : { type: 'doc', content: [{ type: 'paragraph' }] },
-                        false
+                        { emitUpdate: false }
                     );
+
                     setIsLoading(false);
+
+                    setTimeout(() => {
+                        isSwitchingPageRef.current = false;
+                        isHydratedRef.current = true;
+                    }, 100);
+
+
                 } else if (result.success && result.pages.length === 0) {
+                    setIsLoading(false);
+                    isSwitchingPageRef.current = false;
+                    isHydratedRef.current = true;
                     handleCreatePage();
                 }
             }
         };
+
         initialize();
+
+        return () => {
+            isMountedFlag = false;
+        };
     }, [isMounted, editor, userEmail]);
+
+    useEffect(() => {
+        const handleDocumentClick = (e) => {
+
+            const pill = e.target.closest('[data-page-id]');
+            if (pill) {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetPageId = pill.getAttribute('data-page-id');
+                if (targetPageId) loadPage(targetPageId);
+                return;
+            }
+
+
+            const anchor = e.target.closest('a');
+            if (anchor && editor?.view?.dom.contains(anchor)) {
+                const href = anchor.getAttribute('href') || '';
+                if (href.startsWith('#')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const targetPageId = href.replace(/^#/, '');
+                    if (targetPageId) loadPage(targetPageId);
+                } else if (href) {
+                    e.preventDefault();
+                    window.open(href, '_blank', 'noopener,noreferrer');
+                }
+            }
+        };
+
+        const dom = editor?.view?.dom;
+        if (dom) {
+            dom.addEventListener('click', handleDocumentClick);
+            return () => dom.removeEventListener('click', handleDocumentClick);
+        }
+    }, [editor, loadPage]);
+
+    useEffect(() => {
+        const handleOpenRowFullScreen = (e) => {
+            const { row, parentTitle, properties } = e.detail;
+            setActiveDatabaseRowItem({ row, parentTitle, properties });
+            touchRecent({
+                id: row.id,
+                title: row.values?.['prop-title'] || 'Untitled',
+                icon: row.icon,
+                isDatabaseRow: true,
+                parentTitle: parentTitle || 'Database',
+                rowData: row,
+                properties,
+            });
+        };
+        const handleRowDeleted = (e) => {
+            const { rowId } = e.detail;
+            setRecentsList(prev => prev.filter(item => String(item.id || item._id) !== String(rowId)));
+        };
+
+        window.addEventListener('notion:row-deleted', handleRowDeleted);
+
+        const handleRowCreated = (e) => {
+            const { row, parentTitle, properties } = e.detail;
+            touchRecent({
+                id: row.id,
+                title: row.values?.['prop-title'] || 'Untitled',
+                icon: row.icon,
+                isDatabaseRow: true,
+                parentTitle: parentTitle || 'Database',
+                rowData: row,
+                properties,
+            });
+        };
+
+
+        const handleRowUpdated = (e) => {
+            const { rowId, title, icon } = e.detail;
+            setRecentsList((prev) =>
+                prev.map((item) => {
+                    const itemId = String(item.id || item._id);
+                    if (itemId === String(rowId)) {
+                        return {
+                            ...item,
+                            ...(title !== undefined ? { title: title || 'Untitled' } : {}),
+                            ...(icon !== undefined ? { icon } : {}),
+                        };
+                    }
+                    return item;
+                })
+            );
+        };
+
+        window.addEventListener('notion:open-page-fullscreen', handleOpenRowFullScreen);
+        window.addEventListener('notion:row-created', handleRowCreated);
+        window.addEventListener('notion:row-updated', handleRowUpdated);
+
+        return () => {
+            window.removeEventListener('notion:open-page-fullscreen', handleOpenRowFullScreen);
+            window.removeEventListener('notion:row-created', handleRowCreated);
+            window.removeEventListener('notion:row-updated', handleRowUpdated);
+        };
+    }, [touchRecent]);
+
+    useEffect(() => {
+        if (activeDatabaseRowItem?.row) {
+            setRowCoverPosition(activeDatabaseRowItem.row.coverPosition ?? 50);
+            setIsRowRepositioning(false);
+        }
+    }, [activeDatabaseRowItem?.row?.id]);
+
+    const handleMouseDownRowCover = (e) => {
+        if (!isRowRepositioning) return;
+        setIsDraggingRowCover(true);
+        rowDragRef.current = { startY: e.clientY, startPos: rowCoverPosition };
+    };
+
+    const handleMouseMoveRowCover = useCallback((e) => {
+        if (!isDraggingRowCover) return;
+        const deltaY = e.clientY - rowDragRef.current.startY;
+        const newPos = Math.max(0, Math.min(100, rowDragRef.current.startPos - (deltaY * 0.3)));
+        setRowCoverPosition(newPos);
+    }, [isDraggingRowCover]);
+
+    const handleMouseUpRowCover = useCallback(() => {
+        setIsDraggingRowCover(false);
+    }, []);
+
+    useEffect(() => {
+        if (isDraggingRowCover) {
+            window.addEventListener('mousemove', handleMouseMoveRowCover);
+            window.addEventListener('mouseup', handleMouseUpRowCover);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMoveRowCover);
+            window.removeEventListener('mouseup', handleMouseUpRowCover);
+        };
+    }, [isDraggingRowCover, handleMouseMoveRowCover, handleMouseUpRowCover]);
+
+    const handleSaveRowPosition = () => {
+        setIsRowRepositioning(false);
+        handleUpdateActiveRowField('coverPosition', rowCoverPosition);
+    };
+
+    const handleCancelRowReposition = () => {
+        setIsRowRepositioning(false);
+        setRowCoverPosition(activeDatabaseRowItem?.row?.coverPosition ?? 50);
+    };
+
+
+    const handleUpdateActiveRowField = (field, value) => {
+        if (!activeDatabaseRowItem?.row) return;
+        const rowId = activeDatabaseRowItem.row.id;
+
+        setActiveDatabaseRowItem(prev => {
+            if (!prev) return null;
+            let updatedRow = { ...prev.row };
+            if (field === 'title') {
+                updatedRow.values = { ...(updatedRow.values || {}), 'prop-title': value };
+            } else if (field === 'icon') {
+                updatedRow.icon = value;
+            } else if (field === 'cover') {
+                updatedRow.cover = value;
+            } else if (field === 'coverPosition') {
+                updatedRow.coverPosition = value;
+            } else if (field === 'isFavorite') {
+                updatedRow.isFavorite = value;
+            } else if (field === 'property') {
+                updatedRow.values = { ...(updatedRow.values || {}), [value.propId]: value.propValue };
+            }
+            return { ...prev, row: updatedRow };
+        });
+
+
+        window.dispatchEvent(new CustomEvent('notion:update-row-field', {
+            detail: { rowId, field, value }
+        }));
+
+        if (field === 'title') {
+            window.dispatchEvent(new CustomEvent('notion:row-updated', {
+                detail: { rowId, title: value }
+            }));
+        } else if (field === 'icon') {
+            window.dispatchEvent(new CustomEvent('notion:row-updated', {
+                detail: { rowId, icon: value }
+            }));
+        }
+
+
+        setTimeout(() => {
+            if (editor && currentPageId) {
+                const updatedJson = editor.getJSON();
+                const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+                debouncedSave(updatedJson, currentTitle, currentPageId);
+                debouncedSave.flush();
+            }
+        }, 50);
+    };
+    const allFavorites = useMemo(() => {
+        const list = [];
+
+
+        pages.filter(p => p.isFavorite).forEach(page => {
+            list.push({
+                id: page._id,
+                _id: page._id,
+                title: page.title || "Untitled",
+                icon: page.icon,
+                isDatabaseRow: false,
+            });
+        });
+
+
+        pages.forEach(p => {
+            const doc = typeof p.content === 'string' ? JSON.parse(p.content || '{}') : p.content;
+            const findDatabaseRows = (node) => {
+                if (!node) return;
+                if (node.type === 'databaseBlock' && Array.isArray(node.attrs?.rows)) {
+                    node.attrs.rows.filter(r => r.isFavorite).forEach(r => {
+                        list.push({
+                            id: r.id,
+                            title: r.values?.['prop-title'] || 'Untitled',
+                            icon: r.icon,
+                            isDatabaseRow: true,
+                            parentTitle: node.attrs.title || p.title || 'Database',
+                            rowData: r,
+                            properties: node.attrs.properties || [],
+                        });
+                    });
+                }
+                if (Array.isArray(node.content)) {
+                    node.content.forEach(findDatabaseRows);
+                }
+            };
+            findDatabaseRows(doc);
+        });
+
+        return list;
+    }, [pages]);
+
+    const handleUpdateActiveRowContent = (newContent) => {
+        if (!activeDatabaseRowItem?.row) return;
+        const rowId = activeDatabaseRowItem.row.id;
+
+        setActiveDatabaseRowItem(prev => ({
+            ...prev,
+            row: { ...prev.row, content: newContent }
+        }));
+
+        window.dispatchEvent(new CustomEvent('notion:update-row-content', {
+            detail: { rowId, content: newContent }
+        }));
+    };
+
+    const handleRowFileUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        e.target.value = '';
+
+        if (!file.type.startsWith('image/')) {
+            setRowUploadError('Please select a valid image file.');
+            return;
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+            setRowUploadError('Image size exceeds 1MB limit.');
+            return;
+        }
+
+        setRowUploadError('');
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                handleUpdateActiveRowField('cover', reader.result);
+                setShowRowCoverPicker(false);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+
 
     const handleCreatePage = async () => {
         const result = await createPage(userEmail);
         if (result.success) {
-
             const sidebarResult = await getPages(userEmail);
             setPages(sidebarResult.pages);
 
-
             const newPage = sidebarResult.pages.find(p => p._id === result.pageId);
+            if (newPage) {
+
+                touchRecent({
+                    id: newPage._id,
+                    _id: newPage._id,
+                    title: newPage.title || "Untitled",
+                    icon: newPage.icon,
+                    isDatabaseRow: false,
+                });
+            }
             loadPage(result.pageId, newPage);
         }
     };
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) setShowPlusMenu(false);
+            if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) setShowBlockMenu(false);
+            if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setShowMoreMenu(false);
+            if (colorPopoverRef.current && !colorPopoverRef.current.contains(e.target)) setShowColorPopover(false);
+            if (linkPopoverRef.current && !linkPopoverRef.current.contains(e.target)) {
+                setShowLinkPopover(false);
+                setLinkInputQuery('');
+            }
+        };
+        if (showPlusMenu || showBlockMenu || showMoreMenu || showColorPopover || showLinkPopover) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showPlusMenu, showBlockMenu, showMoreMenu, showColorPopover, showLinkPopover]);
+
+
     const handleDeletePage = async (e, pageId) => {
         e.stopPropagation();
 
@@ -378,10 +979,30 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             }
         }
     };
+    const handleDeleteActiveRow = () => {
+        if (!activeDatabaseRowItem?.row) return;
+        const rowId = activeDatabaseRowItem.row.id;
+
+        if (confirm("Are you sure you want to delete this page?")) {
+
+            setActiveDatabaseRowItem(null);
+
+
+            setRecentsList(prev => prev.filter(item => String(item.id || item._id) !== String(rowId)));
+
+
+            window.dispatchEvent(new CustomEvent('notion:row-deleted', {
+                detail: { rowId }
+            }));
+        }
+    };
+
+
 
     const handleUpdateCover = async (newCoverUrl) => {
         setCoverImage(newCoverUrl);
         setShowCoverPicker(false);
+        setLastEditedTime(new Date());
 
         if (currentPageId) {
             const currentTitle = titleRef.current?.innerText || "Untitled";
@@ -402,6 +1023,105 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setSavingStatus(res.success ? "Saved" : "Error");
         }
     };
+    const handleSelectInlineEmoji = (selected) => {
+        setShowInlineEmojiPicker(false);
+        if (!editor || !selected) return;
+
+
+        let charToInsert = '';
+        if (typeof selected === 'string') {
+            charToInsert = selected;
+        } else if (selected.type === 'emoji' && selected.value) {
+            charToInsert = selected.value;
+        } else if (selected.emoji) {
+            charToInsert = selected.emoji;
+        }
+
+        if (!charToInsert) {
+            console.warn("No valid emoji character detected in selection:", selected);
+            return;
+        }
+
+
+        setTimeout(() => {
+            if (!editor || editor.isDestroyed) return;
+
+            editor.chain().focus().run();
+
+
+            const { state, view } = editor;
+            const { from, to } = state.selection;
+
+            const tr = state.tr.insertText(`${charToInsert} `, from, to);
+            view.dispatch(tr);
+
+
+            const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+            saveContent(editor.getJSON(), currentTitle);
+        }, 50);
+    };
+    const handleInsertPageLink = async (selectedPage) => {
+        if (!editor || !currentPageId || !selectedPage) return;
+
+        console.log("Inserting page link for:", selectedPage);
+
+
+        const targetId = String(
+            selectedPage._id?.$oid ||
+            selectedPage._id ||
+            selectedPage.id ||
+            selectedPage.pageId ||
+            (selectedPage.page && (selectedPage.page._id || selectedPage.page.id)) ||
+            ''
+        ).trim();
+
+
+        if (!targetId || targetId === 'null' || targetId === 'undefined') {
+            console.error("Failed to insert page link: no valid page ID found on object:", selectedPage);
+            return;
+        }
+
+
+        const rawTitle = selectedPage.title || (selectedPage.page && selectedPage.page.title) || 'Untitled';
+        const pageTitle = typeof rawTitle === 'string' ? rawTitle.trim() : 'Untitled';
+        const pageIconVal = selectedPage.icon !== undefined ? selectedPage.icon : (selectedPage.page?.icon || null);
+
+
+        setShowPageLinkModal(false);
+
+
+        const insertPos = typeof window !== 'undefined' && window.__PAGE_LINK_POS__
+            ? window.__PAGE_LINK_POS__
+            : editor.state.selection.from;
+
+        if (typeof window !== 'undefined') {
+            delete window.__PAGE_LINK_POS__;
+        }
+
+
+        editor
+            .chain()
+            .focus()
+            .setTextSelection(insertPos)
+            .insertContent({
+                type: 'pageMention',
+                attrs: {
+                    pageId: targetId,
+                    title: pageTitle,
+                    icon: pageIconVal,
+                },
+            })
+            .insertContent(' ')
+            .run();
+
+
+        const updatedJson = editor.getJSON();
+        const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+
+        debouncedSave(updatedJson, currentTitle, currentPageId);
+        debouncedSave.flush();
+    };
+
 
     const handleRemoveCover = () => {
         handleUpdateCover(null);
@@ -419,7 +1139,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         }
 
         if (file.size > MAX_FILE_SIZE) {
-            setUploadError('Image size exceeds 5MB limit.');
+            setUploadError('Image size exceeds 1MB limit.');
             return;
         }
 
@@ -432,6 +1152,18 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         };
         reader.readAsDataURL(file);
     };
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) setShowPlusMenu(false);
+            if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) setShowBlockMenu(false);
+            if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setShowMoreMenu(false);
+        };
+        if (showPlusMenu || showBlockMenu || showMoreMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showPlusMenu, showBlockMenu, showMoreMenu]);
 
     const handleMouseDownCover = (e) => {
         if (!isRepositioning) return;
@@ -465,8 +1197,10 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     }, [isDraggingCover, handleMouseMoveCover, handleMouseUpCover]);
     const handleSavePosition = async () => {
         setIsRepositioning(false);
+        setLastEditedTime(new Date());
         if (currentPageId) {
             setSavingStatus("Saving...");
+
 
             setPages(prev => prev.map(p =>
                 p._id === currentPageId ? { ...p, coverPosition } : p
@@ -489,7 +1223,6 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         const currentPage = pages.find(p => p._id === currentPageId);
         setCoverPosition(currentPage?.coverPosition ?? 50);
     };
-
     useEffect(() => {
         const handleBeforeUnload = () => {
             debouncedSave.flush();
@@ -498,10 +1231,139 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
+            debouncedSave.flush();
         };
     }, [debouncedSave]);
+    useEffect(() => {
+        const handleOpenInlineEmoji = () => setShowInlineEmojiPicker(true);
+        window.addEventListener('notion:open-inline-emoji', handleOpenInlineEmoji);
+        return () => window.removeEventListener('notion:open-inline-emoji', handleOpenInlineEmoji);
+    }, []);
 
 
+    const handleOpenMoveTo = () => {
+        if (!editor) return;
+        const { selection } = editor.state;
+        const node = selection.$from.parent;
+        setBlockToMove(node.toJSON());
+        setShowMoveToModal(true);
+    };
+
+    const handleExecuteMoveBlock = async (targetPage) => {
+        setShowMoveToModal(false);
+        if (!blockToMove || !editor || !currentPageId) return;
+
+
+        const { selection } = editor.state;
+        const from = selection.$from.before(1);
+        const to = selection.$from.after(1);
+        editor.chain().focus().deleteRange({ from, to }).run();
+
+
+        const updatedContent = editor.getJSON();
+        const currentTitle = titleRef.current?.innerText?.trim() || "Untitled";
+        saveContent(updatedContent, currentTitle);
+
+
+        let targetContent = targetPage.content;
+        if (typeof targetContent === 'string') {
+            try {
+                targetContent = JSON.parse(targetContent);
+            } catch {
+                targetContent = { type: 'doc', content: [] };
+            }
+        }
+
+        if (!targetContent || !targetContent.content) {
+            targetContent = { type: 'doc', content: [] };
+        }
+
+        const nextTargetDoc = {
+            ...targetContent,
+            content: [...targetContent.content, blockToMove],
+        };
+
+
+        await updatePageContent(targetPage._id, {
+            title: targetPage.title || "Untitled",
+            content: nextTargetDoc,
+            userEmail: userEmailRef.current,
+        });
+
+
+        setPages((prev) =>
+            prev.map((p) =>
+                p._id === targetPage._id ? { ...p, content: nextTargetDoc } : p
+            )
+        );
+
+        setBlockToMove(null);
+    };
+    const handleToggleFavorite = async () => {
+
+        if (activeDatabaseRowItem?.row) {
+            const nextFav = !activeDatabaseRowItem.row.isFavorite;
+            handleUpdateActiveRowField('isFavorite', nextFav);
+            return;
+        }
+
+
+        if (!currentPageId) return;
+        const newFavoriteStatus = !isFavorite;
+        setIsFavorite(newFavoriteStatus);
+
+        setPages(prev =>
+            prev.map(p => (p._id === currentPageId ? { ...p, isFavorite: newFavoriteStatus } : p))
+        );
+
+        try {
+            await updatePageContent(currentPageId, {
+                title: titleRef.current?.innerText?.trim() || "Untitled",
+                content: editor?.getJSON(),
+                isFavorite: newFavoriteStatus,
+                userEmail: userEmailRef.current,
+            });
+        } catch (err) {
+            console.error("Failed to update favorite status:", err);
+        }
+    };
+
+
+
+
+
+
+    const [workspaceName, setWorkspaceName] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('app-workspace-name') || `${userEmail.split('@')[0]}'s Notion`;
+        }
+        return `${userEmail.split('@')[0]}'s Notion`;
+    });
+
+    const [workspaceIcon, setWorkspaceIcon] = useState(() => {
+        if (typeof window === 'undefined') return null;
+        const saved = localStorage.getItem('app-workspace-icon');
+        if (!saved) return null;
+        try {
+            return JSON.parse(saved);
+        } catch {
+            return saved;
+        }
+    });
+
+    const handleWorkspaceNameChange = (name) => {
+        setWorkspaceName(name);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('app-workspace-name', name);
+        }
+    };
+
+    const handleWorkspaceIconChange = (icon) => {
+        setWorkspaceIcon(icon);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('app-workspace-icon', typeof icon === 'string' ? icon : JSON.stringify(icon));
+        }
+    };
 
 
     const updateHandlePosition = useCallback((targetElement, isTitle = false) => {
@@ -526,6 +1388,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
     const handleUpdateIcon = async (selectedIcon) => {
         setPageIcon(selectedIcon);
         setShowIconPicker(false);
+        setLastEditedTime(new Date());
 
         if (currentPageId) {
             setPages(prev =>
@@ -541,31 +1404,302 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             setSavingStatus(res.success ? "Saved" : "Error");
         }
     };
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) {
+                setShowPlusMenu(false);
+            }
+        };
+        if (showPlusMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showPlusMenu]);
+    useEffect(() => {
+        const handleOpenLinker = () => setShowPageLinkModal(true);
+        window.addEventListener('notion:open-page-linker', handleOpenLinker);
+        return () => window.removeEventListener('notion:open-page-linker', handleOpenLinker);
+    }, []);
+
 
 
 
     const saveContent = useCallback((json, title) => {
 
-        const cleanTitle = title.replace(/\n/g, '').trim();
+        if (isSwitchingPageRef.current) return;
 
+        const currentActivePage = pagesRef.current.find(p => p._id === currentPageId);
+        const existingTitle = currentActivePage?.title || "Untitled";
 
-        if (!isLoading && currentPageId && cleanTitle.length > 0) {
+        let cleanTitle = (title || "").replace(/\n/g, '').trim();
+        if (!cleanTitle || cleanTitle === "Untitled") {
+            cleanTitle = existingTitle;
+        }
+
+        if (!isLoading && currentPageId) {
             debouncedSave(json, cleanTitle, currentPageId);
         }
     }, [currentPageId, debouncedSave, isLoading]);
 
 
-
     useEffect(() => {
-        if (!editor || !currentPageId) return;
+        const handleTriggerImport = (e) => {
+            const type = e.detail?.type || 'markdown';
+            setImportType(type);
+            if (importInputRef.current) {
+                if (type === 'csv') importInputRef.current.accept = '.csv';
+                else if (type === 'pdf') importInputRef.current.accept = '.pdf';
+                else importInputRef.current.accept = '.md,.markdown,.txt';
+                importInputRef.current.value = '';
+                importInputRef.current.click();
+            }
+        };
 
-        editor.setOptions({
-            onUpdate: ({ editor }) => {
-                const currentTitle = titleRef.current?.innerText || "Untitled";
-                saveContent(editor.getJSON(), currentTitle);
-            },
-        });
-    }, [editor, currentPageId, saveContent]);
+        window.addEventListener('notion:trigger-import', handleTriggerImport);
+        return () => window.removeEventListener('notion:trigger-import', handleTriggerImport);
+    }, []);
+    const handleFileImport = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !editor) return;
+
+
+
+
+        if (importType === 'csv') {
+            Papa.parse(file, {
+                skipEmptyLines: 'greedy',
+                complete: (results) => {
+                    const data = results.data;
+                    if (!data || data.length === 0) return;
+
+                    const headers = data[0];
+                    const dataRows = data.slice(1);
+
+
+                    const properties = headers.map((header, idx) => {
+                        const cleanName = String(header || '').trim() || `Column ${idx + 1}`;
+
+
+                        if (idx === 0) {
+                            return { id: 'prop-title', name: cleanName, type: 'title' };
+                        }
+
+
+                        const colValues = dataRows.map(r => r[idx]);
+                        const colType = detectColumnType(colValues);
+
+                        return {
+                            id: `prop-${Date.now()}-${idx}`,
+                            name: cleanName,
+                            type: colType,
+                        };
+                    });
+
+
+                    const rows = dataRows.map((rowArr, rIdx) => {
+                        const values = {};
+                        properties.forEach((prop, cIdx) => {
+                            const raw = String(rowArr[cIdx] ?? '').trim();
+                            if (prop.type === 'number') {
+                                values[prop.id] = raw !== '' && !isNaN(Number(raw)) ? Number(raw) : '';
+                            } else if (prop.type === 'checkbox') {
+                                values[prop.id] = ['true', 'yes', '1'].includes(raw.toLowerCase());
+                            } else {
+                                values[prop.id] = raw;
+                            }
+                        });
+
+                        return {
+                            id: `row-${Date.now()}-${rIdx}`,
+                            icon: { type: 'emoji', value: '♡' },
+                            cover: '',
+                            coverPosition: 50,
+                            date: (() => {
+                                const d = new Date();
+                                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            })(),
+                            isFavorite: false,
+                            values,
+                            content: { type: 'doc', content: [{ type: 'paragraph' }] },
+                        };
+                    });
+
+
+                    const dbTitle = file.name.replace(/\.[^/.]+$/, '').trim() || 'Imported Database';
+
+
+                    editor
+                        .chain()
+                        .focus()
+                        .insertContent({
+                            type: 'databaseBlock',
+                            attrs: {
+                                title: dbTitle,
+                                activeViewId: 'view-table',
+                                views: [
+                                    { id: 'view-table', name: 'Table', type: 'table' },
+                                    { id: 'view-board', name: 'Board', type: 'board' },
+                                ],
+                                properties,
+                                rows,
+                            },
+                        })
+                        .run();
+
+
+                    const updatedJson = editor.getJSON();
+                    const currentTitle = titleRef.current?.innerText?.trim() || 'Untitled';
+                    saveContent(updatedJson, currentTitle);
+                },
+                error: (err) => {
+                    console.error('CSV Parsing Error:', err);
+                },
+            });
+        }
+
+
+
+        else if (importType === 'pdf') {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const extractedLines = [];
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const items = textContent.items;
+
+                    if (!items || items.length === 0) continue;
+
+
+                    let currentY = null;
+                    let currentLine = '';
+
+                    for (const item of items) {
+                        const str = item.str;
+                        if (!str && !item.hasEOL) continue;
+
+                        const y = Math.round(item.transform[5]);
+
+
+                        if (currentY !== null && Math.abs(currentY - y) > 5) {
+                            if (currentLine.trim()) {
+                                extractedLines.push(currentLine.trim());
+                            }
+                            currentLine = str;
+                            currentY = y;
+                        } else {
+                            if (currentY === null) currentY = y;
+
+                            if (currentLine && !currentLine.endsWith(' ') && !str.startsWith(' ')) {
+                                currentLine += ' ' + str;
+                            } else {
+                                currentLine += str;
+                            }
+                        }
+                    }
+                    if (currentLine.trim()) {
+                        extractedLines.push(currentLine.trim());
+                    }
+                }
+
+
+                const mergedLines = [];
+                for (let i = 0; i < extractedLines.length; i++) {
+                    let line = extractedLines[i];
+                    if (line.endsWith('-') && i + 1 < extractedLines.length) {
+                        const nextLine = extractedLines[i + 1];
+                        const firstWord = nextLine.split(' ')[0];
+                        const rest = nextLine.slice(firstWord.length).trim();
+                        line = line.slice(0, -1) + firstWord;
+                        extractedLines[i + 1] = rest;
+                    }
+                    if (line.trim()) mergedLines.push(line.trim());
+                }
+
+
+                const nodes = [];
+
+                for (const rawLine of mergedLines) {
+                    const line = rawLine.trim();
+                    if (!line) continue;
+
+                    if (/^(Complexity Proof|Practice Questions|Midterm|Exam|Assignment|Homework)/i.test(line) && line.length < 60) {
+                        nodes.push({
+                            type: 'heading',
+                            attrs: { level: 1 },
+                            content: [{ type: 'text', text: line }],
+                        });
+                    }
+
+                    else if (/^(Part\s+\d+|Section\s+\d+|Chapter\s+\d+):?/i.test(line)) {
+                        nodes.push({
+                            type: 'heading',
+                            attrs: { level: 2 },
+                            content: [{ type: 'text', text: line }],
+                        });
+                    }
+
+                    else if (/^\d+[\.\)]\s+/.test(line)) {
+                        nodes.push({
+                            type: 'paragraph',
+                            content: [
+                                {
+                                    type: 'text',
+                                    marks: [{ type: 'bold' }],
+                                    text: line.match(/^\d+[\.\)]\s+/)[0],
+                                },
+                                {
+                                    type: 'text',
+                                    text: line.replace(/^\d+[\.\)]\s+/, ''),
+                                },
+                            ],
+                        });
+                    }
+
+                    else {
+                        nodes.push({
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: line }],
+                        });
+                    }
+                }
+
+                if (nodes.length > 0) {
+                    editor.chain().focus().insertContent(nodes).run();
+                }
+            } catch (err) {
+                console.error('Failed to parse PDF:', err);
+            }
+        }
+    };
+    useEffect(() => {
+        const handleCreateSubpageDatabase = async () => {
+            const result = await createPage(userEmail);
+            if (result.success) {
+                const initialDatabaseDoc = {
+                    type: 'doc',
+                    content: [{ type: 'databaseBlock', attrs: { title: 'Untitled Database', currentView: 'table' } }]
+                };
+                await updatePageContent(result.pageId, {
+                    title: 'Untitled Database',
+                    content: initialDatabaseDoc,
+                    userEmail: userEmailRef.current
+                });
+                const sidebarResult = await getPages(userEmail);
+                setPages(sidebarResult.pages);
+                loadPage(result.pageId);
+            }
+        };
+
+        window.addEventListener('notion:create-subpage-database', handleCreateSubpageDatabase);
+        return () => window.removeEventListener('notion:create-subpage-database', handleCreateSubpageDatabase);
+    }, [userEmail, loadPage]);
+
+
+
+
     useEffect(() => {
         const currentPage = pages.find(p => p._id === currentPageId);
 
@@ -576,7 +1710,7 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
                 titleRef.current._lastValue = syncTitle;
             }
         }
-    }, [currentPageId]);
+    }, [currentPageId,pages]);
 
 
     if (!isMounted) return null;
@@ -589,80 +1723,214 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
         );
     }
 
+    const renderWorkspaceIcon = (icon, size = 16) => {
+        if (!icon) {
+            return (
+                <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-xs">
+                    {userEmail?.[0]?.toUpperCase() || 'U'}
+                </div>
+            );
+        }
+
+
+        if (typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('data:'))) {
+            return <img src={icon} alt="Workspace" className="w-full h-full object-cover rounded" />;
+        }
+
+
+        if (typeof icon === 'string') {
+            return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{icon}</span>;
+        }
+
+
+        if (icon.type === 'emoji' && icon.value) {
+            return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{icon.value}</span>;
+        }
+        if (icon.emoji) {
+            return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{icon.emoji}</span>;
+        }
+
+
+        return <PageIcon icon={icon} size={size} />;
+    };
     return (
-        <div className="flex h-screen bg-white overflow-hidden font-sans text-slate-900">
+        <div className="flex h-screen bg-white dark:bg-[#191919] overflow-hidden font-sans text-slate-900 dark:text-[#EBEBEB] transition-colors">
 
             <aside
-                className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 ease-in-out bg-[#FBFBFA] border-r border-gray-200 flex flex-col z-20 overflow-hidden`}
+                className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 ease-in-out bg-[#FBFBFA] dark:bg-[#202020] border-r border-gray-200 dark:border-[#2F2F2F] flex flex-col z-20 overflow-hidden`}
             >
                 <div className="p-4 flex flex-col h-full min-w-[256px]">
-                    <div className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 rounded-lg cursor-pointer transition-colors">
-                        <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
-                            {userEmail[0].toUpperCase()}
+
+                    <div
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="flex items-center gap-2 px-2 py-1.5 mb-6 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg cursor-pointer transition-colors"
+                    >
+                        <div className="w-6 h-6 rounded flex items-center justify-center overflow-hidden shrink-0">
+                            {renderWorkspaceIcon(workspaceIcon, 16)}
                         </div>
-                        <span className="font-semibold text-sm text-slate-700 truncate">
-                            {`${userEmail.split('@')[0]}'s Notion`}
-                        </span>
+                        <span className="font-semibold text-sm text-slate-700 dark:text-slate-200 truncate">
+                {workspaceName}
+            </span>
                     </div>
 
+
+
                     <nav className="flex-1 space-y-1">
-                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
-                            Home
-                        </button>
-                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
-                            Library
-                        </button>
-                        <div className="mt-8">
+
+
+
+
+                        {allFavorites.length > 0 && (
+                            <div className="mt-6">
+                                <div className="px-3 mb-1">
+                                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Favorites</span>
+                                </div>
+                                <div className="space-y-0.5">
+                                    {allFavorites.map((item) => {
+                                        const isRow = item.isDatabaseRow;
+                                        const itemId = item.id || item._id;
+
+                                        const isSelected = isRow
+                                            ? activeDatabaseRowItem?.row?.id === itemId
+                                            : currentPageId === itemId && !activeDatabaseRowItem;
+
+                                        return (
+                                            <button
+                                                key={`fav-${itemId}`}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (isRow) {
+                                                        setActiveDatabaseRowItem({
+                                                            row: item.rowData,
+                                                            parentTitle: item.parentTitle,
+                                                            properties: item.properties,
+                                                        });
+                                                    } else {
+                                                        loadPage(itemId);
+                                                    }
+                                                }}
+                                                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors text-left ${
+                                                    isSelected
+                                                        ? 'bg-gray-200 dark:bg-[#2C2C2C] text-slate-900 dark:text-white font-medium'
+                                                        : 'text-slate-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C]/50'
+                                                }`}
+                                            >
+                                                {item.icon ? (
+                                                    typeof item.icon === 'string' ? (
+                                                        <span>{item.icon}</span>
+                                                    ) : (
+                                                        <PageIcon icon={item.icon} size={16} />
+                                                    )
+                                                ) : (
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                                    </svg>
+                                                )}
+                                                <span className="truncate">{item.title || "Untitled"}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="mt-6">
                             <div className="flex items-center justify-between px-3 mb-2 group">
-                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Private</span>
+                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recents</span>
                                 <button
                                     onClick={handleCreatePage}
                                     className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 rounded transition-all"
                                 >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                    <Plus size={14} />
                                 </button>
                             </div>
 
                             <div className="space-y-0.5">
-                                {pages.map((page) => (
-                                    <div key={page._id} className="group relative">
-                                        <button
-                                            onClick={() => loadPage(page._id)}
-                                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                                                currentPageId === page._id
-                                                    ? 'bg-gray-200 text-slate-900 font-medium'
-                                                    : 'text-slate-600 hover:bg-gray-200/50'
-                                            }`}
-                                        >
-                                            {page.icon ? (
-                                                <PageIcon icon={page.icon} size={16} />
-                                            ) : (
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                                            )}
-                                            <span className="truncate pr-6">{page.title || "Untitled"}</span>
-                                        </button>
+                                {(() => {
+
+                                    const recentIds = new Set(recentsList.map(r => r.id || r._id));
 
 
-                                        <button
-                                            onClick={(e) => handleDeletePage(e, page._id)}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-300 rounded text-gray-400 hover:text-red-500 transition-all"
-                                            title="Delete page"
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                        </button>
-                                    </div>
-                                ))}
+                                    const unvisitedPages = pages
+                                        .filter(p => !recentIds.has(p._id))
+                                        .map(p => ({
+                                            id: p._id,
+                                            _id: p._id,
+                                            title: p.title || 'Untitled',
+                                            icon: p.icon,
+                                            isDatabaseRow: false,
+                                        }));
+
+                                    const displayList = [...recentsList, ...unvisitedPages];
+
+                                    return displayList.map((item) => {
+                                        const isRow = item.isDatabaseRow;
+                                        const itemId = item.id || item._id;
+                                        const isSelected = isRow
+                                            ? activeDatabaseRowItem?.row?.id === itemId
+                                            : currentPageId === itemId && !activeDatabaseRowItem;
+
+                                        return (
+                                            <div key={itemId} className="group relative flex items-center">
+                                                <button
+                                                    onClick={() => {
+                                                        if (isRow) {
+                                                            setActiveDatabaseRowItem({
+                                                                row: item.rowData,
+                                                                parentTitle: item.parentTitle,
+                                                                properties: item.properties,
+                                                            });
+                                                        } else {
+                                                            loadPage(itemId);
+                                                        }
+                                                    }}
+                                                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-sm rounded-lg transition-colors ${
+                                                        isSelected
+                                                            ? 'bg-gray-200 text-slate-900 font-medium'
+                                                            : 'text-slate-600 hover:bg-gray-200/50'
+                                                    }`}
+                                                >
+                                                    {item.icon ? (
+                                                        typeof item.icon === 'string' ? (
+                                                            <span>{item.icon}</span>
+                                                        ) : (
+                                                            <PageIcon icon={item.icon} size={16} />
+                                                        )
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">♡</span>
+                                                    )}
+                                                    <span className="truncate pr-14 text-left">{item.title || "Untitled"}</span>
+                                                </button>
+
+                                                {!isRow && (
+                                                    <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => handleDeletePage(e, itemId)}
+                                                            className="p-1 rounded hover:bg-gray-300/80 text-gray-500 hover:text-red-600 transition-colors"
+                                                            title="Delete page"
+                                                        >
+                                                            <MoreHorizontal size={14} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    });
+                                })()}
                             </div>
                         </div>
-                        <button className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-gray-200/50 rounded-lg transition-colors group">
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm font-medium text-slate-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-[#2C2C2C] rounded-lg transition-colors group"
+                        >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                             Settings
                         </button>
                     </nav>
 
-                    <div className="mt-auto pt-4 border-t border-gray-200">
+                    <div className="mt-auto pt-4 border-t border-gray-200 dark:border-[#2F2F2F]">
                         <button  onClick={()=> logout()}  className="w-full text-left px-2 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 transition-colors">
                             Log out
                         </button>
@@ -671,337 +1939,1112 @@ const Dashboard = ({ userEmail = "nehakondabathini1234@gmail.com" }) => {
             </aside>
 
 
-            <div className="flex-1 flex flex-col min-w-0 bg-white relative">
-                <header className="h-11 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md z-10">
-                    <button
-                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                    </button>
-                    <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${savingStatus === "Saving..." ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                            {savingStatus}
-                        </span>
-                    </div>
-                </header>
-
-                <div className="flex-1 overflow-y-auto">
-                    {coverImage && (
-                        <div
-                            className={`relative w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
-                                isRepositioning
-                                    ? (isDraggingCover ? 'cursor-grabbing' : 'cursor-grab')
-                                    : 'group/cover'
-                            }`}
-                            onMouseDown={handleMouseDownCover}
+            <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#191919] relative transition-colors">
+                <header className="h-11 flex items-center justify-between px-4 bg-white/80 dark:bg-[#191919]/80 backdrop-blur-md z-20 border-b border-gray-100 dark:border-[#2F2F2F]">
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded-md text-gray-500 dark:text-gray-400 transition-colors"
                         >
-                            <img
-                                src={coverImage}
-                                alt="Cover"
-                                className="w-full h-full object-cover pointer-events-none select-none"
-                                style={{ objectPosition: `center ${coverPosition}%` }}
-                            />
-
-                            {isRepositioning ? (
-                                <div className="absolute top-4 w-full flex justify-between px-8 items-center z-10 pointer-events-none">
-                                    <div className="px-3 py-1.5 bg-black/60 text-white text-xs rounded shadow-sm">
-                                        Drag image to reposition
-                                    </div>
-                                    <div className="flex items-center gap-2 pointer-events-auto">
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleCancelReposition(); }}
-                                            className="px-3 py-1.5 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded transition-all"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleSavePosition(); }}
-                                            className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded transition-all"
-                                        >
-                                            Save position
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={() => setShowCoverPicker(prev => !prev)}
-                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
-                                    >
-                                        Change cover
-                                    </button>
-                                    <button
-                                        onClick={() => setIsRepositioning(true)}
-                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
-                                    >
-                                        Reposition
-                                    </button>
-                                    <button
-                                        onClick={handleRemoveCover}
-                                        className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm backdrop-blur-sm transition-all"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    <main
-                        ref={containerRef}
-                        onMouseMove={handleMouseMove}
-                        className={`max-w-3xl mx-auto px-16 relative group pb-40 ${coverImage ? 'mt-8' : 'mt-16'}`}
-                    >
-
-                        <div
-                            className="absolute flex items-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100"
-                            style={{
-                                transform: `translate3d(calc(-100% - 180px), ${handlePos.top}px, 0)`,
-                                transition: 'transform 100ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms',
-                            }}
-                        >
-                            <button
-                                className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 transition-colors"
-                                onClick={() => editor?.chain().focus().insertContent('<p></p>').run()}
-                            >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            </button>
-                            <div className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 cursor-grab active:cursor-grabbing">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" /><circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" /></svg>
-                            </div>
-                        </div>
-
-                        {showCoverPicker && (
-                            <div className="absolute top-0 right-16 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
-                                    <button
-                                        onClick={() => setShowCoverPicker(false) }
-                                        className="text-gray-400 hover:text-gray-600 text-xs"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 mb-3">
-                                    {NOTION_COVERS.map((url, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => handleUpdateCover(url)}
-                                            className="h-16 rounded overflow-hidden border border-gray-100 hover:scale-[1.02] transition-transform"
-                                        >
-                                            <img src={url} alt="preset" className="w-full h-full object-cover" />
-                                        </button>
-                                    ))}
-                                </div>
-                                <div>
-                                    <div className="space-y-2 pt-2 border-t border-gray-100">
-
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            onChange={handleFileUpload}
-                                            accept="image/png, image/jpeg, image/webp, image/gif"
-                                            className="hidden"
-                                        />
-
-                                        <button
-                                            type="button"
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-medium rounded border border-gray-200 transition-colors"
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                                <polyline points="17 8 12 3 7 8" />
-                                                <line x1="12" y1="3" x2="12" y2="15" />
-                                            </svg>
-                                            Upload custom image
-                                        </button>
-                                        <div className="text-[10px] text-gray-400 text-center">Max file size: 5MB</div>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="3" y1="12" x2="21" y2="12"></line>
+                                <line x1="3" y1="6" x2="21" y2="6"></line>
+                                <line x1="3" y1="18" x2="21" y2="18"></line>
+                            </svg>
+                        </button>
 
 
-                                        {uploadError && (
-                                            <p className="text-[11px] text-red-500 font-medium text-center">{uploadError}</p>
-                                        )}
-
-
-                                        <input
-                                            type="text"
-                                            placeholder="Or paste image link & press Enter..."
-                                            className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500"
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && e.currentTarget.value) {
-                                                    handleUpdateCover(e.currentTarget.value);
-                                                }
-                                            }}
-                                        />
-                                    </div>
-
-                                </div>
-                            </div>
-                        )}
-
-
-                        {!coverImage && (
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity mb-2 flex items-center gap-2">
+                        {activeDatabaseRowItem && (
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
                                 <button
-                                    onClick={() => setShowCoverPicker(true)}
-                                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                    onClick={() => setActiveDatabaseRowItem(null)}
+                                    className="hover:underline text-gray-500 font-medium truncate max-w-[140px]"
                                 >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                                    Add cover
+                                    {activeDatabaseRowItem.parentTitle || 'Database'}
                                 </button>
+                                <span>/</span>
+                                <span className="text-slate-800 font-medium truncate max-w-[160px]">
+                                    {activeDatabaseRowItem.row?.values?.['prop-title'] || 'Untitled'}
+                                </span>
                             </div>
                         )}
-                        <div className="flex items-center gap-2 mb-2 -ml-45">
-                            {pageIcon ? (
-                                <div className="relative inline-block">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowIconPicker(prev => !prev)}
-                                        className={`p-1 rounded-lg hover:bg-gray-200/50 transition-colors flex items-center justify-center border-none bg-transparent shadow-none outline-none ${
-                                            coverImage ? '-mt-16' : ''
-                                        }`}
-                                    >
-                                        <PageIcon icon={pageIcon} size={coverImage ? 56 : 44} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowIconPicker(true)}
-                                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                    >
-                                        <Smile size={14} />
-                                        Add icon
-                                    </button>
-                                </div>
-                            )}
+                    </div>
 
-                            {!coverImage && (
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={() => setShowCoverPicker(true)}
-                                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                                        Add cover
-                                    </button>
-                                </div>
-                            )}
+                    <div className="flex items-center gap-1.5 text-slate-500">
+
+                        <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 select-none">
+                            <div
+                                className={`w-2 h-2 rounded-full ${
+                                    savingStatus === "Saving..."
+                                        ? "bg-amber-400 animate-pulse"
+                                        : savingStatus === "Error"
+                                            ? "bg-red-400"
+                                            : "bg-emerald-400"
+                                }`}
+                            />
+                            <span>
+                                {savingStatus === "Saving..."
+                                    ? "Saving..."
+                                    : savingStatus === "Error"
+                                        ? "Failed to save"
+                                        : formatRelativeTime(lastEditedTime)}
+                            </span>
                         </div>
 
 
-                        {showIconPicker && (
-                            <div className="relative z-50">
-                                <div className="absolute top-0 left-0">
-                                    <IconPickerModal
-                                        onSelect={(selected) => handleUpdateIcon(selected)}
-                                        onClose={() => setShowIconPicker(false)}
+                        <button
+                            type="button"
+                            onClick={handleToggleFavorite}
+                            className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
+                            title={
+                                (activeDatabaseRowItem ? activeDatabaseRowItem.row?.isFavorite : isFavorite)
+                                    ? "Remove from Favorites"
+                                    : "Add to Favorites"
+                            }
+                        >
+                            <Star
+                                size={16}
+                                className={
+                                    (activeDatabaseRowItem ? activeDatabaseRowItem.row?.isFavorite : isFavorite)
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-gray-400 hover:text-gray-600"
+                                }
+                            />
+                        </button>
+
+
+                        <div ref={moreMenuRef} className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setShowMoreMenu((prev) => !prev)}
+                                className="p-1.5 hover:bg-gray-100 rounded-md text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <MoreHorizontal size={18} />
+                            </button>
+
+                            {showMoreMenu && (
+                                <div className="absolute right-0 top-full mt-1 z-50">
+                                    <PageMoreMenu
+                                        editor={editor}
+                                        onClose={() => setShowMoreMenu(false)}
+                                        onDeletePage={() => {
+                                            setShowMoreMenu(false);
+                                            if (activeDatabaseRowItem) {
+                                                handleDeleteActiveRow();
+                                            } else if (currentPageId) {
+                                                handleDeletePage({ stopPropagation: () => {} }, currentPageId);
+                                            }
+                                        }}
+                                        fontStyle={fontStyle}
+                                        setFontStyle={setFontStyle}
+                                        isSmallText={isSmallText}
+                                        setIsSmallText={setIsSmallText}
+                                        isFullWidth={isFullWidth}
+                                        setIsFullWidth={setIsFullWidth}
+                                        userEmail={userEmail}
                                     />
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
+                    </div>
+                </header>
+                <div className="flex-1 overflow-y-auto">
+                    {activeDatabaseRowItem ? (
+                        <div className="w-full">
 
-
-                        <h1
-                            ref={titleRef}
-                            contentEditable
-                            suppressContentEditableWarning={true}
-                            data-placeholder="Untitled"
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    editor?.chain().focus().run();
-                                }
-                            }}
-                            onInput={(e) => {
-                                const text = e.currentTarget.innerText;
-                                saveContent(editor?.getJSON(), text);
-
-                            }}
-                            onBlur={(e) => {
-                                const text = e.currentTarget.innerText.trim();
-                                if (text === "") {
-                                    const fallback = "Untitled";
-                                    e.currentTarget.innerText = fallback;
-                                    saveContent(editor?.getJSON(), fallback);
-                                }
-                            }}
-                            className="-ml-45 text-5xl font-bold mb-8 outline-none text-slate-800 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300">
-
-
-
-                        </h1>
-
-                        {editor && (
-                            <>
-                                <BubbleMenu
-                                    editor={editor}
-                                    tippyOptions={{ duration: 150}}
-                                    className="flex items-center gap-0.5 bg-white border border-gray-200 shadow-xl rounded-lg p-1.5 "
+                            {activeDatabaseRowItem.row?.cover && (
+                                <div
+                                    className={`relative z-0 w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
+                                        isRowRepositioning
+                                            ? (isDraggingRowCover ? 'cursor-grabbing' : 'cursor-grab')
+                                            : 'group/cover'
+                                    }`}
+                                    onMouseDown={handleMouseDownRowCover}
                                 >
-                                    <button className="flex items-center gap-1.5 px-2 py-1 hover:bg-gray-100 rounded text-xs font-semibold text-gray-700 transition-colors">
-                                        T
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6"/></svg>
-                                    </button>
+                                    <img
+                                        src={activeDatabaseRowItem.row.cover}
+                                        alt="Cover"
+                                        className="w-full h-full object-cover pointer-events-none select-none"
+                                        style={{ objectPosition: `center ${rowCoverPosition}%` }}
+                                    />
 
-                                    <VerticalDivider />
-
-                                    <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')}>
-                                        <span className="font-bold text-[13px]">B</span>
-                                    </ToolbarButton>
-
-                                    <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')}>
-                                        <span className="italic serif text-[14px]">I</span>
-                                    </ToolbarButton>
-
-                                    <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')}>
-                                        <span className="underline text-[13px] underline-offset-2">U</span>
-                                    </ToolbarButton>
-
-                                    <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} isActive={editor.isActive('code')}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                                    </ToolbarButton>
-
-                                    <VerticalDivider />
-
-                                    <ToolbarButton onClick={() => {
-                                        const url = window.prompt('Enter URL');
-                                        if (url) editor.chain().focus().setLink({ href: url }).run();
-                                    }} isActive={editor.isActive('link')}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                                    </ToolbarButton>
-
-                                    <ToolbarButton>
-                                        <div className="flex flex-col items-center leading-none">
-                                            <span className="text-[13px] font-semibold text-gray-700">A</span>
-                                            <div className="w-3 h-0.5 bg-red-500 rounded-full mt-0.5" />
+                                    {isRowRepositioning ? (
+                                        <div className="absolute top-4 w-full flex justify-between px-8 items-center z-10 pointer-events-none select-none">
+                                            <div className="px-3 py-1.5 bg-black/60 text-white text-xs rounded shadow-sm">
+                                                Drag image to reposition
+                                            </div>
+                                            <div className="flex items-center gap-2 pointer-events-auto">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleCancelRowReposition(); }}
+                                                    className="px-3 py-1.5 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded transition-all"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleSaveRowPosition(); }}
+                                                    className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded transition-all"
+                                                >
+                                                    Save position
+                                                </button>
+                                            </div>
                                         </div>
-                                    </ToolbarButton>
+                                    ) : (
+                                        <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity select-none">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowRowCoverPicker(prev => !prev)}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm"
+                                            >
+                                                Change cover
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsRowRepositioning(true)}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm"
+                                            >
+                                                Reposition
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleUpdateActiveRowField('cover', '')}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
-                                    <VerticalDivider />
+                            <main
+                                ref={containerRef}
+                                onMouseMove={handleMouseMove}
+                                className={`ml-8 sm:ml-12 mr-auto relative group/rowpage pb-40 transition-all duration-150 ${
+                                    isFullWidth ? 'max-w-6xl pr-14' : 'max-w-4xl pr-16'
+                                } ${
+                                    activeDatabaseRowItem.row?.cover ? 'mt-0' : 'mt-10'
+                                } ${
+                                    fontStyle === 'serif' ? 'font-serif' : fontStyle === 'mono' ? 'font-mono' : 'font-sans'
+                                } ${
+                                    isSmallText ? 'text-xs' : 'text-base'
+                                }`}
+                            >
 
-                                    <ToolbarButton>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
-                                    </ToolbarButton>
-                                </BubbleMenu>
+                                <div className="flex items-center gap-2 min-h-[28px] mb-1 select-none">
+                                    <div className="flex items-center gap-1.5 opacity-0 group-hover/rowpage:opacity-100 transition-opacity duration-150">
+                                        {!activeDatabaseRowItem.row?.icon && (
+                                            <div className="flex items-center gap-2 min-h-[28px] mb-1 select-none">
+                                                <div className="flex items-center gap-1.5 opacity-0 group-hover/rowpage:opacity-100 transition-opacity duration-150">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowIconPicker(true)}
+                                                        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
+                                                    >
+                                                        <Smile size={14} /> Add icon
+                                                    </button>
+                                                    {!activeDatabaseRowItem.row?.cover && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowRowCoverPicker(true)}
+                                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                                                <polyline points="21 15 16 10 5 21" />
+                                                            </svg>
+                                                            Add cover
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
 
-                                <FloatingMenu editor={editor} className="flex gap-1 bg-white border border-gray-200 shadow-lg rounded-lg p-1.5 animate-in fade-in slide-in-from-bottom-2">
-                                    <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</button>
-                                    <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleTaskList().run()}>Task List</button>
-                                    <button className="px-2 py-1 text-xs font-medium hover:bg-gray-100 rounded" onClick={() => editor.chain().focus().toggleBulletList().run()}>Bullet List</button>
 
-                                </FloatingMenu>
-                            </>
-                        )}
+                                {showIconPicker && (
+                                    <div className="relative z-50">
+                                        <div className="absolute top-0 left-0">
+                                            <IconPickerModal
+                                                initialTab="icons"
+                                                onSelect={(selected) => {
+                                                    handleUpdateActiveRowField('icon', selected);
+                                                    setShowIconPicker(false);
+                                                }}
+                                                onClose={() => setShowIconPicker(false)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
-                        <EditorContent editor={editor} />
-                    </main>
+
+                                {showRowCoverPicker && (
+                                    <div className="relative z-50 mb-4">
+                                        <div className="absolute top-0 left-0 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-72 z-50 select-none">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowRowCoverPicker(false)}
+                                                    className="text-gray-400 hover:text-gray-600 text-xs"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 mb-3">
+                                                {NOTION_COVERS.map((url, i) => (
+                                                    <button
+                                                        key={i}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            handleUpdateActiveRowField('cover', url);
+                                                            setShowRowCoverPicker(false);
+                                                        }}
+                                                        className="h-16 rounded overflow-hidden border border-gray-100 hover:scale-[1.02] transition-transform"
+                                                    >
+                                                        <img src={url} alt="preset" className="w-full h-full object-cover" />
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <div className="space-y-2 pt-2 border-t border-gray-100">
+                                                <input
+                                                    type="file"
+                                                    ref={rowFileInputRef}
+                                                    onChange={handleRowFileUpload}
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => rowFileInputRef.current?.click()}
+                                                    className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-medium rounded border border-gray-200 transition-colors"
+                                                >
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                        <polyline points="17 8 12 3 7 8" />
+                                                        <line x1="12" y1="3" x2="12" y2="15" />
+                                                    </svg>
+                                                    Upload custom image
+                                                </button>
+                                                <div className="text-[10px] text-gray-400 text-center">Max file size: 1MB</div>
+
+                                                {rowUploadError && (
+                                                    <p className="text-[11px] text-red-500 font-medium text-center">{rowUploadError}</p>
+                                                )}
+
+                                                <input
+                                                    type="text"
+                                                    placeholder="Paste image link & press Enter..."
+                                                    className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500 text-slate-800"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && e.currentTarget.value) {
+                                                            handleUpdateActiveRowField('cover', e.currentTarget.value);
+                                                            setShowRowCoverPicker(false);
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+
+
+                                {activeDatabaseRowItem.row?.icon && (
+                                    <div className={`relative z-10 flex items-center gap-3 mb-2 ${
+                                        activeDatabaseRowItem.row?.cover ? '-mt-16 sm:-mt-20' : ''
+                                    }`}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowIconPicker(true)}
+                                            className="group/iconbtn p-1 rounded-xl hover:bg-black/5 transition-all flex items-center justify-center cursor-pointer select-none"
+                                            title="Change icon"
+                                        >
+                                            {typeof activeDatabaseRowItem.row.icon === 'string' ? (
+                                                <span className="text-6xl sm:text-7xl leading-none drop-shadow-xs">
+                                                    {activeDatabaseRowItem.row.icon}
+                                                </span>
+                                            ) : (
+                                                <div className="flex items-center justify-center">
+                                                    <PageIcon
+                                                        icon={activeDatabaseRowItem.row.icon}
+                                                        size={activeDatabaseRowItem.row?.cover ? 72 : 56}
+                                                    />
+                                                </div>
+                                            )}
+                                        </button>
+
+
+                                        {!activeDatabaseRowItem.row?.cover && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowRowCoverPicker(true)}
+                                                className="opacity-0 group-hover/rowpage:opacity-100 flex items-center gap-1.5 text-xs text-gray-400 hover:text-slate-700 px-2 py-1 rounded-md hover:bg-gray-100 transition-all select-none cursor-pointer"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                                    <polyline points="21 15 16 10 5 21" />
+                                                </svg>
+                                                Add cover
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+
+                                <input
+                                    type="text"
+                                    value={activeDatabaseRowItem.row?.values?.['prop-title'] || ''}
+                                    placeholder="Untitled"
+                                    onChange={(e) => handleUpdateActiveRowField('title', e.target.value)}
+                                    className="text-4xl sm:text-5xl font-bold mb-6 outline-none text-slate-800 tracking-tight leading-tight w-full bg-transparent placeholder:text-gray-300"
+                                />
+
+
+                                <div className="space-y-3 pb-8 mb-6 border-b border-gray-100 text-xs">
+                                    {(activeDatabaseRowItem.properties || [])
+                                        .filter(p => p.type !== 'title')
+                                        .map((prop) => (
+                                            <div key={prop.id} className="flex items-center">
+                                                <div className="w-36 flex items-center gap-1.5 text-gray-400 select-none font-medium">
+                                                    <span>{prop.name}</span>
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={activeDatabaseRowItem.row?.values?.[prop.id] || ''}
+                                                    placeholder="Empty"
+                                                    onChange={(e) => handleUpdateActiveRowField('property', { propId: prop.id, propValue: e.target.value })}
+                                                    className="border border-gray-200/80 px-2 py-1 rounded-md focus:outline-none w-full max-w-sm text-slate-800 placeholder:text-gray-300"
+                                                />
+                                            </div>
+                                        ))}
+                                </div>
+
+
+                                <div className="min-h-[400px]">
+                                    <RowEditor
+                                        key={activeDatabaseRowItem.row.id}
+                                        initialContent={activeDatabaseRowItem.row.content}
+                                        onChange={handleUpdateActiveRowContent}
+                                        userEmail={userEmail}
+                                    />
+                                </div>
+                            </main>
+                        </div>
+                    ) : (
+
+                        <>
+                            {coverImage && (
+                                <div
+                                    className={`relative w-full h-52 sm:h-64 overflow-hidden bg-gray-100 ${
+                                        isRepositioning
+                                            ? (isDraggingCover ? 'cursor-grabbing' : 'cursor-grab')
+                                            : 'group/cover'
+                                    }`}
+                                    onMouseDown={handleMouseDownCover}
+                                >
+                                    <img
+                                        src={coverImage}
+                                        alt="Cover"
+                                        className="w-full h-full object-cover pointer-events-none select-none"
+                                        style={{ objectPosition: `center ${coverPosition}%` }}
+                                    />
+
+                                    {isRepositioning ? (
+                                        <div className="absolute top-4 w-full flex justify-between px-8 items-center z-10 pointer-events-none">
+                                            <div className="px-3 py-1.5 bg-black/60 text-white text-xs rounded shadow-sm">
+                                                Drag image to reposition
+                                            </div>
+                                            <div className="flex items-center gap-2 pointer-events-auto">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleCancelReposition(); }}
+                                                    className="px-3 py-1.5 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded transition-all"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleSavePosition(); }}
+                                                    className="px-3 py-1.5 text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white rounded transition-all"
+                                                >
+                                                    Save position
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="absolute bottom-3 right-8 flex items-center gap-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => setShowCoverPicker(prev => !prev)}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
+                                            >
+                                                Change cover
+                                            </button>
+                                            <button
+                                                onClick={() => setIsRepositioning(true)}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-slate-700 rounded shadow-sm backdrop-blur-sm transition-all"
+                                            >
+                                                Reposition
+                                            </button>
+                                            <button
+                                                onClick={handleRemoveCover}
+                                                className="px-2.5 py-1 text-xs font-medium bg-white/90 hover:bg-white text-red-600 rounded shadow-sm backdrop-blur-sm transition-all"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <main
+                                ref={containerRef}
+                                onMouseMove={handleMouseMove}
+                                className={`ml-10 sm:ml-14 mr-auto relative group pb-40 transition-all duration-150 ${
+                                    isFullWidth ? 'max-w-6xl pr-14' : 'max-w-4xl pr-16'
+                                } ${
+                                    coverImage ? 'mt-0' : 'mt-12'
+                                } ${
+                                    fontStyle === 'serif' ? 'font-serif' : fontStyle === 'mono' ? 'font-mono' : 'font-sans'
+                                } ${
+                                    isSmallText ? 'text-xs' : 'text-base'
+                                }`}
+                            >
+                                <div
+                                    ref={plusMenuRef}
+                                    className="absolute flex items-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100"
+                                    style={{
+                                        transform: `translate3d(-52px, ${handlePos.top}px, 0)`,
+                                        transition: 'transform 100ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms',
+                                    }}
+                                >
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 transition-colors"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowPlusMenu((prev) => !prev);
+                                            }}
+                                        >
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
+                                        </button>
+
+                                        {showPlusMenu && (
+                                            <div className="absolute left-0 top-full mt-1 z-50">
+                                                <SlashCommandList
+                                                    items={plusMenuItems}
+                                                    command={(item) => {
+                                                        if (item.command && editor) {
+                                                            const { from, to } = editor.state.selection;
+                                                            item.command({ editor, range: { from, to } });
+                                                        }
+                                                        setShowPlusMenu(false);
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+
+                                    <div ref={blockMenuRef} className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowBlockMenu((prev) => !prev);
+                                                setShowPlusMenu(false);
+                                            }}
+                                            className="p-1 hover:bg-gray-100 rounded text-gray-300 hover:text-gray-600 cursor-pointer transition-colors"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                <circle cx="9" cy="6" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="9" cy="18" r="2" />
+                                                <circle cx="15" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="15" cy="18" r="2" />
+                                            </svg>
+                                        </button>
+
+                                        {showBlockMenu && (
+                                            <div className="absolute left-0 top-full mt-1 z-50">
+                                                <BlockActionMenu
+                                                    editor={editor}
+                                                    userEmail={userEmail}
+                                                    onClose={() => setShowBlockMenu(false)}
+                                                    onOpenMoveTo={handleOpenMoveTo}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {showCoverPicker && (
+                                    <div className="absolute top-0 right-16 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Presets</span>
+                                            <button
+                                                onClick={() => setShowCoverPicker(false)}
+                                                className="text-gray-400 hover:text-gray-600 text-xs"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 mb-3">
+                                            {NOTION_COVERS.map((url, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => handleUpdateCover(url)}
+                                                    className="h-16 rounded overflow-hidden border border-gray-100 hover:scale-[1.02] transition-transform"
+                                                >
+                                                    <img src={url} alt="preset" className="w-full h-full object-cover" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div>
+                                            <div className="space-y-2 pt-2 border-t border-gray-100">
+                                                <input
+                                                    type="file"
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileUpload}
+                                                    accept="image/png, image/jpeg, image/webp, image/gif"
+                                                    className="hidden"
+                                                />
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-gray-50 hover:bg-gray-100 text-slate-700 text-xs font-medium rounded border border-gray-200 transition-colors"
+                                                >
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                        <polyline points="17 8 12 3 7 8" />
+                                                        <line x1="12" y1="3" x2="12" y2="15" />
+                                                    </svg>
+                                                    Upload custom image
+                                                </button>
+                                                <div className="text-[10px] text-gray-400 text-center">Max file size: 1MB</div>
+
+                                                {uploadError && (
+                                                    <p className="text-[11px] text-red-500 font-medium text-center">{uploadError}</p>
+                                                )}
+
+                                                <input
+                                                    type="text"
+                                                    placeholder="Or paste image link & press Enter..."
+                                                    className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded focus:outline-none focus:border-blue-500"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && e.currentTarget.value) {
+                                                            handleUpdateCover(e.currentTarget.value);
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!coverImage && (
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity mb-2 flex items-center gap-2">
+                                        <button
+                                            onClick={() => setShowCoverPicker(true)}
+                                            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                                            Add cover
+                                        </button>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-2 mb-2">
+
+                                    {pageIcon ? (
+                                        <div className={`relative z-10 inline-block select-none ${coverImage ? '-mt-12 sm:-mt-14 mb-2' : 'mt-4 mb-3'}`}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowIconPicker((prev) => !prev)}
+                                                className="group/iconbtn p-1 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer"
+                                                title="Change icon"
+                                            >
+                                                {typeof pageIcon === 'string' ? (
+                                                    <span className="text-6xl sm:text-7xl leading-none drop-shadow-xs">
+                    {pageIcon}
+                </span>
+                                                ) : (
+                                                    <div className="flex items-center justify-center drop-shadow-xs">
+                                                        <PageIcon icon={pageIcon} size={coverImage ? 76 : 60} />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity mb-2 flex items-center gap-2 select-none">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowIconPicker(true)}
+                                                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors"
+                                            >
+                                                <Smile size={14} />
+                                                Add icon
+                                            </button>
+                                            {!coverImage && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCoverPicker(true)}
+                                                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors"
+                                                >
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                                                    Add cover
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {showIconPicker && (
+                                        <div className="relative z-50">
+                                            <div className="absolute top-0 left-0">
+                                                <IconPickerModal
+                                                    onSelect={(selected) => handleUpdateIcon(selected)}
+                                                    onClose={() => setShowIconPicker(false)}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    </div>
+
+
+                                    <h1
+                                        ref={titleRef}
+                                        contentEditable
+                                        suppressContentEditableWarning={true}
+                                        data-placeholder="Untitled"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                editor?.chain().focus().run();
+                                            }
+                                        }}
+                                        onInput={(e) => {
+                                            const text = e.currentTarget.innerText;
+                                            saveContent(editor?.getJSON(), text);
+                                        }}
+                                        onBlur={(e) => {
+                                            const text = e.currentTarget.innerText.trim();
+                                            if (text === "") {
+                                                const fallback = "Untitled";
+                                                e.currentTarget.innerText = fallback;
+                                                saveContent(editor?.getJSON(), fallback);
+                                            }
+                                        }}
+                                        className="w-full text-4xl sm:text-5xl font-bold mb-6 outline-none text-slate-800 dark:text-slate-100 tracking-tight leading-tight empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300 dark:empty:before:text-[#474747]"
+                                    />
+
+                                {editor && (
+                                    <BubbleMenu
+                                        editor={editor}
+                                        tippyOptions={{
+                                            duration: 150,
+                                            placement: 'top-start',
+                                            offset: [0, 10],
+                                        }}
+                                        className="w-64 bg-white dark:bg-[#222222] border border-gray-200/80 dark:border-[#333333] shadow-2xl rounded-2xl p-2.5 flex flex-col gap-2 z-50 text-slate-700 dark:text-slate-200 select-none animate-in fade-in zoom-in-95 duration-100"
+                                    >
+                                        <div className="flex items-center justify-between px-0.5">
+
+                                            <div ref={colorPopoverRef} className="relative">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowColorPopover((prev) => !prev)}
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors"
+                                                    title="Text & Background Color"
+                                                >
+                                                    <div className="flex flex-col items-center justify-center leading-none">
+                                                        <span className="font-semibold text-xs text-slate-700 dark:text-slate-200">A</span>
+                                                        <span className="w-3 h-0.5 bg-blue-500 rounded-full mt-0.5" />
+                                                    </div>
+                                                </button>
+
+                                                {showColorPopover && (
+                                                    <div
+                                                        className="absolute left-0 top-full mt-1.5 z-50 w-52 bg-white dark:bg-[#202020] border border-gray-200/90 dark:border-[#2F2F2F] shadow-2xl rounded-2xl p-3 animate-in fade-in zoom-in-95 duration-100 select-none text-left"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+
+                                                        <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-2 px-0.5">
+                                                            Text colour
+                                                        </div>
+                                                        <div className="grid grid-cols-5 gap-1.5 mb-3">
+                                                            {NOTION_BUBBLE_COLORS.text.map((item) => (
+                                                                <button
+                                                                    key={item.key}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (item.color) {
+                                                                            editor.chain().focus().setColor(item.color).run();
+                                                                        } else {
+                                                                            editor.chain().focus().unsetColor().run();
+                                                                        }
+                                                                        setShowColorPopover(false);
+                                                                    }}
+                                                                    className="w-8 h-8 rounded-lg border border-gray-200 dark:border-[#333] hover:border-gray-400 dark:hover:border-gray-500 hover:scale-105 transition-all flex items-center justify-center bg-white dark:bg-[#262626]"
+                                                                    title={item.label}
+                                                                >
+                                    <span
+                                        className="font-bold text-sm leading-none"
+                                        style={{ color: item.preview }}
+                                    >
+                                        A
+                                    </span>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+
+
+                                                        <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-2 px-0.5">
+                                                            Background colour
+                                                        </div>
+                                                        <div className="grid grid-cols-5 gap-1.5">
+                                                            {NOTION_BUBBLE_COLORS.bg.map((item) => (
+                                                                <button
+                                                                    key={item.key}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (item.color) {
+                                                                            editor.chain().focus().setHighlight({ color: item.color }).run();
+                                                                        } else {
+                                                                            editor.chain().focus().unsetHighlight().run();
+                                                                        }
+                                                                        setShowColorPopover(false);
+                                                                    }}
+                                                                    className={`w-8 h-8 rounded-lg hover:scale-105 transition-all flex items-center justify-center ${
+                                                                        item.border
+                                                                            ? 'border border-gray-300 dark:border-[#444]'
+                                                                            : 'border border-transparent'
+                                                                    }`}
+                                                                    style={{ backgroundColor: item.preview }}
+                                                                    title={item.label}
+                                                                >
+                                                                    {item.border && (
+                                                                        <span className="w-4 h-0.5 bg-red-400 rotate-45 rounded-full" />
+                                                                    )}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleBold().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-colors ${
+                                                    editor.isActive('bold') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Bold"
+                                            >
+                                                B
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleItalic().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-serif italic transition-colors ${
+                                                    editor.isActive('italic') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Italic"
+                                            >
+                                                I
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs underline underline-offset-2 transition-colors ${
+                                                    editor.isActive('underline') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Underline"
+                                            >
+                                                U
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
+                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-slate-800 transition-colors"
+                                                title="Clear formatting"
+                                            >
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                                    <path d="M4 7V4h16v3" />
+                                                    <path d="M9 20h6" />
+                                                    <path d="M12 4v16" />
+                                                    <line x1="18" y1="18" x2="22" y2="22" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        <div className="flex items-center justify-between px-0.5">
+
+                                            <div ref={linkPopoverRef} className="relative">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowColorPopover(false);
+                                                        const currentHref = editor.getAttributes('link').href || '';
+                                                        setLinkInputQuery(currentHref.startsWith('#') ? '' : currentHref);
+                                                        setShowLinkPopover((prev) => !prev);
+                                                    }}
+                                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                        editor.isActive('link')
+                                                            ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-semibold'
+                                                            : 'text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-[#2C2C2C]'
+                                                    }`}
+                                                    title="Add Link or Link to Page"
+                                                >
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                                    </svg>
+                                                </button>
+
+                                                {showLinkPopover && (
+                                                    <div
+                                                        className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-[#202020] border border-gray-200/90 dark:border-[#2F2F2F] shadow-2xl rounded-2xl p-2.5 animate-in fade-in zoom-in-95 duration-100 select-none text-left"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+
+                                                        <div className="relative mb-2">
+                                                            <input
+                                                                type="text"
+                                                                value={linkInputQuery}
+                                                                autoFocus
+                                                                placeholder="Paste link or search pages"
+                                                                onChange={(e) => setLinkInputQuery(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        handleApplyWebLink(linkInputQuery);
+                                                                    }
+                                                                }}
+                                                                className="w-full text-xs bg-transparent border border-blue-500 rounded-lg px-2.5 py-1.5 focus:outline-none text-slate-800 dark:text-slate-100 placeholder:text-gray-400"
+                                                            />
+                                                        </div>
+
+
+                                                        {linkInputQuery.trim() && (
+                                                            <div className="mb-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleApplyWebLink(linkInputQuery)}
+                                                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs hover:bg-gray-100 dark:hover:bg-[#2C2C2C] text-blue-600 dark:text-blue-400 font-medium text-left truncate"
+                                                                >
+                                                                    <span className="shrink-0 text-gray-400">🔗</span>
+                                                                    <span className="truncate">Link to web page: <span className="underline">{linkInputQuery}</span></span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+
+                                                        <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">
+                                                            {linkInputQuery.trim() ? 'Matching Pages' : 'Recents'}
+                                                        </div>
+
+                                                        <div className="max-h-48 overflow-y-auto space-y-0.5">
+                                                            {(() => {
+                                                                const sourcePages = (recentsList && recentsList.length > 0) ? recentsList : pages;
+                                                                const filtered = sourcePages.filter((p) => {
+                                                                    const name = (p.title || 'Untitled').toLowerCase();
+                                                                    return name.includes(linkInputQuery.trim().toLowerCase());
+                                                                });
+
+                                                                if (filtered.length === 0) {
+                                                                    return (
+                                                                        <div className="px-2 py-2 text-xs text-gray-400 text-center">
+                                                                            No pages found
+                                                                        </div>
+                                                                    );
+                                                                }
+
+                                                                return filtered.map((p) => {
+                                                                    const pageId = String(p._id || p.id);
+                                                                    return (
+                                                                        <button
+                                                                            key={`link-page-${pageId}`}
+                                                                            type="button"
+                                                                            onClick={() => handleApplyPageLink(p)}
+                                                                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#2C2C2C] text-xs text-slate-700 dark:text-slate-200 transition-colors text-left"
+                                                                        >
+                                <span className="shrink-0 flex items-center justify-center text-sm">
+                                    {p.icon ? (
+                                        typeof p.icon === 'string' ? (
+                                            p.icon
+                                        ) : (
+                                            <PageIcon icon={p.icon} size={14} />
+                                        )
+                                    ) : (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                            <polyline points="14 2 14 8 20 8" />
+                                        </svg>
+                                    )}
+                                </span>
+                                                                            <span className="truncate font-medium">{p.title || 'Untitled'}</span>
+                                                                        </button>
+                                                                    );
+                                                                });
+                                                            })()}
+                                                        </div>
+
+
+                                                        {editor.isActive('link') && (
+                                                            <div className="pt-1.5 mt-1.5 border-t border-gray-100 dark:border-[#2F2F2F]">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                                                                        setShowLinkPopover(false);
+                                                                        setLinkInputQuery('');
+                                                                        const updatedJson = editor.getJSON();
+                                                                        saveContent(updatedJson, titleRef.current?.innerText?.trim() || 'Untitled');
+                                                                    }}
+                                                                    className="w-full text-left px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors"
+                                                                >
+                                                                    Remove link
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleStrike().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                    editor.isActive('strike') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Strikethrough"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                                    <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+                                                    <path d="M14 12a4 4 0 0 1 0 8H6" />
+                                                    <line x1="4" y1="12" x2="20" y2="12" />
+                                                </svg>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleCode().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                    editor.isActive('code') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Inline Code"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                                    <polyline points="16 18 22 12 16 6" />
+                                                    <polyline points="8 6 2 12 8 18" />
+                                                </svg>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                    editor.isActive('codeBlock') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-gray-100'
+                                                }`}
+                                                title="Code Block"
+                                            >
+                                                <span className="font-serif italic text-xs font-semibold text-slate-700">√x</span>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const currentText = editor.state.doc.textBetween(
+                                                        editor.state.selection.from,
+                                                        editor.state.selection.to
+                                                    );
+                                                    navigator.clipboard.writeText(currentText);
+                                                }}
+                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-slate-700 transition-colors"
+                                                title="Copy selection"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                    <circle cx="12" cy="12" r="1" />
+                                                    <circle cx="19" cy="12" r="1" />
+                                                    <circle cx="5" cy="12" r="1" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </BubbleMenu>
+                                )}
+
+                                <div className="relative w-full">
+                                    <EditorContent editor={editor} />
+                                    <TableControlsOverlay editor={editor} />
+                                </div>
+                            </main>
+                        </>
+                    )}
                 </div>
             </div>
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                userEmail={userEmail}
+                theme={theme}
+                onThemeChange={handleThemeChange}
+                workspaceName={workspaceName}
+                onWorkspaceNameChange={handleWorkspaceNameChange}
+                workspaceIcon={workspaceIcon}
+                onWorkspaceIconChange={handleWorkspaceIconChange}
+            />
+            <PageLinkModal
+                isOpen={showPageLinkModal}
+                onClose={() => setShowPageLinkModal(false)}
+                pages={pages}
+                currentPageId={currentPageId}
+                onSelectPage={handleInsertPageLink}
+            />
+            <MoveToModal
+                isOpen={showMoveToModal}
+                onClose={() => setShowMoveToModal(false)}
+                pages={pages}
+                currentPageId={currentPageId}
+                onSelectDestination={handleExecuteMoveBlock}
+            />
+            <input
+                type="file"
+                ref={importInputRef}
+                onChange={handleFileImport}
+                className="hidden"
+            />
+            {showInlineEmojiPicker && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[0.5px]"
+                    onClick={() => setShowInlineEmojiPicker(false)}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <IconPickerModal
+                            initialTab="emoji"
+                            onSelect={handleSelectInlineEmoji}
+                            onClose={() => setShowInlineEmojiPicker(false)}
+                        />
+                    </div>
+                </div>
+            )}
+
+
+
         </div>
+
     );
 };
 

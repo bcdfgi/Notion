@@ -76,6 +76,7 @@ export const SlashCommandList = forwardRef((props, ref) => {
                     </React.Fragment>
                 );
             })}
+
         </div>
     );
 });
