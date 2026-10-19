@@ -44,6 +44,7 @@ Bash
 git clone https://github.com/your-username/notion-web.git
 cd notion-web
 npm install
+npm install next react react-dom mongodb @tiptap/core @tiptap/react @tiptap/starter-kit @tiptap/suggestion @tiptap/extension-placeholder @tiptap/extension-task-list @tiptap/extension-task-item @tiptap/extension-table @tiptap/extension-table-row @tiptap/extension-table-cell @tiptap/extension-table-header @tiptap/extension-code-block @tiptap/extension-code @tiptap/extension-link @tiptap/extension-color @tiptap/extension-text-style @tiptap/extension-underline @tiptap/extension-highlight lucide-react tippy.js emoji-picker-react katex pdfjs-dist papaparse marked cheerio @react-oauth/google resend lodash.debounce
 ```
 
 #### 3. Environment Configuration
@@ -73,6 +74,24 @@ npm run dev
 ```
 
 Open http://localhost:3000 to access your workspace.
+
+📈 What I Learned
+Headless ProseMirror & TipTap Extensions: Built custom interactive nodes and marks using ReactNodeViewRenderer and NodeViewWrapper, managing complex two-way synchronization between ProseMirror's document schema and React component state.
+
+Dynamic Popover & Menu Architecture: Integrated tippy.js and @tiptap/suggestion to calculate cursor-anchored coordinates for floating slash commands (/) and inline block action menus.
+
+Asynchronous Document Persistence: Implemented client-side write debouncing (lodash.debounce) combined with Next.js Server Actions to autosave document states to MongoDB Atlas without causing layout shifts or typing latency.
+
+Data Parsing & Client-Side Extraction: Processed diverse external media types directly in the browser and server, leveraging pdfjs-dist workers for in-editor PDF viewports, papaparse for spreadsheet ingest, and cheerio for server-side OpenGraph metadata scraping.
+
+Dual Auth Pipelines: Configured hybrid authentication combining OAuth 2.0 token exchanges (@react-oauth/google) with tokenized, passwordless Magic Link delivery through Resend and secure HTTP-only cookies.
+
+.
+
+🔮 Future Improvements
+Full-Text Workspace Search: Implement MongoDB Atlas Search with fuzzy matching across nested document trees, block contents, and database properties.
+
+Expanded Database Automations: Support rollup properties, recurring database tasks, and cross-database relation lookups.
 
 ### 👩‍💻 Author
 
