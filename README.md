@@ -103,8 +103,4 @@ Open http://localhost:3000 to access your workspace.
 **Neha Kondabathini** | Adelaide, Australia  
 [nehakondabathini1234@gmail.com](mailto:nehakondabathini1234@gmail.com)
 
-### 👩‍💻 Author
 
-**Neha Kondabathini** | Adelaide, Australia
-
-nehakondabathini1234@gmail.com
