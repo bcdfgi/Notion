@@ -77,7 +77,7 @@ npm run dev
 
 Open http://localhost:3000 to access your workspace.
 
----
+
 
 ### 📈 What I Learned
 
@@ -87,7 +87,7 @@ Open http://localhost:3000 to access your workspace.
 - **Data Parsing & Client-Side Extraction:** Processed diverse external media types directly in the browser and server, leveraging `pdfjs-dist` workers for in-editor PDF viewports, `papaparse` for spreadsheet ingest, and `cheerio` for server-side OpenGraph metadata scraping.
 - **Dual Auth Pipelines:** Configured hybrid authentication combining OAuth 2.0 token exchanges (`@react-oauth/google`) with tokenized, passwordless Magic Link delivery through Resend and secure HTTP-only cookies.
 
----
+
 
 ### 🔮 Future Improvements
 
