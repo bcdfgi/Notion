@@ -1,3 +1,126 @@
 @import "tailwindcss";
 
 
+
+@layer components {
+
+    .tiptap p.is-editor-empty:first-child::before {
+        @apply text-gray-300 float-left h-0 pointer-events-none;
+        content: attr(data-placeholder);
+    }
+
+
+    .tiptap ul[data-type="taskList"] {
+        @apply list-none p-0 my-4;
+    }
+
+    .tiptap ul[data-type="taskList"] li {
+        @apply flex items-start mb-2;
+    }
+
+    .tiptap ul[data-type="taskList"] li > label {
+        @apply flex-none mr-3 select-none mt-1;
+    }
+
+    .tiptap ul[data-type="taskList"] input[type="checkbox"] {
+        @apply w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer;
+    }
+
+    .tiptap ul[data-type="taskList"] li > div {
+        @apply flex-auto;
+    }
+
+
+    .tiptap h1, .tiptap h2, .tiptap h3 {
+        @apply outline-none;
+    }
+
+
+    .tiptap ::selection {
+        @apply bg-blue-100;
+    }
+}
+
+
+
+
+
+
+.notion-handle-container {
+    position: absolute;
+    left: -50px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 24px;
+    z-index: 50;
+    transition: top 0.1s ease-out, opacity 0.2s;
+    pointer-events: auto;
+    transform: translateX(-100%);
+    padding-right: 10px;
+}
+
+.handle-btn {
+    @apply p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-600 transition-colors;
+}
+
+
+.editor-shell:hover .notion-handle-container {
+    opacity: 1;
+}
+
+.handle-btn:hover {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+.tiptap ul[data-type="taskList"] {
+    list-style: none;
+    padding: 0;
+}
+
+.tiptap ul[data-type="taskList"] li {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.tiptap ul[data-type="taskList"] li > label {
+    flex: 0 0 auto;
+    user-select: none;
+    margin-right: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.tiptap ul[data-type="taskList"] li > div {
+    flex: 1 1 auto;
+}
+
+@layer components {
+
+    .dark .tiptap p.is-editor-empty:first-child::before {
+        @apply text-[#474747];
+    }
+
+    .dark .tiptap {
+        @apply text-[#EBEBEB];
+    }
+
+
+    .dark .tiptap ::selection {
+        background: #233D5E;
+    }
+
+    .dark .tiptap ul[data-type="taskList"] input[type="checkbox"] {
+        @apply border-[#3F3F3F] bg-[#252525];
+    }
+}
+
+
+.dark .handle-btn {
+    color: #474747;
+}
+
+.dark .handle-btn:hover {
+    background-color: #2C2C2C;
+    color: #EBEBEB;
+}
