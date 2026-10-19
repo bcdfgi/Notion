@@ -43,3 +43,6 @@ yarn-error.log*
 next-env.d.ts
 package.json
 package-lock.json
+AGENTS.md
+CLAUDE.md
+.idea/
