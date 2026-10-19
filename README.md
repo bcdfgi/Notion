@@ -63,6 +63,8 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
 
 # Email Delivery
 RESEND_API_KEY=re_your_resend_api_key
+
+
 ```
 
 #### 4. Running the Development Server
@@ -76,7 +78,7 @@ npm run dev
 Open http://localhost:3000 to access your workspace.
 
 📈 What I Learned
-Headless ProseMirror & TipTap Extensions: Built custom interactive nodes and marks using ReactNodeViewRenderer and NodeViewWrapper, managing complex two-way synchronization between ProseMirror's document schema and React component state.
+Headless ProseMirror & TipTap Extensions: Built custom interactive nodes and marks using ReactNodeViewRenderer and NodeViewWrapper, managing two-way synchronization between ProseMirror's document schema and React component state.
 
 Dynamic Popover & Menu Architecture: Integrated tippy.js and @tiptap/suggestion to calculate cursor-anchored coordinates for floating slash commands (/) and inline block action menus.
 
