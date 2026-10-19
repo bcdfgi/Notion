@@ -95,6 +95,8 @@ Full-Text Workspace Search: Implement MongoDB Atlas Search with fuzzy matching a
 
 Expanded Database Automations: Support rollup properties, recurring database tasks, and cross-database relation lookups.
 
+Real-Time Collaboration: Multi-user editing and live cursors using WebSockets and Yjs / CRDTs.
+
 ### 👩‍💻 Author
 
 **Neha Kondabathini** | Adelaide, Australia
